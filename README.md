@@ -9,6 +9,9 @@ agents/
 ├── commands/       # Prompt templates (all agents)
 ├── skills/         # Skills (all agents)
 ├── extensions/     # Extensions (pi)
+│   ├── answer/     # Q&A extraction from assistant messages
+│   ├── todos/      # File-based todo management
+│   └── notify.ts   # Desktop notifications
 └── themes/         # Themes (pi)
 ```
 
