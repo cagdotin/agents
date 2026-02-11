@@ -23,6 +23,9 @@
     ],
     "extensions": [
       "./extensions"
+    ],
+    "themes": [
+      "./pi-themes/"
     ]
   },
   "peerDependencies": {
