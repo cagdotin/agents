@@ -1,7 +1,10 @@
 
+
 # Agent Notes
 
 This is the repository where I define commands, skills, extensions for all coding agents globally.
+
+see `./README.md` for more
 
 ## Coding Styles
 
@@ -12,3 +15,7 @@ This is the repository where I define commands, skills, extensions for all codin
 ## Extensions
 
 Pi extensions live in ./extensions. When working in this repo, add or update extensions there. You can consult the pi-mono for reference, but do not modify code in pi-mono.
+
+
+
+

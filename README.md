@@ -6,8 +6,8 @@ Shared prompts, skills, and extensions for coding agents.
 
 ```
 agents/
-├── commands/       # Prompt templates (pi) / Commands (claude code)
-├── skills/         # Skills (pi)
+├── commands/       # Prompt templates (all agents)
+├── skills/         # Skills (all agents)
 ├── extensions/     # Extensions (pi)
 └── themes/         # Themes (pi)
 ```
