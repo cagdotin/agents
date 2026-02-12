@@ -9,9 +9,10 @@ agents/
 ├── commands/       # Prompt templates (all agents)
 ├── skills/         # Skills (all agents)
 ├── extensions/     # Extensions (pi)
-│   ├── answer/     # Q&A extraction from assistant messages
-│   ├── todos/      # File-based todo management
-│   └── notify.ts   # Desktop notifications
+│   ├── answer/        # Q&A extraction from assistant messages
+│   ├── todos/         # File-based todo management
+│   ├── tmux-notify/   # Tmux window badge when agent finishes
+│   └── notify.ts      # Desktop notifications (OSC 777)
 └── themes/         # Themes (pi)
 ```
 
