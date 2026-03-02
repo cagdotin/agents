@@ -19,7 +19,7 @@ export default function answer_extension(pi: ExtensionAPI) {
 		handler: (_args, ctx) => handler(ctx),
 	});
 
-	pi.registerShortcut("ctrl+.", {
+	pi.registerShortcut("ctrl+q", {
 		description: "Extract and answer questions",
 		handler,
 	});

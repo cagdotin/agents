@@ -75,9 +75,11 @@ export class QnAComponent implements Component {
 		const editor_theme: EditorTheme = {
 			borderColor: ansi.dim,
 			selectList: {
-				selectedBg: (s: string) => `\x1b[44m${s}\x1b[0m`,
-				matchHighlight: ansi.cyan,
-				itemSecondary: ansi.gray,
+				selectedPrefix: ansi.cyan,
+				selectedText: (s: string) => `\x1b[44m${s}\x1b[0m`,
+				description: ansi.gray,
+				scrollInfo: ansi.dim,
+				noMatch: ansi.dim,
 			},
 		};
 

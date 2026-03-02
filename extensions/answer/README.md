@@ -14,7 +14,7 @@ triggered automatically.
 | Trigger       | Description                        |
 |---------------|------------------------------------|
 | `/answer`     | Command – extract & answer         |
-| `Ctrl+.`      | Shortcut – same flow               |
+| `Ctrl+Q`      | Shortcut – same flow               |
 
 ## How It Works
 
