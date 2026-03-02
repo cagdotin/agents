@@ -29,6 +29,18 @@ View logs for failed steps only:
 gh run view <run-id> --repo owner/repo --log-failed
 ```
 
+## Creating Pull Requests
+
+Always create PRs as **draft**. Before creating, scan the repo for a PR template (e.g. `.github/pull_request_template.md` or `.github/PULL_REQUEST_TEMPLATE/`) and use it to structure the PR description.
+
+```bash
+# Check for a PR template
+find .github -iname '*pull_request_template*' 2>/dev/null
+
+# Create a draft PR using the template
+gh pr create --draft --title "..." --body "..."
+```
+
 ## API for Advanced Queries
 
 The `gh api` command is useful for accessing data not available through other subcommands.
