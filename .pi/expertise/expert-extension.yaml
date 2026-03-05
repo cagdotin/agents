@@ -1,0 +1,56 @@
+domain: expert-extension
+description: "Self-improving domain expertise extension for pi — manages per-domain mental models as YAML files"
+last_synced: "2026-03-05T15:06:00Z"
+
+scope:
+  paths:
+    - extensions/expert/
+
+overview: |
+  A pi extension that gives agents persistent, scoped working memory. Each "domain" is a YAML file
+  in .pi/expertise/. Three capabilities: auto-injection (matches domains to prompt), explicit
+  reflection (router + domain-filtered fan-out), and manual control (expertise tool + /expert command).
+
+design_decisions:
+  - reason: "In-process LLM calls, not subprocesses"
+    detail: |
+      Uses complete() from @mariozechner/pi-ai directly (see llm.ts). Subprocesses broke:
+      (1) no inherited auth/subscription, (2) parallel processes fight over global settings lock.
+      Pattern borrowed from extensions/answer/extraction.ts.
+  - reason: "Model selected once, passed down"
+    detail: |
+      run_reflection_pipeline() calls select_reflection_model() once, passes to both router
+      and reflection. Avoids redundant model selection.
+  - reason: "Reflection is explicit-only, never automatic"
+    detail: |
+      Auto-reflect on agent_end was removed — it blocked next prompt, ran on every cycle
+      regardless of relevance. User should control when learning happens.
+  - reason: "Two-stage reflection: Router → parallel domain experts"
+    detail: |
+      Without domain: router identifies affected domains, then parallel per-domain reflection.
+      With domain: skip router, single-domain reflection.
+  - reason: "Trimming is thoughtful, not aggressive"
+    detail: |
+      Early versions had very aggressive trimming (30-60 line target, "when in doubt leave it out").
+      This caused agents to silently drop valuable insights to hit line counts. Fixed by:
+      (1) raising thresholds (40-80 target, 100-120 codebase concern trigger),
+      (2) changing language from "aggressively" to "thoughtfully",
+      (3) adding explicit pushback mechanism — agent MUST say in reflection_summary when it
+      can't trim further, explaining what it considered removing and why it kept it.
+      Key principle: never silently drop insights just to meet a line target.
+
+gotchas:
+  - "Router XML parse uses regex — fragile if model adds extra whitespace or attributes to XML tags"
+  - "scope.patterns is defined in ExpertiseHeader but currently unused — either implement or remove"
+  - "match_domains_to_prompt() is keyword-only — 'login flow' won't match 'authentication' domain"
+  - "CONTENT_PRINCIPLES constant is shared across tool description, init/update responses, and REFLECTION_PROMPT — changes propagate everywhere"
+
+active_todos:
+  - "TODO-c93e622f: Rendering polish — keyHint on collapsed views, conditional reflect hint"
+  - "TODO-07388ec8: Domain matching — implement scope.patterns, add keywords/aliases, cross-domain awareness"
+  - "TODO-a48d2d97: Context budget check before injection (use ctx.getContextUsage())"
+  - "TODO-6087997f: UX — reflection log viewer (/expert log), /expert init command"
+
+references:
+  - "LLM integration pattern: extensions/expert/llm.ts (modeled after extensions/answer/extraction.ts)"
+  - "Concept origin: IndyDevDan's 'Agent Experts' video"

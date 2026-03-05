@@ -29,15 +29,25 @@ An **Agent Expert** maintains a "mental model" — a YAML file per domain (e.g. 
 ### Auto-Injection (`before_agent_start`)
 When you send a message, the extension matches your prompt against domain names, descriptions, and scope paths. Matching expertise is injected into the system prompt so the agent already "knows" the domain.
 
-### Auto-Reflection (`agent_end`)
-After the agent finishes work that modified files in a domain's scope, a **cheaper model** (configurable) reviews the **entire conversation** — not just the diff — and extracts:
-- Corrections you made ("we don't do it that way")
-- Architectural decisions and their reasoning
-- Patterns and conventions
-- Gotchas and edge cases
+### Reflection (explicit only)
+Reflection is always explicit — triggered by the agent (tool call) or user (`/expert reflect`). There is no auto-reflect.
 
-### Manual Reflection (`/expert reflect`)
-Trigger reflection anytime — useful after committing changes (when diffs are gone) or after a long discussion.
+When triggered **with a specific domain**, reflection goes directly to that domain's expert with domain-filtered conversation context.
+
+When triggered **without a domain**, a two-stage pipeline runs:
+
+**Stage 1 — Router** (single cheap model call):
+- Gets a condensed conversation (user messages full, assistant summarized, tool calls as one-liners, NO tool output)
+- Gets all domain names, descriptions, and scope paths
+- Returns which domains are affected + per-domain reflection points
+- If no domains are affected, stops here
+
+**Stage 2 — Domain Experts** (parallel, one per affected domain):
+- Each expert gets its own expertise YAML
+- Domain-filtered conversation: all user/assistant messages, tool results ONLY for files in that domain's scope
+- Router's reflection points as an attention signal
+- Returns updated expertise YAML + summary
+- All domain experts run in parallel via `Promise.all()`
 
 ## Expertise File Format
 
@@ -96,7 +106,6 @@ Create `.pi/expertise/settings.json`:
 ```json
 {
   "auto_inject": true,
-  "auto_improve": true,
   "reflection_model": "anthropic/claude-3-5-haiku",
   "max_inject_domains": 2
 }
@@ -105,8 +114,7 @@ Create `.pi/expertise/settings.json`:
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `auto_inject` | `true` | Inject matching expertise into system prompt |
-| `auto_improve` | `true` | Auto-reflect after modifying files in a domain's scope |
-| `reflection_model` | `""` (current model) | Model for reflection — use a cheap/fast one |
+| `reflection_model` | `""` (current model) | Model for reflection and routing — use a cheap/fast one |
 | `max_inject_domains` | `2` | Max domains to inject per turn |
 
 ## Reflection Log
@@ -123,8 +131,10 @@ extensions/expert/
 ├── types.ts          # TypeScript types & tool params
 ├── constants.ts      # Paths, defaults, reflection prompt
 ├── storage.ts        # YAML read/write, settings, reflection log
-├── helpers.ts        # Domain matching, file scanning
+├── helpers.ts        # Domain matching, file scanning, conversation formatting
+├── llm.ts            # In-process LLM calls (model selection + complete())
 ├── tool.ts           # The expertise tool (6 actions)
-├── reflection.ts     # Reflection engine (cheap model call)
-└── hooks.ts          # Event hooks (injection + auto-reflect)
+├── reflection.ts     # Reflection engine + pipeline orchestrator
+├── router.ts         # Stage 1: identify affected domains from conversation
+└── hooks.ts          # Event hooks (auto-injection)
 ```

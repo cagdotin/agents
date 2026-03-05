@@ -187,7 +187,6 @@ export async function read_settings(dir: string): Promise<ExpertiseSettings> {
 function normalize_settings(raw: Partial<ExpertiseSettings>): ExpertiseSettings {
 	return {
 		auto_inject: raw.auto_inject ?? DEFAULT_SETTINGS.auto_inject,
-		auto_improve: raw.auto_improve ?? DEFAULT_SETTINGS.auto_improve,
 		reflection_model: typeof raw.reflection_model === "string"
 			? raw.reflection_model
 			: DEFAULT_SETTINGS.reflection_model,

@@ -1,0 +1,37 @@
+domain: extensions-dev
+description: "Patterns and conventions for building pi extensions in this project"
+last_synced: "2026-03-05T13:11:00Z"
+
+scope:
+  paths:
+    - extensions/
+
+overview: |
+  All pi extensions live in extensions/<name>/. Use extensions/todos/ as the gold standard
+  for a full tool + TUI command. Simple extensions (tmux-*) are single-file index.ts.
+  Pi docs (docs/extensions.md, docs/tui.md) cover the API — this expertise covers project-specific
+  conventions and non-obvious decisions.
+
+design_decisions:
+  - reason: "Component stacking over nested ctx.ui.custom()"
+    detail: "Swap active_component inside a single ctx.ui.custom() call instead of nesting. Nesting stacks UI contexts. Overlays (with overlay: true) are the one exception."
+  - reason: "Compact renderResult by default"
+    detail: "Tool results are compact (one line). Users expand for detail. Always append keyHint('expandTools', 'to expand') when collapsed. Handle isPartial with 'Processing...' in warning color."
+  - reason: "Plain text for LLM, themed rendering for TUI"
+    detail: "content[] has plain text/JSON for the LLM. renderResult has themed output for humans. Never mix them."
+  - reason: "Cheap model for LLM calls"
+    detail: "Extensions needing LLM calls (extraction, reflection) try cheap models first. Check API key availability via registry.getApiKey(). See answer/extraction.ts for the pattern."
+
+gotchas:
+  - "StringEnum from pi-ai is required for tool action enums — Type.Union/Type.Literal breaks Google's API"
+  - "DynamicBorder color param needs explicit type annotation: (s: string) => theme.fg('accent', s) — inference breaks without it"
+  - "ctx.ui.custom() blocks until done() is called — nested async work (like opening overlays) must be handled carefully"
+  - "Tool execute() positional params: (toolCallId, params, signal, onUpdate, ctx) — ctx comes last"
+  - "sendMessage with triggerTurn: true injects results back to the agent (used by answer extension)"
+  - "setEditorText pre-fills the prompt editor without sending — set next_prompt, call done(), then setEditorText"
+
+references:
+  - "Gold standard extension: extensions/todos/"
+  - "LLM extraction pattern: extensions/answer/extraction.ts"
+  - "Pi extension API: docs/extensions.md"
+  - "Pi TUI components: docs/tui.md"

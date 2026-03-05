@@ -1,4 +1,4 @@
-import type { ExtensionAPI, Theme } from "@mariozechner/pi-coding-agent";
+import type { Theme } from "@mariozechner/pi-coding-agent";
 import { Text } from "@mariozechner/pi-tui";
 import type { ExpertiseAction, ExpertiseToolDetails } from "./types.js";
 import { ExpertiseParams } from "./types.js";
@@ -13,16 +13,17 @@ import {
 	build_skeleton_yaml,
 	read_settings,
 } from "./storage.js";
-import { run_reflection } from "./reflection.js";
+import { run_reflection_pipeline } from "./reflection.js";
 
-export function create_expertise_tool(pi: ExtensionAPI, dir_label: string) {
+export function create_expertise_tool(dir_label: string) {
 	return {
 		name: "expertise",
 		label: "Expertise",
 		description:
 			`Manage domain expertise files in ${dir_label} — the agent's persistent mental model of specific areas of the codebase. ` +
 			"Actions: list (show all domains), get (read a domain's expertise), init (bootstrap new domain from scope paths), " +
-			"update (replace full YAML content), reflect (extract insights from current conversation and update), delete (remove domain). " +
+			"update (replace full YAML content), reflect (extract insights from current conversation and update — domain is optional, " +
+			"omit to auto-detect affected domains via router), delete (remove domain). " +
 			"After completing work that changes code in a domain's scope, use 'reflect' to update the expertise with learnings from the conversation.\n\n" +
 			CONTENT_PRINCIPLES,
 		parameters: ExpertiseParams,
@@ -166,35 +167,67 @@ export function create_expertise_tool(pi: ExtensionAPI, dir_label: string) {
 				}
 
 				case "reflect": {
-					if (!params.domain) {
-						return error_result("reflect", "domain is required");
-					}
-
 					const settings = await read_settings(expertise_dir);
 					const session_file = ctx.sessionManager.getSessionFile() ?? "unknown";
 					const branch_messages = ctx.sessionManager.getBranch()
 						.filter((e: any) => e.type === "message")
 						.map((e: any) => e.message);
 
-					const result = await run_reflection(
-						pi,
-						params.domain,
+					const pipeline = await run_reflection_pipeline(
 						branch_messages,
 						settings,
 						ctx.cwd,
 						session_file,
+						params.domain || undefined,
 					);
 
-					if ("error" in result) {
-						return error_result("reflect", result.error);
+					if (pipeline.results.length === 0) {
+						const msg = pipeline.router_skipped
+							? "No results from reflection."
+							: "Router found no domains affected by this conversation.";
+						return {
+							content: [{ type: "text", text: msg }],
+							details: { action: "reflect", results: [], router_skipped: pipeline.router_skipped },
+						};
+					}
+
+					const successes = pipeline.results.filter((r) => !r.error);
+					const failures = pipeline.results.filter((r) => r.error);
+
+					const parts: string[] = [];
+					if (successes.length > 0) {
+						parts.push("**Updated:**");
+						for (const r of successes) {
+							parts.push(`- **${r.domain}**: ${r.summary}`);
+						}
+					}
+					if (failures.length > 0) {
+						parts.push("\n**Failed:**");
+						for (const r of failures) {
+							parts.push(`- **${r.domain}**: ${r.error}`);
+						}
+					}
+
+					const has_errors = failures.length > 0 && successes.length === 0;
+					if (has_errors) {
+						return {
+							content: [{ type: "text", text: parts.join("\n") }],
+							details: {
+								action: "reflect",
+								results: pipeline.results,
+								router_skipped: pipeline.router_skipped,
+								error: failures[0].error,
+							},
+						};
 					}
 
 					return {
-						content: [{
-							type: "text",
-							text: `Expertise for '${params.domain}' updated via reflection.\n\n**What changed:**\n${result.summary}`,
-						}],
-						details: { action: "reflect", domain: params.domain, summary: result.summary },
+						content: [{ type: "text", text: parts.join("\n") }],
+						details: {
+							action: "reflect",
+							results: pipeline.results,
+							router_skipped: pipeline.router_skipped,
+						},
 					};
 				}
 
@@ -289,11 +322,31 @@ export function create_expertise_tool(pi: ExtensionAPI, dir_label: string) {
 				}
 
 				case "reflect": {
+					const successes = details.results.filter((r: any) => !r.error);
+					const failures = details.results.filter((r: any) => r.error);
+
+					if (successes.length === 0 && failures.length === 0) {
+						return new Text(theme.fg("dim", "No domains affected"), 0, 0);
+					}
+
+					const domain_names = successes.map((r: any) => r.domain).join(", ");
 					const header = theme.fg("success", "🧠 ") +
 						theme.fg("muted", "Reflected on ") +
-						theme.fg("accent", details.domain);
+						theme.fg("accent", domain_names || "(none)");
+
+					if (failures.length > 0) {
+						const fail_note = theme.fg("error", ` (${failures.length} failed)`);
+						if (!expanded) return new Text(header + fail_note, 0, 0);
+					}
+
 					if (!expanded) return new Text(header, 0, 0);
-					return new Text(`${header}\n${theme.fg("dim", details.summary)}`, 0, 0);
+
+					const detail_lines = successes
+						.map((r: any) => `  ${theme.fg("accent", r.domain)}: ${theme.fg("dim", r.summary)}`)
+						.concat(
+							failures.map((r: any) => `  ${theme.fg("error", r.domain)}: ${theme.fg("dim", r.error)}`),
+						);
+					return new Text(`${header}\n${detail_lines.join("\n")}`, 0, 0);
 				}
 
 				case "delete": {

@@ -6,9 +6,9 @@ import {
 	list_domains,
 	read_settings,
 } from "./storage.js";
-import { run_reflection } from "./reflection.js";
+import { run_reflection_pipeline } from "./reflection.js";
 import { create_expertise_tool } from "./tool.js";
-import { register_injection_hook, register_auto_reflect_hook } from "./hooks.js";
+import { register_injection_hook } from "./hooks.js";
 
 export default function expert_extension(pi: ExtensionAPI) {
 	const dir_label = get_expertise_dir_label(process.cwd());
@@ -20,11 +20,10 @@ export default function expert_extension(pi: ExtensionAPI) {
 	});
 
 	// Register the expertise tool
-	pi.registerTool(create_expertise_tool(pi, dir_label));
+	pi.registerTool(create_expertise_tool(dir_label));
 
 	// Register event hooks
 	register_injection_hook(pi);
-	register_auto_reflect_hook(pi);
 
 	// Register the /expert command
 	pi.registerCommand("expert", {
@@ -69,28 +68,12 @@ export default function expert_extension(pi: ExtensionAPI) {
 
 			// /expert reflect [domain]
 			if (trimmed.startsWith("reflect")) {
-				const domain_arg = trimmed.slice("reflect".length).trim();
+				const domain_arg = trimmed.slice("reflect".length).trim() || undefined;
 
-				// If no domain specified, let user pick
-				let target_domain = domain_arg;
-				if (!target_domain) {
-					const domains = await list_domains(expertise_dir);
-					if (domains.length === 0) {
-						ctx.ui.notify("No expertise domains to reflect on.", "info");
-						return;
-					}
-
-					if (domains.length === 1) {
-						target_domain = domains[0].domain;
-					} else {
-						const choices = domains.map((d) => `${d.domain} — ${d.description}`);
-						const selected = await ctx.ui.select("Reflect on which domain?", choices);
-						if (selected === undefined) return;
-						target_domain = domains[selected].domain;
-					}
-				}
-
-				ctx.ui.setStatus("expert", `🧠 Reflecting on ${target_domain}...`);
+				ctx.ui.setStatus("expert", domain_arg
+					? `🧠 Reflecting on ${domain_arg}...`
+					: "🧠 Router: identifying affected domains...",
+				);
 
 				try {
 					const settings = await read_settings(expertise_dir);
@@ -99,23 +82,41 @@ export default function expert_extension(pi: ExtensionAPI) {
 						.filter((e: any) => e.type === "message")
 						.map((e: any) => e.message);
 
-					const result = await run_reflection(
-						pi,
-						target_domain,
+					const pipeline = await run_reflection_pipeline(
 						branch_messages,
 						settings,
 						ctx.cwd,
 						session_file,
+						domain_arg,
+						(status) => ctx.ui.setStatus("expert", status),
 					);
 
-					if ("error" in result) {
-						ctx.ui.notify(`Reflection failed: ${result.error}`, "error");
-					} else {
-						ctx.ui.notify(
-							`🧠 Expertise updated: ${target_domain}\n\n${result.summary}`,
-							"info",
-						);
+					if (pipeline.results.length === 0) {
+						const msg = pipeline.router_skipped
+							? "No results from reflection."
+							: "Router found no domains affected by this conversation.";
+						ctx.ui.notify(msg, "info");
+						return;
 					}
+
+					const successes = pipeline.results.filter((r) => !r.error);
+					const failures = pipeline.results.filter((r) => r.error);
+
+					const parts: string[] = [];
+					if (successes.length > 0) {
+						parts.push("🧠 Expertise updated:");
+						for (const r of successes) {
+							parts.push(`  ${r.domain}: ${r.summary}`);
+						}
+					}
+					if (failures.length > 0) {
+						parts.push("Failed:");
+						for (const r of failures) {
+							parts.push(`  ${r.domain}: ${r.error}`);
+						}
+					}
+
+					ctx.ui.notify(parts.join("\n"), failures.length > 0 ? "warning" : "info");
 				} catch (err: any) {
 					const message = err instanceof Error ? err.message : String(err);
 					ctx.ui.notify(`Reflection failed: ${message}`, "error");

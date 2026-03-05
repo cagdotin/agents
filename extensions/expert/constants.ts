@@ -5,7 +5,6 @@ export const REFLECTIONS_LOG_NAME = ".reflections.log";
 
 export const DEFAULT_SETTINGS = {
 	auto_inject: true,
-	auto_improve: true,
 	reflection_model: "",
 	max_inject_domains: 2,
 };
@@ -32,10 +31,11 @@ WHAT DOES NOT BELONG (the 10-second rule — if you can figure it out by looking
 
 The test: would a developer need 30 minutes of archaeology to understand this? Include it.
 Could they figure it out in 10 seconds by reading the code? Leave it out.
-When in doubt, leave it out — less is more. A shorter expertise file is a better expertise file.
+Prefer concise expertise — but NEVER silently drop insights just to hit a line count.
+If content is genuinely valuable and hard to discover, it stays.
 
 WHEN EXPERTISE IS HARD TO TRIM — diagnose the root cause:
-If a domain's expertise keeps growing beyond 60-80 lines and nothing can reasonably be cut,
+If a domain's expertise keeps growing beyond 100-120 lines and nothing can reasonably be cut,
 that is a signal about the codebase, not the expertise. Flag it. Common root causes:
 - The domain scope is too broad — split it into smaller domains
 - The code lacks documentation — inline comments or a README would eliminate half the gotchas
@@ -63,8 +63,13 @@ Your task:
 2. Merge these insights into the existing expertise YAML
 3. Preserve existing knowledge that wasn't contradicted
 4. Remove or update knowledge that was corrected in the conversation
-5. ACTIVELY TRIM bloat — remove anything that violates the content principles below
-6. DIAGNOSE — if the expertise is large and hard to trim, ask why. Add a "codebase_concerns"
+5. TRIM thoughtfully — remove items that clearly violate the content principles below, but
+   NEVER silently drop insights just to reduce line count. If something is genuinely hard to
+   discover and saves real time, keep it even if the file grows longer than ideal.
+6. PUSH BACK — if the file is large but you cannot trim further without losing valuable
+   knowledge, say so explicitly in your reflection_summary. Explain what you considered
+   removing and why you kept it. Do NOT blindly cut to hit a target.
+7. DIAGNOSE — if the expertise is large and hard to trim, ask why. Add a "codebase_concerns"
    section flagging structural issues (scope too broad, missing docs, poor naming, implicit
    conventions that should be explicit in code). The goal is to make the expertise unnecessary
    over time, not to document every quirk forever.
@@ -77,13 +82,14 @@ STRUCTURE RULES:
 CONTENT PRINCIPLES:
 ${CONTENT_PRINCIPLES}
 
-TRIMMING RULES — apply these aggressively on every reflection:
-- Review EVERY item in the existing expertise and ask: "does this pass the 10-second rule?"
+TRIMMING RULES — apply thoughtfully, not blindly:
+- Review items against the 10-second rule: if you can figure it out by reading the code, remove it
 - Remove patterns that are just describing what the code does (the code already says that)
 - Remove implementation details that are visible from reading the files
 - Merge overlapping items — don't repeat the same insight in different words
-- Prefer 3 sharp insights over 10 vague ones
-- A good expertise file is typically 30-60 lines, not 100+
+- Prefer sharp insights over vague ones — but keep ALL sharp insights, even if there are many
+- A good expertise file is typically 40-80 lines. Going over is fine if the content earns its place.
+- NEVER silently remove an item to meet a line target. If you can't trim, say so in the summary.
 
 Return your response in exactly this format:
 

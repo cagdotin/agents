@@ -26,9 +26,30 @@ export interface ExpertiseRecord extends ExpertiseHeader {
 
 export interface ExpertiseSettings {
 	auto_inject: boolean;
-	auto_improve: boolean;
 	reflection_model: string;
 	max_inject_domains: number;
+}
+
+// ---------------------------------------------------------------------------
+// Router result — output from the domain-routing stage
+// ---------------------------------------------------------------------------
+
+export interface RouterResult {
+	domain: string;
+	points: string;
+}
+
+// ---------------------------------------------------------------------------
+// Pipeline result — output from full reflection pipeline
+// ---------------------------------------------------------------------------
+
+export interface PipelineResult {
+	results: Array<{
+		domain: string;
+		summary: string;
+		error?: string;
+	}>;
+	router_skipped: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -41,6 +62,17 @@ export interface ReflectionLogEntry {
 	session: string;
 	model: string;
 	summary: string;
+}
+
+// ---------------------------------------------------------------------------
+// Injection notification details
+// ---------------------------------------------------------------------------
+
+export interface ExpertiseInjectionDetails {
+	domains: Array<{
+		domain: string;
+		description: string;
+	}>;
 }
 
 // ---------------------------------------------------------------------------
@@ -81,5 +113,5 @@ export type ExpertiseToolDetails =
 	| { action: "get"; domain: string; expertise: ExpertiseRecord; error?: string }
 	| { action: "init"; domain: string; expertise: ExpertiseRecord; file_listing: string; error?: string }
 	| { action: "update"; domain: string; error?: string }
-	| { action: "reflect"; domain: string; summary: string; error?: string }
+	| { action: "reflect"; results: PipelineResult["results"]; router_skipped: boolean; error?: string }
 	| { action: "delete"; domain: string; error?: string };

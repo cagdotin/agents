@@ -1,16 +1,15 @@
-import fs from "node:fs/promises";
-import os from "node:os";
-import path from "node:path";
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { REFLECTION_PROMPT } from "./constants.js";
 import {
 	read_expertise,
 	write_expertise,
 	append_reflection_log,
 	get_expertise_dir,
+	list_domains,
 } from "./storage.js";
 import { format_conversation_for_reflection } from "./helpers.js";
-import type { ExpertiseSettings, ReflectionLogEntry } from "./types.js";
+import { run_router } from "./router.js";
+import { run_completion } from "./llm.js";
+import type { ExpertiseSettings, ReflectionLogEntry, PipelineResult } from "./types.js";
 
 // ---------------------------------------------------------------------------
 // Reflection result
@@ -22,7 +21,7 @@ export interface ReflectionResult {
 }
 
 // ---------------------------------------------------------------------------
-// Parse reflection output from the cheap model
+// Parse reflection output
 // ---------------------------------------------------------------------------
 
 export function parse_reflection_output(output: string): ReflectionResult | null {
@@ -42,39 +41,45 @@ export function parse_reflection_output(output: string): ReflectionResult | null
 }
 
 // ---------------------------------------------------------------------------
-// Build the reflection input
+// Build the reflection input (user message content)
 // ---------------------------------------------------------------------------
 
 function build_reflection_input(
 	current_expertise_yaml: string,
 	conversation: string,
+	router_points?: string,
 ): string {
-	return `${REFLECTION_PROMPT}
+	const router_section = router_points
+		? `\n## Router Attention Signal
 
----
+The router identified these points as relevant to your domain. Use them as a starting point but still review the full conversation — the router may have missed things.
 
-## Current Expertise File
+${router_points}\n`
+		: "";
+
+	return `## Current Expertise File
 
 \`\`\`yaml
 ${current_expertise_yaml}
 \`\`\`
-
+${router_section}
 ## Conversation Transcript
 
 ${conversation}`;
 }
 
 // ---------------------------------------------------------------------------
-// Run reflection via a cheap model subprocess
+// Run reflection for a single domain
 // ---------------------------------------------------------------------------
 
 export async function run_reflection(
-	pi: ExtensionAPI,
 	domain: string,
 	messages: any[],
-	settings: ExpertiseSettings,
 	cwd: string,
 	session_file: string,
+	settings: ExpertiseSettings,
+	scope_paths?: string[],
+	router_points?: string,
 ): Promise<ReflectionResult | { error: string }> {
 	const expertise_dir = get_expertise_dir(cwd);
 	const existing = await read_expertise(expertise_dir, domain);
@@ -83,44 +88,21 @@ export async function run_reflection(
 		return { error: `Domain '${domain}' not found` };
 	}
 
-	// Format conversation
-	const conversation = format_conversation_for_reflection(messages);
+	// Format conversation — filtered to domain scope when scope_paths provided
+	const conversation = format_conversation_for_reflection(messages, scope_paths);
 	if (!conversation.trim()) {
 		return { error: "No conversation content to reflect on" };
 	}
 
-	// Build the full prompt
-	const prompt = build_reflection_input(existing.raw, conversation);
-
-	// Write to temp file for the subprocess
-	const temp_dir = await fs.mkdtemp(path.join(os.tmpdir(), "pi-expert-"));
-	const prompt_file = path.join(temp_dir, "reflection-prompt.md");
-	await fs.writeFile(prompt_file, prompt, "utf8");
+	// Build the user message content
+	const user_text = build_reflection_input(existing.raw, conversation, router_points);
 
 	try {
-		// Build pi command args
-		const args = [
-			"-p",
-			"--no-tools",
-			"--no-session",
-			"--no-extensions",
-			"--no-skills",
-		];
-
-		if (settings.reflection_model) {
-			args.push("--model", settings.reflection_model);
-		}
-
-		args.push(`@${prompt_file}`);
-
-		const result = await pi.exec("pi", args, { timeout: 120_000 });
-
-		if (result.code !== 0) {
-			const stderr = result.stderr?.trim() || "Unknown error";
-			return { error: `Reflection model failed: ${stderr}` };
-		}
-
-		const output = result.stdout?.trim() || "";
+		const output = await run_completion(
+			REFLECTION_PROMPT,
+			user_text,
+			settings.reflection_model || undefined,
+		);
 		const parsed = parse_reflection_output(output);
 
 		if (!parsed) {
@@ -130,22 +112,130 @@ export async function run_reflection(
 		// Write the updated expertise
 		await write_expertise(expertise_dir, domain, parsed.updated_yaml);
 
-		// Determine which model was actually used for the log
-		const model_label = settings.reflection_model || "current session model";
-
 		// Append to reflection log
 		const log_entry: ReflectionLogEntry = {
 			date: new Date().toISOString(),
 			domain,
 			session: session_file,
-			model: model_label,
+			model: settings.reflection_model || "(default)",
 			summary: parsed.summary,
 		};
 		await append_reflection_log(expertise_dir, log_entry);
 
 		return parsed;
-	} finally {
-		// Clean up temp files
-		await fs.rm(temp_dir, { recursive: true, force: true }).catch(() => {});
+	} catch (err) {
+		const message = err instanceof Error ? err.message : String(err);
+		return { error: `Reflection failed: ${message}` };
 	}
+}
+
+// ---------------------------------------------------------------------------
+// Reflection pipeline — router → parallel domain experts
+// ---------------------------------------------------------------------------
+
+export async function run_reflection_pipeline(
+	messages: any[],
+	settings: ExpertiseSettings,
+	cwd: string,
+	session_file: string,
+	target_domain?: string,
+	on_status?: (message: string) => void,
+): Promise<PipelineResult> {
+	const expertise_dir = get_expertise_dir(cwd);
+
+	// Single-domain shortcut — skip router, go straight to reflection
+	if (target_domain) {
+		const existing = await read_expertise(expertise_dir, target_domain);
+		if (!existing) {
+			return {
+				results: [{ domain: target_domain, summary: "", error: `Domain '${target_domain}' not found` }],
+				router_skipped: true,
+			};
+		}
+
+		on_status?.(`🧠 Reflecting on ${target_domain}...`);
+
+		const result = await run_reflection(
+			target_domain,
+			messages,
+			cwd,
+			session_file,
+			settings,
+			existing.scope.paths,
+		);
+
+		if ("error" in result) {
+			return {
+				results: [{ domain: target_domain, summary: "", error: result.error }],
+				router_skipped: true,
+			};
+		}
+
+		return {
+			results: [{ domain: target_domain, summary: result.summary }],
+			router_skipped: true,
+		};
+	}
+
+	// Full pipeline — Stage 1: Router
+	const domains = await list_domains(expertise_dir);
+	if (domains.length === 0) {
+		return {
+			results: [],
+			router_skipped: false,
+		};
+	}
+
+	on_status?.("🧠 Router: identifying affected domains...");
+
+	const router_result = await run_router(messages, domains, settings);
+
+	if ("error" in router_result) {
+		return {
+			results: [{ domain: "*", summary: "", error: `Router failed: ${router_result.error}` }],
+			router_skipped: false,
+		};
+	}
+
+	if (router_result.length === 0) {
+		return {
+			results: [],
+			router_skipped: false,
+		};
+	}
+
+	// Stage 2: Parallel domain expert reflections
+	const domain_map = new Map(domains.map((d) => [d.domain, d]));
+
+	const reflection_promises = router_result.map(async (r) => {
+		const domain_info = domain_map.get(r.domain);
+		if (!domain_info) {
+			return { domain: r.domain, summary: "", error: `Domain '${r.domain}' not found` };
+		}
+
+		on_status?.(`🧠 Reflecting on ${r.domain}...`);
+
+		const result = await run_reflection(
+			r.domain,
+			messages,
+			cwd,
+			session_file,
+			settings,
+			domain_info.scope.paths,
+			r.points,
+		);
+
+		if ("error" in result) {
+			return { domain: r.domain, summary: "", error: result.error };
+		}
+
+		return { domain: r.domain, summary: result.summary };
+	});
+
+	const results = await Promise.all(reflection_promises);
+
+	return {
+		results,
+		router_skipped: false,
+	};
 }
