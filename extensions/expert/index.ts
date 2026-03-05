@@ -1,4 +1,5 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import { Box, Text } from "@mariozechner/pi-tui";
 import {
 	get_expertise_dir,
 	get_expertise_dir_label,
@@ -8,7 +9,8 @@ import {
 } from "./storage.js";
 import { run_reflection_pipeline } from "./reflection.js";
 import { create_expertise_tool } from "./tool.js";
-import { register_injection_hook } from "./hooks.js";
+import { register_injection_hook, EXPERTISE_LOADED_MESSAGE_TYPE } from "./hooks.js";
+import type { ExpertiseInjectionDetails } from "./types.js";
 
 export default function expert_extension(pi: ExtensionAPI) {
 	const dir_label = get_expertise_dir_label(process.cwd());
@@ -24,6 +26,26 @@ export default function expert_extension(pi: ExtensionAPI) {
 
 	// Register event hooks
 	register_injection_hook(pi);
+
+	// Register message renderer for expertise injection notifications
+	pi.registerMessageRenderer<ExpertiseInjectionDetails>(
+		EXPERTISE_LOADED_MESSAGE_TYPE,
+		(message, _options, theme) => {
+			const details = message.details;
+			if (!details?.domains?.length) return undefined;
+
+			const label = theme.fg("customMessageLabel", "🧠 expertise");
+			const domain_list = details.domains
+				.map((d) => theme.fg("accent", d.domain))
+				.join(theme.fg("dim", ", "));
+
+			const text = `${label} ${domain_list}`;
+
+			const box = new Box(1, 0, (t) => theme.bg("customMessageBg", t));
+			box.addChild(new Text(text, 0, 0));
+			return box;
+		},
+	);
 
 	// Register the /expert command
 	pi.registerCommand("expert", {
