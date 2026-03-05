@@ -1,18 +1,17 @@
-import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
-import path from "node:path";
-import fs from "node:fs/promises";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
 import crypto from "node:crypto";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import fs from "node:fs/promises";
+import path from "node:path";
+import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
+import { DEFAULT_TODO_SETTINGS, LOCK_TTL_MS, TODO_DIR_NAME, TODO_PATH_ENV, TODO_SETTINGS_NAME } from "./constants.js";
 import {
-	TODO_DIR_NAME,
-	TODO_PATH_ENV,
-	TODO_SETTINGS_NAME,
-	TODO_ID_PATTERN,
-	DEFAULT_TODO_SETTINGS,
-	LOCK_TTL_MS,
-} from "./constants.js";
-import type { TodoFrontMatter, TodoRecord, TodoSettings, LockInfo } from "./types.js";
-import { sort_todos, is_todo_closed, get_todo_status, clear_assignment_if_closed, display_todo_id, validate_todo_id } from "./helpers.js";
+	clear_assignment_if_closed,
+	display_todo_id,
+	is_todo_closed,
+	sort_todos,
+	validate_todo_id,
+} from "./helpers.js";
+import type { LockInfo, TodoFrontMatter, TodoRecord, TodoSettings } from "./types.js";
 
 // ---------------------------------------------------------------------------
 // Directory / path helpers
@@ -20,7 +19,7 @@ import { sort_todos, is_todo_closed, get_todo_status, clear_assignment_if_closed
 
 export function get_todos_dir(cwd: string): string {
 	const override_path = process.env[TODO_PATH_ENV];
-	if (override_path && override_path.trim()) {
+	if (override_path?.trim()) {
 		return path.resolve(cwd, override_path.trim());
 	}
 	return path.resolve(cwd, TODO_DIR_NAME);
@@ -28,7 +27,7 @@ export function get_todos_dir(cwd: string): string {
 
 export function get_todos_dir_label(cwd: string): string {
 	const override_path = process.env[TODO_PATH_ENV];
-	if (override_path && override_path.trim()) {
+	if (override_path?.trim()) {
 		return path.resolve(cwd, override_path.trim());
 	}
 	return TODO_DIR_NAME;
@@ -57,7 +56,7 @@ export async function ensure_todos_dir(todos_dir: string) {
 function yaml_quote(value: string): string {
 	if (!value) return '""';
 	if (
-		/[:#\[\]{},"'|>&*!?%@`\n\r\\]/.test(value) ||
+		/[:#[\]{},"'|>&*!?%@`\n\r\\]/.test(value) ||
 		value.trim() !== value ||
 		/^(true|false|yes|no|on|off|null|~)$/i.test(value) ||
 		/^[\d.+-]/.test(value)
@@ -69,14 +68,8 @@ function yaml_quote(value: string): string {
 
 function yaml_unquote(value: string): string {
 	const trimmed = value.trim();
-	if (
-		(trimmed.startsWith('"') && trimmed.endsWith('"')) ||
-		(trimmed.startsWith("'") && trimmed.endsWith("'"))
-	) {
-		return trimmed
-			.slice(1, -1)
-			.replace(/\\"/g, '"')
-			.replace(/\\\\/g, "\\");
+	if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+		return trimmed.slice(1, -1).replace(/\\"/g, '"').replace(/\\\\/g, "\\");
 	}
 	return trimmed;
 }
@@ -334,11 +327,7 @@ export async function ensure_todo_exists(file_path: string, id: string): Promise
 	return read_todo_file(file_path, id);
 }
 
-export async function append_todo_body(
-	file_path: string,
-	todo: TodoRecord,
-	text: string,
-): Promise<TodoRecord> {
+export async function append_todo_body(file_path: string, todo: TodoRecord, text: string): Promise<TodoRecord> {
 	const spacer = todo.body.trim().length ? "\n\n" : "";
 	todo.body = `${todo.body.replace(/\s+$/, "")}${spacer}${text.trim()}\n`;
 	await write_todo_file(file_path, todo);
@@ -372,10 +361,7 @@ export async function read_todo_settings(todos_dir: string): Promise<TodoSetting
 	return normalize_todo_settings(data);
 }
 
-export async function garbage_collect_todos(
-	todos_dir: string,
-	settings: TodoSettings,
-): Promise<void> {
+export async function garbage_collect_todos(todos_dir: string, settings: TodoSettings): Promise<void> {
 	if (!settings.gc) return;
 
 	let entries: string[] = [];
@@ -463,10 +449,7 @@ export async function acquire_lock(
 			if (!ctx.hasUI) {
 				return { error: `Todo ${display_todo_id(id)} lock is stale; rerun in interactive mode to steal it.` };
 			}
-			const ok = await ctx.ui.confirm(
-				"Todo locked",
-				`Todo ${display_todo_id(id)} appears locked. Steal the lock?`,
-			);
+			const ok = await ctx.ui.confirm("Todo locked", `Todo ${display_todo_id(id)} appears locked. Steal the lock?`);
 			if (!ok) {
 				return { error: `Todo ${display_todo_id(id)} remains locked.` };
 			}

@@ -30,9 +30,7 @@ export const ansi = {
  *
  * Returns an object with either `text` (success) or `error` (failure).
  */
-export function find_last_assistant_text(
-	branch: readonly any[],
-): { text: string } | { error: string } {
+export function find_last_assistant_text(branch: readonly any[]): { text: string } | { error: string } {
 	for (let i = branch.length - 1; i >= 0; i--) {
 		const entry = branch[i];
 		if (entry.type !== "message") continue;
@@ -64,10 +62,7 @@ export function find_last_assistant_text(
  * Compile questions and answers into a readable text block suitable
  * for sending back as a user message.
  */
-export function format_answers(
-	questions: ExtractedQuestion[],
-	answers: string[],
-): string {
+export function format_answers(questions: ExtractedQuestion[], answers: string[]): string {
 	const parts: string[] = [];
 
 	for (let i = 0; i < questions.length; i++) {

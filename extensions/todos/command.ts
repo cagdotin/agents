@@ -1,23 +1,23 @@
+import path from "node:path";
 import { copyToClipboard, type Theme } from "@mariozechner/pi-coding-agent";
 import type { TUI } from "@mariozechner/pi-tui";
-import path from "node:path";
-import type { TodoFrontMatter, TodoRecord, TodoMenuAction, TodoOverlayAction } from "./types.js";
-import { format_todo_id, filter_todos, is_todo_closed, build_refine_prompt } from "./helpers.js";
+import { TodoActionMenuComponent } from "./components/todo-action-menu.js";
+import { TodoDeleteConfirmComponent } from "./components/todo-delete-confirm.js";
+import { TodoDetailOverlayComponent } from "./components/todo-detail-overlay.js";
+import { TodoSelectorComponent } from "./components/todo-selector.js";
+import { format_todo_list } from "./formatting.js";
+import { build_refine_prompt, filter_todos, format_todo_id } from "./helpers.js";
 import {
-	get_todos_dir,
+	delete_todo,
+	ensure_todo_exists,
 	get_todo_path,
+	get_todos_dir,
 	list_todos,
 	list_todos_sync,
-	ensure_todo_exists,
-	update_todo_status,
 	release_todo_assignment,
-	delete_todo,
+	update_todo_status,
 } from "./storage.js";
-import { format_todo_list } from "./formatting.js";
-import { TodoSelectorComponent } from "./components/todo-selector.js";
-import { TodoActionMenuComponent } from "./components/todo-action-menu.js";
-import { TodoDetailOverlayComponent } from "./components/todo-detail-overlay.js";
-import { TodoDeleteConfirmComponent } from "./components/todo-delete-confirm.js";
+import type { TodoFrontMatter, TodoMenuAction, TodoOverlayAction, TodoRecord } from "./types.js";
 
 export function create_todos_command() {
 	return {
@@ -59,25 +59,21 @@ export function create_todos_command() {
 				let selector: TodoSelectorComponent | null = null;
 				let action_menu: TodoActionMenuComponent | null = null;
 				let delete_confirm: TodoDeleteConfirmComponent | null = null;
-				let active_component:
-					| {
-							render: (width: number) => string[];
-							invalidate: () => void;
-							handleInput?: (data: string) => void;
-							focused?: boolean;
-						}
-					| null = null;
+				let active_component: {
+					render: (width: number) => string[];
+					invalidate: () => void;
+					handleInput?: (data: string) => void;
+					focused?: boolean;
+				} | null = null;
 				let wrapper_focused = false;
 
 				const set_active_component = (
-					component:
-						| {
-								render: (width: number) => string[];
-								invalidate: () => void;
-								handleInput?: (data: string) => void;
-								focused?: boolean;
-							}
-						| null,
+					component: {
+						render: (width: number) => string[];
+						invalidate: () => void;
+						handleInput?: (data: string) => void;
+						focused?: boolean;
+					} | null,
 				) => {
 					if (active_component && "focused" in active_component) {
 						active_component.focused = false;
@@ -126,8 +122,12 @@ export function create_todos_command() {
 
 				const open_todo_overlay = async (record: TodoRecord): Promise<TodoOverlayAction> => {
 					const action = await ctx.ui.custom(
-						(overlay_tui: TUI, overlay_theme: Theme, _overlay_kb: any, overlay_done: (action: TodoOverlayAction) => void) =>
-							new TodoDetailOverlayComponent(overlay_tui, overlay_theme, record, overlay_done),
+						(
+							overlay_tui: TUI,
+							overlay_theme: Theme,
+							_overlay_kb: any,
+							overlay_done: (action: TodoOverlayAction) => void,
+						) => new TodoDetailOverlayComponent(overlay_tui, overlay_theme, record, overlay_done),
 						{
 							overlay: true,
 							overlayOptions: { width: "80%", maxHeight: "80%", anchor: "center" },
@@ -137,10 +137,7 @@ export function create_todos_command() {
 					return action ?? "back";
 				};
 
-				const apply_todo_action = async (
-					record: TodoRecord,
-					action: TodoMenuAction,
-				): Promise<"stay" | "exit"> => {
+				const apply_todo_action = async (record: TodoRecord, action: TodoMenuAction): Promise<"stay" | "exit"> => {
 					if (action === "refine") {
 						const title = record.title || "(untitled)";
 						next_prompt = build_refine_prompt(record.id, title);
@@ -198,10 +195,7 @@ export function create_todos_command() {
 
 					const updated_todos = await list_todos(todos_dir);
 					selector?.set_todos(updated_todos);
-					ctx.ui.notify(
-						`${action === "close" ? "Closed" : "Reopened"} todo ${format_todo_id(record.id)}`,
-						"info",
-					);
+					ctx.ui.notify(`${action === "close" ? "Closed" : "Reopened"} todo ${format_todo_id(record.id)}`, "info");
 					return "stay";
 				};
 

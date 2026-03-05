@@ -92,26 +92,15 @@ export interface ExpertisePinnedState {
 // ---------------------------------------------------------------------------
 
 export const ExpertiseParams = Type.Object({
-	action: StringEnum([
-		"list",
-		"get",
-		"init",
-		"update",
-		"reflect",
-		"delete",
-	] as const),
+	action: StringEnum(["list", "get", "init", "update", "reflect", "delete"] as const),
 	domain: Type.Optional(
 		Type.String({ description: "Domain name (lowercase, hyphens allowed, e.g. 'database', 'auth-flow')" }),
 	),
-	description: Type.Optional(
-		Type.String({ description: "Human-readable description of what this domain covers" }),
-	),
+	description: Type.Optional(Type.String({ description: "Human-readable description of what this domain covers" })),
 	scope_paths: Type.Optional(
 		Type.Array(Type.String(), { description: "File paths/directories this domain covers (for init)" }),
 	),
-	content: Type.Optional(
-		Type.String({ description: "Full YAML content for the expertise file (for update)" }),
-	),
+	content: Type.Optional(Type.String({ description: "Full YAML content for the expertise file (for update)" })),
 });
 
 export type ExpertiseAction = "list" | "get" | "init" | "update" | "reflect" | "delete";

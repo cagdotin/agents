@@ -1,6 +1,6 @@
 domain: expert-extension
 description: "Self-improving domain expertise extension for pi — manages per-domain mental models as YAML files"
-last_synced: "2026-03-05T15:19:00Z"
+last_synced: "2026-03-05T15:53:00Z"
 
 scope:
   paths:
@@ -10,6 +10,8 @@ overview: |
   A pi extension that gives agents persistent, scoped working memory. Each "domain" is a YAML file
   in .pi/expertise/. Three capabilities: auto-injection (matches domains to prompt), explicit
   reflection (router + domain-filtered fan-out), and manual control (expertise tool + /expert command).
+  Injected domains are shown per-turn in chat and cumulatively in the footer status bar,
+  with persistence across session reloads via CustomMessageEntry scanning.
 
 design_decisions:
   - reason: "In-process LLM calls, not subprocesses"
@@ -38,12 +40,26 @@ design_decisions:
       (2) Active re-evaluation of ALL entries each reflection pass, not just passive preservation
       (3) "How it works" walkthroughs added to the "does not belong" list
       Without this, expertise files accumulate stale implementation details indefinitely.
+  - reason: "CustomMessageEntry serves dual purpose: visual + persistence"
+    detail: |
+      The sendMessage() in before_agent_start creates a CustomMessageEntry that both:
+      (1) renders in chat via registerMessageRenderer (per-turn visibility)
+      (2) persists in session JSONL and is scanned on session_start to rebuild state
+      No separate appendEntry() call needed — avoids redundant data in the session tree.
+  - reason: "setStatus over setFooter for domain tracking"
+    detail: |
+      setStatus("expert", text) is a lightweight key/value in the existing footer.
+      setFooter() replaces the entire footer, which would kill other useful info
+      (git branch, token stats, model). setStatus is ephemeral but reconstructed
+      from persisted CustomMessageEntry records on every session lifecycle event.
 
 gotchas:
   - "Router XML parse uses regex — fragile if model adds extra whitespace or attributes"
   - "scope.patterns is defined in ExpertiseHeader but currently unused"
   - "match_domains_to_prompt() is keyword-only — 'login flow' won't match 'authentication' domain"
   - "CONTENT_PRINCIPLES constant is shared across tool description, init/update responses, and REFLECTION_PROMPT — changes propagate everywhere"
+  - "/expert reflect temporarily overrides setStatus with progress text — must call restore_status(ctx) in finally block to restore domain tracking"
+  - "session_domains Map is module-level state — survives across hooks but must be cleared on session_switch"
 
 active_todos:
   - "TODO-c93e622f: Rendering polish — keyHint on collapsed views, conditional reflect hint"
@@ -53,4 +69,6 @@ active_todos:
 
 references:
   - "LLM integration pattern: see extensions/answer/extraction.ts"
+  - "Custom message rendering: hooks.ts (sendMessage) + index.ts (registerMessageRenderer), modeled after examples/extensions/message-renderer.ts"
+  - "Session state pattern: hooks.ts rebuild_from_session() scans CustomMessageEntry on session_start, per extensions docs State Management section"
   - "Concept origin: IndyDevDan's 'Agent Experts' video"

@@ -1,5 +1,5 @@
 import { DynamicBorder, type Theme } from "@mariozechner/pi-coding-agent";
-import { Container, SelectList, Text, type SelectItem } from "@mariozechner/pi-tui";
+import { Container, type SelectItem, SelectList, Text } from "@mariozechner/pi-tui";
 
 export class TodoDeleteConfirmComponent extends Container {
 	private select_list: SelectList;

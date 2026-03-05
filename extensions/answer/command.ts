@@ -12,9 +12,9 @@
 
 import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
 import { BorderedLoader } from "@mariozechner/pi-coding-agent";
-import { find_last_assistant_text } from "./helpers.js";
-import { select_extraction_model, extract_questions } from "./extraction.js";
 import { QnAComponent } from "./components/qna-component.js";
+import { extract_questions, select_extraction_model } from "./extraction.js";
+import { find_last_assistant_text } from "./helpers.js";
 import type { ExtractionResult } from "./types.js";
 
 /**
@@ -52,22 +52,16 @@ export function create_answer_handler(pi: ExtensionAPI) {
 		const extraction_model = await select_extraction_model(ctx.model, ctx.modelRegistry);
 
 		// --- Extract questions (with loading UI) ---
-		const extraction_result = await ctx.ui.custom<ExtractionResult | null>(
-			(tui, theme, _kb, done) => {
-				const loader = new BorderedLoader(
-					tui,
-					theme,
-					`Extracting questions using ${extraction_model.id}...`,
-				);
-				loader.onAbort = () => done(null);
+		const extraction_result = await ctx.ui.custom<ExtractionResult | null>((tui, theme, _kb, done) => {
+			const loader = new BorderedLoader(tui, theme, `Extracting questions using ${extraction_model.id}...`);
+			loader.onAbort = () => done(null);
 
-				extract_questions(extraction_model, ctx.modelRegistry, last_assistant_text, loader.signal)
-					.then(done)
-					.catch(() => done(null));
+			extract_questions(extraction_model, ctx.modelRegistry, last_assistant_text, loader.signal)
+				.then(done)
+				.catch(() => done(null));
 
-				return loader;
-			},
-		);
+			return loader;
+		});
 
 		if (extraction_result === null) {
 			ctx.ui.notify("Cancelled", "info");
@@ -93,7 +87,7 @@ export function create_answer_handler(pi: ExtensionAPI) {
 		pi.sendMessage(
 			{
 				customType: "answers",
-				content: "I answered your questions in the following way:\n\n" + answers_text,
+				content: `I answered your questions in the following way:\n\n${answers_text}`,
 				display: true,
 			},
 			{ triggerTurn: true },

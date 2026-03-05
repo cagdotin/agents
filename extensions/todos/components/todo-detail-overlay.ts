@@ -1,13 +1,7 @@
 import { getMarkdownTheme, type Theme } from "@mariozechner/pi-coding-agent";
-import {
-	Markdown,
-	type TUI,
-	getEditorKeybindings,
-	truncateToWidth,
-	visibleWidth,
-} from "@mariozechner/pi-tui";
-import type { TodoRecord, TodoOverlayAction } from "../types.js";
+import { getEditorKeybindings, Markdown, type TUI, truncateToWidth, visibleWidth } from "@mariozechner/pi-tui";
 import { format_todo_id, is_todo_closed } from "../helpers.js";
+import type { TodoOverlayAction, TodoRecord } from "../types.js";
 
 export class TodoDetailOverlayComponent {
 	private todo: TodoRecord;
@@ -19,12 +13,7 @@ export class TodoDetailOverlayComponent {
 	private total_lines = 0;
 	private on_action: (action: TodoOverlayAction) => void;
 
-	constructor(
-		tui: TUI,
-		theme: Theme,
-		todo: TodoRecord,
-		on_action: (action: TodoOverlayAction) => void,
-	) {
+	constructor(tui: TUI, theme: Theme, todo: TodoRecord, on_action: (action: TodoOverlayAction) => void) {
 		this.tui = tui;
 		this.theme = theme;
 		this.todo = todo;
@@ -118,9 +107,7 @@ export class TodoDetailOverlayComponent {
 	}
 
 	private build_title_line(width: number): string {
-		const title_text = this.todo.title
-			? ` ${this.todo.title} `
-			: ` Todo ${format_todo_id(this.todo.id)} `;
+		const title_text = this.todo.title ? ` ${this.todo.title} ` : ` Todo ${format_todo_id(this.todo.id)} `;
 		const title_width = visibleWidth(title_text);
 		if (title_width >= width) {
 			return truncateToWidth(this.theme.fg("accent", title_text.trim()), width);

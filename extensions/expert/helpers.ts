@@ -1,6 +1,6 @@
-import path from "node:path";
-import fs from "node:fs/promises";
 import { existsSync } from "node:fs";
+import fs from "node:fs/promises";
+import path from "node:path";
 import { DOMAIN_NAME_PATTERN } from "./constants.js";
 import type { ExpertiseHeader } from "./types.js";
 
@@ -30,14 +30,9 @@ export interface DomainMatch {
 	score: number;
 }
 
-export function match_domains_to_prompt(
-	prompt: string,
-	domains: ExpertiseHeader[],
-): DomainMatch[] {
+export function match_domains_to_prompt(prompt: string, domains: ExpertiseHeader[]): DomainMatch[] {
 	const lower_prompt = prompt.toLowerCase();
-	const prompt_words = new Set(
-		lower_prompt.split(/[\s,.:;!?()[\]{}"'`/\\]+/).filter((w) => w.length > 2),
-	);
+	const prompt_words = new Set(lower_prompt.split(/[\s,.:;!?()[\]{}"'`/\\]+/).filter((w) => w.length > 2));
 
 	const matches: DomainMatch[] = [];
 
@@ -101,10 +96,7 @@ export function match_files_to_domains(
 
 			for (const scope_path of domain.scope.paths) {
 				const normalized_scope = scope_path.replace(/\/$/, "");
-				if (
-					relative.startsWith(normalized_scope) ||
-					relative === normalized_scope
-				) {
+				if (relative.startsWith(normalized_scope) || relative === normalized_scope) {
 					matched.add(domain.domain);
 					break;
 				}
@@ -156,10 +148,7 @@ export function extract_modified_files(messages: any[]): string[] {
 // Format conversation for reflection prompt (domain-filtered)
 // ---------------------------------------------------------------------------
 
-export function format_conversation_for_reflection(
-	messages: any[],
-	scope_paths?: string[],
-): string {
+export function format_conversation_for_reflection(messages: any[], scope_paths?: string[]): string {
 	const lines: string[] = [];
 
 	for (const msg of messages) {
@@ -189,9 +178,7 @@ export function format_conversation_for_reflection(
 			const content = extract_text_content(msg.content);
 			if (content) {
 				// Truncate long tool results
-				const truncated = content.length > 2000
-					? content.slice(0, 2000) + "\n... (truncated)"
-					: content;
+				const truncated = content.length > 2000 ? `${content.slice(0, 2000)}\n... (truncated)` : content;
 				lines.push(`## Tool Result (${tool_name})\n${truncated}\n`);
 			}
 		}
@@ -244,10 +231,7 @@ export function file_matches_scope(file_path: string, scope_paths: string[]): bo
 
 	for (const scope of scope_paths) {
 		const normalized_scope = scope.replace(/\/$/, "");
-		if (
-			normalized_file.startsWith(normalized_scope + "/") ||
-			normalized_file === normalized_scope
-		) {
+		if (normalized_file.startsWith(`${normalized_scope}/`) || normalized_file === normalized_scope) {
 			return true;
 		}
 	}
@@ -296,9 +280,7 @@ function extract_tool_call_summaries(content: unknown): string[] {
 		if (name === "write" || name === "edit" || name === "read") {
 			summaries.push(`- ${name} ${input.path ?? "?"}`);
 		} else if (name === "bash") {
-			const cmd = typeof input.command === "string"
-				? input.command.split("\n")[0].slice(0, 80)
-				: "?";
+			const cmd = typeof input.command === "string" ? input.command.split("\n")[0].slice(0, 80) : "?";
 			summaries.push(`- bash: ${cmd}`);
 		} else {
 			// Generic tool call — show name + first key
@@ -325,11 +307,7 @@ function extract_text_content(content: unknown): string {
 // Scan scope paths — list files under scope directories
 // ---------------------------------------------------------------------------
 
-export async function scan_scope_paths(
-	scope_paths: string[],
-	cwd: string,
-	max_depth: number = 4,
-): Promise<string[]> {
+export async function scan_scope_paths(scope_paths: string[], cwd: string, max_depth: number = 4): Promise<string[]> {
 	const result: string[] = [];
 
 	for (const scope_path of scope_paths) {

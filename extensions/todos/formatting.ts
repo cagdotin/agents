@@ -1,12 +1,12 @@
 import { keyHint, type Theme } from "@mariozechner/pi-coding-agent";
-import type { TodoFrontMatter, TodoRecord } from "./types.js";
 import {
 	format_todo_id,
-	get_todo_title,
 	get_todo_status,
+	get_todo_title,
 	is_todo_closed,
 	split_todos_by_assignment,
 } from "./helpers.js";
+import type { TodoFrontMatter, TodoRecord } from "./types.js";
 
 // ---------------------------------------------------------------------------
 // Plain text formatting (for LLM / non-UI output)
@@ -67,11 +67,7 @@ export function serialize_todo_list_for_agent(todos: TodoFrontMatter[]): string 
 // Themed rendering (for TUI)
 // ---------------------------------------------------------------------------
 
-export function render_assignment_suffix(
-	theme: Theme,
-	todo: TodoFrontMatter,
-	current_session_id?: string,
-): string {
+export function render_assignment_suffix(theme: Theme, todo: TodoFrontMatter, current_session_id?: string): string {
 	if (!todo.assigned_to_session) return "";
 	const is_current = todo.assigned_to_session === current_session_id;
 	const color = is_current ? "success" : "dim";
@@ -79,11 +75,7 @@ export function render_assignment_suffix(
 	return theme.fg(color, ` (assigned: ${todo.assigned_to_session}${suffix})`);
 }
 
-export function render_todo_heading(
-	theme: Theme,
-	todo: TodoFrontMatter,
-	current_session_id?: string,
-): string {
+export function render_todo_heading(theme: Theme, todo: TodoFrontMatter, current_session_id?: string): string {
 	const closed = is_todo_closed(get_todo_status(todo));
 	const title_color = closed ? "dim" : "text";
 	const tag_text = todo.tags.length ? theme.fg("dim", ` [${todo.tags.join(", ")}]`) : "";
@@ -137,11 +129,7 @@ export function render_todo_list(
 	return lines.join("\n");
 }
 
-export function render_todo_detail(
-	theme: Theme,
-	todo: TodoRecord,
-	expanded: boolean,
-): string {
+export function render_todo_detail(theme: Theme, todo: TodoRecord, expanded: boolean): string {
 	const summary = render_todo_heading(theme, todo);
 	if (!expanded) return summary;
 

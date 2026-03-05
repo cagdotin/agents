@@ -1,13 +1,13 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import { create_todos_command } from "./command.js";
 import {
+	ensure_todos_dir,
+	garbage_collect_todos,
 	get_todos_dir,
 	get_todos_dir_label,
-	ensure_todos_dir,
 	read_todo_settings,
-	garbage_collect_todos,
 } from "./storage.js";
 import { create_todo_tool } from "./tool.js";
-import { create_todos_command } from "./command.js";
 
 export default function todos_extension(pi: ExtensionAPI) {
 	pi.on("session_start", async (_event, ctx) => {

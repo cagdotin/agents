@@ -1,19 +1,14 @@
 import { DynamicBorder, type Theme } from "@mariozechner/pi-coding-agent";
-import { Container, SelectList, Text, type SelectItem } from "@mariozechner/pi-tui";
-import type { TodoRecord, TodoMenuAction } from "../types.js";
+import { Container, type SelectItem, SelectList, Text } from "@mariozechner/pi-tui";
 import { format_todo_id, is_todo_closed } from "../helpers.js";
+import type { TodoMenuAction, TodoRecord } from "../types.js";
 
 export class TodoActionMenuComponent extends Container {
 	private select_list: SelectList;
 	private on_select_callback: (action: TodoMenuAction) => void;
 	private on_cancel_callback: () => void;
 
-	constructor(
-		theme: Theme,
-		todo: TodoRecord,
-		on_select: (action: TodoMenuAction) => void,
-		on_cancel: () => void,
-	) {
+	constructor(theme: Theme, todo: TodoRecord, on_select: (action: TodoMenuAction) => void, on_cancel: () => void) {
 		super();
 		this.on_select_callback = on_select;
 		this.on_cancel_callback = on_cancel;
@@ -27,23 +22,14 @@ export class TodoActionMenuComponent extends Container {
 			...(closed
 				? [{ value: "reopen", label: "reopen", description: "Reopen todo" }]
 				: [{ value: "close", label: "close", description: "Close todo" }]),
-			...(todo.assigned_to_session
-				? [{ value: "release", label: "release", description: "Release assignment" }]
-				: []),
+			...(todo.assigned_to_session ? [{ value: "release", label: "release", description: "Release assignment" }] : []),
 			{ value: "copyPath", label: "copy path", description: "Copy absolute path to clipboard" },
 			{ value: "copyText", label: "copy text", description: "Copy title and body to clipboard" },
 			{ value: "delete", label: "delete", description: "Delete todo" },
 		];
 
 		this.addChild(new DynamicBorder((s: string) => theme.fg("accent", s)));
-		this.addChild(
-			new Text(
-				theme.fg(
-					"accent",
-					theme.bold(`Actions for ${format_todo_id(todo.id)} "${title}"`),
-				),
-			),
-		);
+		this.addChild(new Text(theme.fg("accent", theme.bold(`Actions for ${format_todo_id(todo.id)} "${title}"`))));
 
 		this.select_list = new SelectList(options, options.length, {
 			selectedPrefix: (text) => theme.fg("accent", text),

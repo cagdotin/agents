@@ -1,14 +1,7 @@
 import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
-import {
-	get_expertise_dir,
-	list_domains,
-	read_expertise,
-	read_settings,
-} from "./storage.js";
-import {
-	match_domains_to_prompt,
-} from "./helpers.js";
 import { EXPERTISE_PINNED_ENTRY_TYPE } from "./constants.js";
+import { match_domains_to_prompt } from "./helpers.js";
+import { get_expertise_dir, list_domains, read_expertise, read_settings } from "./storage.js";
 import type { ExpertiseInjectionDetails, ExpertisePinnedState } from "./types.js";
 
 // ---------------------------------------------------------------------------
@@ -37,10 +30,7 @@ export function get_pinned_domains(): Map<string, string> {
 }
 
 /** Replace the pinned set and persist. Used by the /expert chat command. */
-export function set_pinned_domains(
-	domains: Array<{ domain: string; description: string }>,
-	pi: ExtensionAPI,
-): void {
+export function set_pinned_domains(domains: Array<{ domain: string; description: string }>, pi: ExtensionAPI): void {
 	pinned_domains.clear();
 	for (const d of domains) {
 		pinned_domains.set(d.domain, d.description);
@@ -60,10 +50,7 @@ function rebuild_from_session(ctx: ExtensionContext): void {
 
 	for (const entry of ctx.sessionManager.getBranch()) {
 		// Rebuild session_domains from injection messages
-		if (
-			entry.type === "custom_message" &&
-			entry.customType === EXPERTISE_LOADED_MESSAGE_TYPE
-		) {
+		if (entry.type === "custom_message" && entry.customType === EXPERTISE_LOADED_MESSAGE_TYPE) {
 			const details = entry.details as ExpertiseInjectionDetails | undefined;
 			if (details?.domains) {
 				for (const d of details.domains) {
@@ -73,10 +60,7 @@ function rebuild_from_session(ctx: ExtensionContext): void {
 		}
 
 		// Rebuild pinned_domains from appendEntry records (last one wins)
-		if (
-			entry.type === "custom" &&
-			entry.customType === EXPERTISE_PINNED_ENTRY_TYPE
-		) {
+		if (entry.type === "custom" && entry.customType === EXPERTISE_PINNED_ENTRY_TYPE) {
 			const data = entry.data as ExpertisePinnedState | undefined;
 			if (data?.domains) {
 				pinned_domains.clear();
@@ -121,7 +105,6 @@ export function restore_status(ctx: ExtensionContext): void {
 // ---------------------------------------------------------------------------
 
 export function register_hooks(pi: ExtensionAPI): void {
-
 	// --- Session lifecycle: rebuild state whenever the active branch changes ---
 
 	pi.on("session_start", async (_event, ctx) => rebuild_from_session(ctx));
@@ -149,9 +132,7 @@ export function register_hooks(pi: ExtensionAPI): void {
 		for (const [domain_name, description] of pinned_domains) {
 			const record = await read_expertise(expertise_dir, domain_name);
 			if (!record) continue;
-			expertise_blocks.push(
-				`<expertise domain="${record.domain}" pinned="true">\n${record.raw}\n</expertise>`,
-			);
+			expertise_blocks.push(`<expertise domain="${record.domain}" pinned="true">\n${record.raw}\n</expertise>`);
 			loaded_domains.push({ domain: record.domain, description, pinned: true });
 			loaded_set.add(record.domain);
 		}
@@ -169,9 +150,7 @@ export function register_hooks(pi: ExtensionAPI): void {
 				const record = await read_expertise(expertise_dir, match.domain.domain);
 				if (!record) continue;
 
-				expertise_blocks.push(
-					`<expertise domain="${record.domain}">\n${record.raw}\n</expertise>`,
-				);
+				expertise_blocks.push(`<expertise domain="${record.domain}">\n${record.raw}\n</expertise>`);
 				loaded_domains.push({
 					domain: record.domain,
 					description: match.domain.description,
@@ -188,12 +167,12 @@ export function register_hooks(pi: ExtensionAPI): void {
 			"# Domain Expertise",
 			"",
 			"The following expertise files represent the agent's accumulated mental model for specific areas of this codebase. " +
-			"Use this knowledge to orient yourself quickly, but always validate against the actual code — the code is the source of truth.",
+				"Use this knowledge to orient yourself quickly, but always validate against the actual code — the code is the source of truth.",
 			"",
 			...expertise_blocks,
 			"",
 			"After completing your work, if you modified files in a domain's scope or gained new insights from the conversation, " +
-			"consider using the `expertise` tool with action `reflect` to update the domain's mental model.",
+				"consider using the `expertise` tool with action `reflect` to update the domain's mental model.",
 		].join("\n");
 
 		// Update in-memory tracking

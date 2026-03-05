@@ -2,21 +2,21 @@ import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { getSettingsListTheme } from "@mariozechner/pi-coding-agent";
 import { Box, Container, type SettingItem, SettingsList, Text } from "@mariozechner/pi-tui";
 import {
+	EXPERTISE_LOADED_MESSAGE_TYPE,
+	get_pinned_domains,
+	register_hooks,
+	restore_status,
+	set_pinned_domains,
+} from "./hooks.js";
+import { run_reflection_pipeline } from "./reflection.js";
+import {
+	ensure_expertise_dir,
 	get_expertise_dir,
 	get_expertise_dir_label,
-	ensure_expertise_dir,
 	list_domains,
 	read_settings,
 } from "./storage.js";
-import { run_reflection_pipeline } from "./reflection.js";
 import { create_expertise_tool } from "./tool.js";
-import {
-	register_hooks,
-	EXPERTISE_LOADED_MESSAGE_TYPE,
-	restore_status,
-	get_pinned_domains,
-	set_pinned_domains,
-} from "./hooks.js";
 import type { ExpertiseInjectionDetails } from "./types.js";
 
 export default function expert_extension(pi: ExtensionAPI) {
@@ -35,37 +35,30 @@ export default function expert_extension(pi: ExtensionAPI) {
 	register_hooks(pi);
 
 	// Register message renderer for expertise injection notifications
-	pi.registerMessageRenderer<ExpertiseInjectionDetails>(
-		EXPERTISE_LOADED_MESSAGE_TYPE,
-		(message, _options, theme) => {
-			const details = message.details;
-			if (!details?.domains?.length) return undefined;
+	pi.registerMessageRenderer<ExpertiseInjectionDetails>(EXPERTISE_LOADED_MESSAGE_TYPE, (message, _options, theme) => {
+		const details = message.details;
+		if (!details?.domains?.length) return undefined;
 
-			const parts: string[] = [];
-			const pinned = details.domains.filter((d) => d.pinned);
-			const auto = details.domains.filter((d) => !d.pinned);
+		const parts: string[] = [];
+		const pinned = details.domains.filter((d) => d.pinned);
+		const auto = details.domains.filter((d) => !d.pinned);
 
-			if (pinned.length > 0) {
-				const pinned_list = pinned
-					.map((d) => theme.fg("accent", d.domain))
-					.join(theme.fg("dim", ", "));
-				parts.push(`${theme.fg("customMessageLabel", "📌 pinned")} ${pinned_list}`);
-			}
+		if (pinned.length > 0) {
+			const pinned_list = pinned.map((d) => theme.fg("accent", d.domain)).join(theme.fg("dim", ", "));
+			parts.push(`${theme.fg("customMessageLabel", "📌 pinned")} ${pinned_list}`);
+		}
 
-			if (auto.length > 0) {
-				const auto_list = auto
-					.map((d) => theme.fg("accent", d.domain))
-					.join(theme.fg("dim", ", "));
-				parts.push(`${theme.fg("customMessageLabel", "🧠 expertise")} ${auto_list}`);
-			}
+		if (auto.length > 0) {
+			const auto_list = auto.map((d) => theme.fg("accent", d.domain)).join(theme.fg("dim", ", "));
+			parts.push(`${theme.fg("customMessageLabel", "🧠 expertise")} ${auto_list}`);
+		}
 
-			const text = parts.join(theme.fg("dim", " · "));
+		const text = parts.join(theme.fg("dim", " · "));
 
-			const box = new Box(1, 0, (t) => theme.bg("customMessageBg", t));
-			box.addChild(new Text(text, 0, 0));
-			return box;
-		},
-	);
+		const box = new Box(1, 0, (t) => theme.bg("customMessageBg", t));
+		box.addChild(new Text(text, 0, 0));
+		return box;
+	});
 
 	// Register the /expert command
 	pi.registerCommand("expert", {
@@ -79,9 +72,11 @@ export default function expert_extension(pi: ExtensionAPI) {
 					value: c,
 					label: c,
 					description:
-						c === "chat" ? "Select experts to pin for this conversation" :
-						c === "reflect" ? "Reflect on conversation and update expertise" :
-						"List all expertise domains",
+						c === "chat"
+							? "Select experts to pin for this conversation"
+							: c === "reflect"
+								? "Reflect on conversation and update expertise"
+								: "List all expertise domains",
 				}));
 			}
 			return null;
@@ -95,10 +90,7 @@ export default function expert_extension(pi: ExtensionAPI) {
 			if (!trimmed || trimmed === "list") {
 				const domains = await list_domains(expertise_dir);
 				if (domains.length === 0) {
-					ctx.ui.notify(
-						"No expertise domains found. Ask the agent to initialize one with the expertise tool.",
-						"info",
-					);
+					ctx.ui.notify("No expertise domains found. Ask the agent to initialize one with the expertise tool.", "info");
 					return;
 				}
 
@@ -125,10 +117,7 @@ export default function expert_extension(pi: ExtensionAPI) {
 
 				const domains = await list_domains(expertise_dir);
 				if (domains.length === 0) {
-					ctx.ui.notify(
-						"No expertise domains found. Ask the agent to initialize one with the expertise tool.",
-						"info",
-					);
+					ctx.ui.notify("No expertise domains found. Ask the agent to initialize one with the expertise tool.", "info");
 					return;
 				}
 
@@ -198,10 +187,7 @@ export default function expert_extension(pi: ExtensionAPI) {
 					container.addChild(
 						new (class {
 							render(_width: number) {
-								return [
-									"",
-									theme.fg("dim", "  ←/→ toggle • ↑/↓ navigate • / search • esc confirm"),
-								];
+								return ["", theme.fg("dim", "  ←/→ toggle • ↑/↓ navigate • / search • esc confirm")];
 							}
 							invalidate() {}
 						})(),
@@ -224,15 +210,16 @@ export default function expert_extension(pi: ExtensionAPI) {
 			if (trimmed.startsWith("reflect")) {
 				const domain_arg = trimmed.slice("reflect".length).trim() || undefined;
 
-				ctx.ui.setStatus("expert", domain_arg
-					? `🧠 Reflecting on ${domain_arg}...`
-					: "🧠 Router: identifying affected domains...",
+				ctx.ui.setStatus(
+					"expert",
+					domain_arg ? `🧠 Reflecting on ${domain_arg}...` : "🧠 Router: identifying affected domains...",
 				);
 
 				try {
 					const settings = await read_settings(expertise_dir);
 					const session_file = ctx.sessionManager.getSessionFile() ?? "unknown";
-					const branch_messages = ctx.sessionManager.getBranch()
+					const branch_messages = ctx.sessionManager
+						.getBranch()
 						.filter((e: any) => e.type === "message")
 						.map((e: any) => e.message);
 
@@ -280,10 +267,7 @@ export default function expert_extension(pi: ExtensionAPI) {
 				return;
 			}
 
-			ctx.ui.notify(
-				"Usage: /expert [list | chat [clear] | reflect <domain>]",
-				"info",
-			);
+			ctx.ui.notify("Usage: /expert [list | chat [clear] | reflect <domain>]", "info");
 		},
 	});
 }

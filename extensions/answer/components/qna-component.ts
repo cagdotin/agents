@@ -32,8 +32,8 @@ import {
 	visibleWidth,
 	wrapTextWithAnsi,
 } from "@mariozechner/pi-tui";
-import type { ExtractedQuestion } from "../types.js";
 import { ansi, format_answers } from "../helpers.js";
+import type { ExtractedQuestion } from "../types.js";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -62,11 +62,7 @@ export class QnAComponent implements Component {
 	private cached_width?: number;
 	private cached_lines?: string[];
 
-	constructor(
-		questions: ExtractedQuestion[],
-		tui: TUI,
-		on_done: (result: string | null) => void,
-	) {
+	constructor(questions: ExtractedQuestion[], tui: TUI, on_done: (result: string | null) => void) {
 		this.questions = questions;
 		this.answers = questions.map(() => "");
 		this.tui = tui;
@@ -138,11 +134,7 @@ export class QnAComponent implements Component {
 				this.submit();
 				return;
 			}
-			if (
-				matchesKey(data, Key.escape) ||
-				matchesKey(data, Key.ctrl("c")) ||
-				data.toLowerCase() === "n"
-			) {
+			if (matchesKey(data, Key.escape) || matchesKey(data, Key.ctrl("c")) || data.toLowerCase() === "n") {
 				this.showing_confirmation = false;
 				this.invalidate();
 				this.tui.requestRender();
@@ -228,8 +220,7 @@ export class QnAComponent implements Component {
 			return ansi.dim("│") + padded + " ".repeat(right_pad) + ansi.dim("│");
 		};
 
-		const empty_box_line = (): string =>
-			ansi.dim("│") + " ".repeat(box_width - 2) + ansi.dim("│");
+		const empty_box_line = (): string => ansi.dim("│") + " ".repeat(box_width - 2) + ansi.dim("│");
 
 		const pad_to_width = (line: string): string => {
 			const len = visibleWidth(line);
@@ -237,10 +228,10 @@ export class QnAComponent implements Component {
 		};
 
 		// --- Title ---
-		lines.push(pad_to_width(ansi.dim("╭" + h_line(box_width - 2) + "╮")));
+		lines.push(pad_to_width(ansi.dim(`╭${h_line(box_width - 2)}╮`)));
 		const title = `${ansi.bold(ansi.cyan("Questions"))} ${ansi.dim(`(${this.current_index + 1}/${this.questions.length})`)}`;
 		lines.push(pad_to_width(box_line(title)));
-		lines.push(pad_to_width(ansi.dim("├" + h_line(box_width - 2) + "┤")));
+		lines.push(pad_to_width(ansi.dim(`├${h_line(box_width - 2)}┤`)));
 
 		// --- Progress dots ---
 		const progress_parts: string[] = [];
@@ -285,14 +276,14 @@ export class QnAComponent implements Component {
 			if (i === 1) {
 				lines.push(pad_to_width(box_line(answer_prefix + editor_lines[i])));
 			} else {
-				lines.push(pad_to_width(box_line("   " + editor_lines[i])));
+				lines.push(pad_to_width(box_line(`   ${editor_lines[i]}`)));
 			}
 		}
 
 		lines.push(pad_to_width(empty_box_line()));
 
 		// --- Footer ---
-		lines.push(pad_to_width(ansi.dim("├" + h_line(box_width - 2) + "┤")));
+		lines.push(pad_to_width(ansi.dim(`├${h_line(box_width - 2)}┤`)));
 
 		if (this.showing_confirmation) {
 			const confirm_msg = `${ansi.yellow("Submit all answers?")} ${ansi.dim("(Enter/y to confirm, Esc/n to cancel)")}`;
@@ -302,7 +293,7 @@ export class QnAComponent implements Component {
 			lines.push(pad_to_width(box_line(truncateToWidth(controls, content_width))));
 		}
 
-		lines.push(pad_to_width(ansi.dim("╰" + h_line(box_width - 2) + "╯")));
+		lines.push(pad_to_width(ansi.dim(`╰${h_line(box_width - 2)}╯`)));
 
 		this.cached_width = width;
 		this.cached_lines = lines;

@@ -1,20 +1,15 @@
-import path from "node:path";
-import fs from "node:fs/promises";
 import { existsSync } from "node:fs";
+import fs from "node:fs/promises";
+import path from "node:path";
 import YAML from "yaml";
 import {
+	DEFAULT_SETTINGS,
 	EXPERTISE_DIR_NAME,
 	EXPERTISE_PATH_ENV,
-	SETTINGS_FILE_NAME,
 	REFLECTIONS_LOG_NAME,
-	DEFAULT_SETTINGS,
+	SETTINGS_FILE_NAME,
 } from "./constants.js";
-import type {
-	ExpertiseHeader,
-	ExpertiseRecord,
-	ExpertiseSettings,
-	ReflectionLogEntry,
-} from "./types.js";
+import type { ExpertiseHeader, ExpertiseRecord, ExpertiseSettings, ReflectionLogEntry } from "./types.js";
 
 // ---------------------------------------------------------------------------
 // Directory helpers
@@ -22,7 +17,7 @@ import type {
 
 export function get_expertise_dir(cwd: string): string {
 	const override = process.env[EXPERTISE_PATH_ENV];
-	if (override && override.trim()) {
+	if (override?.trim()) {
 		return path.resolve(cwd, override.trim());
 	}
 	return path.resolve(cwd, EXPERTISE_DIR_NAME);
@@ -30,7 +25,7 @@ export function get_expertise_dir(cwd: string): string {
 
 export function get_expertise_dir_label(cwd: string): string {
 	const override = process.env[EXPERTISE_PATH_ENV];
-	if (override && override.trim()) {
+	if (override?.trim()) {
 		return path.resolve(cwd, override.trim());
 	}
 	return EXPERTISE_DIR_NAME;
@@ -146,11 +141,7 @@ export async function list_domains(dir: string): Promise<ExpertiseHeader[]> {
 // Skeleton YAML for init
 // ---------------------------------------------------------------------------
 
-export function build_skeleton_yaml(
-	domain: string,
-	description: string,
-	scope_paths: string[],
-): string {
+export function build_skeleton_yaml(domain: string, description: string, scope_paths: string[]): string {
 	const doc: Record<string, unknown> = {
 		domain,
 		description,
@@ -187,9 +178,8 @@ export async function read_settings(dir: string): Promise<ExpertiseSettings> {
 function normalize_settings(raw: Partial<ExpertiseSettings>): ExpertiseSettings {
 	return {
 		auto_inject: raw.auto_inject ?? DEFAULT_SETTINGS.auto_inject,
-		reflection_model: typeof raw.reflection_model === "string"
-			? raw.reflection_model
-			: DEFAULT_SETTINGS.reflection_model,
+		reflection_model:
+			typeof raw.reflection_model === "string" ? raw.reflection_model : DEFAULT_SETTINGS.reflection_model,
 		max_inject_domains: Number.isFinite(raw.max_inject_domains)
 			? Math.max(1, Math.floor(raw.max_inject_domains!))
 			: DEFAULT_SETTINGS.max_inject_domains,
@@ -200,10 +190,7 @@ function normalize_settings(raw: Partial<ExpertiseSettings>): ExpertiseSettings 
 // Reflection log
 // ---------------------------------------------------------------------------
 
-export async function append_reflection_log(
-	dir: string,
-	entry: ReflectionLogEntry,
-): Promise<void> {
+export async function append_reflection_log(dir: string, entry: ReflectionLogEntry): Promise<void> {
 	await ensure_expertise_dir(dir);
 	const log_path = get_reflections_log_path(dir);
 

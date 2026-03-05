@@ -1,5 +1,5 @@
-import { run_completion } from "./llm.js";
 import { format_conversation_for_router } from "./helpers.js";
+import { run_completion } from "./llm.js";
 import type { ExpertiseHeader, ExpertiseSettings, RouterResult } from "./types.js";
 
 // ---------------------------------------------------------------------------
@@ -46,14 +46,13 @@ IMPORTANT:
 // Build router input (user message content)
 // ---------------------------------------------------------------------------
 
-export function build_router_input(
-	domains: ExpertiseHeader[],
-	condensed_conversation: string,
-): string {
-	const domain_list = domains.map((d) => {
-		const paths = d.scope.paths.map((p) => `    - ${p}`).join("\n");
-		return `- **${d.domain}**: ${d.description}\n  Scope paths:\n${paths}`;
-	}).join("\n\n");
+export function build_router_input(domains: ExpertiseHeader[], condensed_conversation: string): string {
+	const domain_list = domains
+		.map((d) => {
+			const paths = d.scope.paths.map((p) => `    - ${p}`).join("\n");
+			return `- **${d.domain}**: ${d.description}\n  Scope paths:\n${paths}`;
+		})
+		.join("\n\n");
 
 	return `## Available Domains
 
@@ -74,9 +73,7 @@ export function parse_router_output(output: string): RouterResult[] {
 		return [];
 	}
 
-	const container_match = output.match(
-		/<affected_domains>\s*([\s\S]*?)\s*<\/affected_domains>/,
-	);
+	const container_match = output.match(/<affected_domains>\s*([\s\S]*?)\s*<\/affected_domains>/);
 	if (!container_match) return [];
 
 	const inner = container_match[1];
@@ -84,9 +81,8 @@ export function parse_router_output(output: string): RouterResult[] {
 
 	// Match each <domain name="..."><points>...</points></domain>
 	const domain_regex = /<domain\s+name="([^"]+)">\s*<points>\s*([\s\S]*?)\s*<\/points>\s*<\/domain>/g;
-	let match;
 
-	while ((match = domain_regex.exec(inner)) !== null) {
+	for (const match of inner.matchAll(domain_regex)) {
 		const domain = match[1].trim();
 		const points = match[2].trim();
 		if (domain && points) {
@@ -120,11 +116,7 @@ export async function run_router(
 	const user_text = build_router_input(domains, condensed);
 
 	try {
-		const output = await run_completion(
-			ROUTER_PROMPT,
-			user_text,
-			settings.reflection_model || undefined,
-		);
+		const output = await run_completion(ROUTER_PROMPT, user_text, settings.reflection_model || undefined);
 		const parsed = parse_router_output(output);
 
 		// Validate that returned domain names actually exist

@@ -2,21 +2,17 @@ import { DynamicBorder, type Theme } from "@mariozechner/pi-coding-agent";
 import {
 	Container,
 	type Focusable,
+	getEditorKeybindings,
 	Input,
 	Key,
+	matchesKey,
 	Spacer,
 	Text,
 	type TUI,
-	getEditorKeybindings,
-	matchesKey,
 } from "@mariozechner/pi-tui";
-import type { TodoFrontMatter } from "../types.js";
-import {
-	format_todo_id,
-	is_todo_closed,
-	filter_todos,
-} from "../helpers.js";
 import { render_assignment_suffix } from "../formatting.js";
+import { filter_todos, format_todo_id, is_todo_closed } from "../helpers.js";
+import type { TodoFrontMatter } from "../types.js";
 
 export class TodoSelectorComponent extends Container implements Focusable {
 	private search_input: Input;
@@ -165,10 +161,7 @@ export class TodoSelectorComponent extends Container implements Focusable {
 		}
 
 		if (start_index > 0 || end_index < this.filtered_todos.length) {
-			const scroll_info = this.theme.fg(
-				"dim",
-				`  (${this.selected_index + 1}/${this.filtered_todos.length})`,
-			);
+			const scroll_info = this.theme.fg("dim", `  (${this.selected_index + 1}/${this.filtered_todos.length})`);
 			this.list_container.addChild(new Text(scroll_info, 0, 0));
 		}
 	}

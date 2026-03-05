@@ -1,15 +1,9 @@
 import { REFLECTION_PROMPT } from "./constants.js";
-import {
-	read_expertise,
-	write_expertise,
-	append_reflection_log,
-	get_expertise_dir,
-	list_domains,
-} from "./storage.js";
 import { format_conversation_for_reflection } from "./helpers.js";
-import { run_router } from "./router.js";
 import { run_completion } from "./llm.js";
-import type { ExpertiseSettings, ReflectionLogEntry, PipelineResult } from "./types.js";
+import { run_router } from "./router.js";
+import { append_reflection_log, get_expertise_dir, list_domains, read_expertise, write_expertise } from "./storage.js";
+import type { ExpertiseSettings, PipelineResult, ReflectionLogEntry } from "./types.js";
 
 // ---------------------------------------------------------------------------
 // Reflection result
@@ -25,17 +19,13 @@ export interface ReflectionResult {
 // ---------------------------------------------------------------------------
 
 export function parse_reflection_output(output: string): ReflectionResult | null {
-	const yaml_match = output.match(
-		/<updated_expertise>\s*\n?([\s\S]*?)\n?\s*<\/updated_expertise>/,
-	);
-	const summary_match = output.match(
-		/<reflection_summary>\s*\n?([\s\S]*?)\n?\s*<\/reflection_summary>/,
-	);
+	const yaml_match = output.match(/<updated_expertise>\s*\n?([\s\S]*?)\n?\s*<\/updated_expertise>/);
+	const summary_match = output.match(/<reflection_summary>\s*\n?([\s\S]*?)\n?\s*<\/reflection_summary>/);
 
 	if (!yaml_match) return null;
 
 	return {
-		updated_yaml: yaml_match[1].trim() + "\n",
+		updated_yaml: `${yaml_match[1].trim()}\n`,
 		summary: summary_match ? summary_match[1].trim() : "Expertise updated (no summary provided)",
 	};
 }
@@ -44,11 +34,7 @@ export function parse_reflection_output(output: string): ReflectionResult | null
 // Build the reflection input (user message content)
 // ---------------------------------------------------------------------------
 
-function build_reflection_input(
-	current_expertise_yaml: string,
-	conversation: string,
-	router_points?: string,
-): string {
+function build_reflection_input(current_expertise_yaml: string, conversation: string, router_points?: string): string {
 	const router_section = router_points
 		? `\n## Router Attention Signal
 
@@ -98,11 +84,7 @@ export async function run_reflection(
 	const user_text = build_reflection_input(existing.raw, conversation, router_points);
 
 	try {
-		const output = await run_completion(
-			REFLECTION_PROMPT,
-			user_text,
-			settings.reflection_model || undefined,
-		);
+		const output = await run_completion(REFLECTION_PROMPT, user_text, settings.reflection_model || undefined);
 		const parsed = parse_reflection_output(output);
 
 		if (!parsed) {
@@ -155,14 +137,7 @@ export async function run_reflection_pipeline(
 
 		on_status?.(`🧠 Reflecting on ${target_domain}...`);
 
-		const result = await run_reflection(
-			target_domain,
-			messages,
-			cwd,
-			session_file,
-			settings,
-			existing.scope.paths,
-		);
+		const result = await run_reflection(target_domain, messages, cwd, session_file, settings, existing.scope.paths);
 
 		if ("error" in result) {
 			return {

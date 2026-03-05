@@ -36,7 +36,8 @@ export function run_completion(
 			"--no-extensions",
 			"--no-skills",
 			"--no-prompt-templates",
-			"--system-prompt", system_prompt,
+			"--system-prompt",
+			system_prompt,
 		];
 
 		if (model) {

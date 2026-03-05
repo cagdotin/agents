@@ -1,39 +1,45 @@
 {
-  "name": "@cagdotin/agents",
-  "version": "1.0.0",
-  "description": "Shared prompts, skills, and extensions for coding agents of cagin",
-  "author": "cagdotin",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/cagdotin/agents.git"
-  },
-  "bugs": {
-    "url": "https://github.com/cagdotin/agents/issues"
-  },
-  "homepage": "https://github.com/cagdotin/agents#readme",
-  "keywords": [
-    "pi-package"
-  ],
-  "pi": {
-    "prompts": [
-      "./commands"
-    ],
-    "skills": [
-      "./skills"
-    ],
-    "extensions": [
-      "./extensions"
-    ],
-    "themes": [
-      "./pi-themes/"
-    ]
-  },
-  "peerDependencies": {
-    "@mariozechner/pi-coding-agent": "*",
-    "@mariozechner/pi-ai": "*",
-    "@mariozechner/pi-tui": "*"
-  },
-  "devDependencies": {
-    "@types/node": "^25.2.3"
-  }
+	"name": "@cagdotin/agents",
+	"scripts": {
+		"check": "biome check .",
+		"fix": "biome check --write .",
+		"format": "biome format --write ."
+	},
+	"version": "1.0.0",
+	"description": "Shared prompts, skills, and extensions for coding agents of cagin",
+	"author": "cagdotin",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/cagdotin/agents.git"
+	},
+	"bugs": {
+		"url": "https://github.com/cagdotin/agents/issues"
+	},
+	"homepage": "https://github.com/cagdotin/agents#readme",
+	"keywords": [
+		"pi-package"
+	],
+	"pi": {
+		"prompts": [
+			"./commands"
+		],
+		"skills": [
+			"./skills"
+		],
+		"extensions": [
+			"./extensions"
+		],
+		"themes": [
+			"./pi-themes/"
+		]
+	},
+	"peerDependencies": {
+		"@mariozechner/pi-coding-agent": "*",
+		"@mariozechner/pi-ai": "*",
+		"@mariozechner/pi-tui": "*"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.4.6",
+		"@types/node": "^25.2.3"
+	}
 }

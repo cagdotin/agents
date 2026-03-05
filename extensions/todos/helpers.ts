@@ -1,5 +1,5 @@
 import { fuzzyMatch } from "@mariozechner/pi-tui";
-import { TODO_ID_PREFIX, TODO_ID_PATTERN } from "./constants.js";
+import { TODO_ID_PATTERN, TODO_ID_PREFIX } from "./constants.js";
 import type { TodoFrontMatter } from "./types.js";
 
 export function format_todo_id(id: string): string {

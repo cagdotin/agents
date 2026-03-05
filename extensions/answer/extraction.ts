@@ -6,8 +6,8 @@
  * a parser for the structured JSON response.
  */
 
-import { complete, type Model, type Api, type UserMessage } from "@mariozechner/pi-ai";
-import { CODEX_MODEL_ID, HAIKU_MODEL_ID, EXTRACTION_SYSTEM_PROMPT } from "./constants.js";
+import { type Api, complete, type Model, type UserMessage } from "@mariozechner/pi-ai";
+import { CODEX_MODEL_ID, EXTRACTION_SYSTEM_PROMPT, HAIKU_MODEL_ID } from "./constants.js";
 import type { ExtractionResult } from "./types.js";
 
 // ---------------------------------------------------------------------------
@@ -33,10 +33,7 @@ export interface ModelRegistry {
  *
  * A model is only chosen if the registry holds a valid API key for it.
  */
-export async function select_extraction_model(
-	current_model: Model<Api>,
-	registry: ModelRegistry,
-): Promise<Model<Api>> {
+export async function select_extraction_model(current_model: Model<Api>, registry: ModelRegistry): Promise<Model<Api>> {
 	const codex_model = registry.find("openai-codex", CODEX_MODEL_ID);
 	if (codex_model) {
 		const api_key = await registry.getApiKey(codex_model);
