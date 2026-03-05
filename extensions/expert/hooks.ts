@@ -1,4 +1,4 @@
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
 import {
 	get_expertise_dir,
 	list_domains,
@@ -17,10 +17,65 @@ import type { ExpertiseInjectionDetails } from "./types.js";
 export const EXPERTISE_LOADED_MESSAGE_TYPE = "expertise-loaded";
 
 // ---------------------------------------------------------------------------
-// before_agent_start — inject matching expertise into system prompt
+// In-memory state — cumulative set of domains loaded in the current session.
+// Rebuilt from persisted CustomMessageEntry records on session lifecycle events.
 // ---------------------------------------------------------------------------
 
-export function register_injection_hook(pi: ExtensionAPI): void {
+const session_domains: Map<string, string> = new Map(); // domain → description
+
+/**
+ * Scan the current branch for expertise-loaded custom messages
+ * and rebuild the in-memory tracking set.
+ */
+function rebuild_from_session(ctx: ExtensionContext): void {
+	session_domains.clear();
+
+	for (const entry of ctx.sessionManager.getBranch()) {
+		if (
+			entry.type === "custom_message" &&
+			entry.customType === EXPERTISE_LOADED_MESSAGE_TYPE
+		) {
+			const details = entry.details as ExpertiseInjectionDetails | undefined;
+			if (details?.domains) {
+				for (const d of details.domains) {
+					session_domains.set(d.domain, d.description);
+				}
+			}
+		}
+	}
+
+	restore_status(ctx);
+}
+
+/**
+ * Push the current domain set to the footer status bar.
+ * Exported so the /expert reflect command can restore status after temporary overrides.
+ */
+export function restore_status(ctx: ExtensionContext): void {
+	if (session_domains.size === 0) {
+		ctx.ui.setStatus("expert", undefined);
+		return;
+	}
+	const names = [...session_domains.keys()].join(", ");
+	ctx.ui.setStatus("expert", `🧠 ${names}`);
+}
+
+// ---------------------------------------------------------------------------
+// Register all event hooks
+// ---------------------------------------------------------------------------
+
+export function register_hooks(pi: ExtensionAPI): void {
+
+	// --- Session lifecycle: rebuild state whenever the active branch changes ---
+
+	pi.on("session_start", async (_event, ctx) => rebuild_from_session(ctx));
+	pi.on("session_switch", async (_event, ctx) => rebuild_from_session(ctx));
+	pi.on("session_tree", async (_event, ctx) => rebuild_from_session(ctx));
+	pi.on("session_fork", async (_event, ctx) => rebuild_from_session(ctx));
+	pi.on("session_compact", async (_event, ctx) => rebuild_from_session(ctx));
+
+	// --- Injection: match expertise to prompt, inject into system prompt ------
+
 	pi.on("before_agent_start", async (event, ctx) => {
 		const expertise_dir = get_expertise_dir(ctx.cwd);
 		const settings = await read_settings(expertise_dir);
@@ -70,6 +125,12 @@ export function register_injection_hook(pi: ExtensionAPI): void {
 			"consider using the `expertise` tool with action `reflect` to update the domain's mental model.",
 		].join("\n");
 
+		// Update in-memory tracking
+		for (const d of loaded_domains) {
+			session_domains.set(d.domain, d.description);
+		}
+		restore_status(ctx);
+
 		const domain_names = loaded_domains.map((d) => d.domain).join(", ");
 
 		return {
@@ -83,4 +144,3 @@ export function register_injection_hook(pi: ExtensionAPI): void {
 		};
 	});
 }
-

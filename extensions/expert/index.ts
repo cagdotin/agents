@@ -9,7 +9,7 @@ import {
 } from "./storage.js";
 import { run_reflection_pipeline } from "./reflection.js";
 import { create_expertise_tool } from "./tool.js";
-import { register_injection_hook, EXPERTISE_LOADED_MESSAGE_TYPE } from "./hooks.js";
+import { register_hooks, EXPERTISE_LOADED_MESSAGE_TYPE, restore_status } from "./hooks.js";
 import type { ExpertiseInjectionDetails } from "./types.js";
 
 export default function expert_extension(pi: ExtensionAPI) {
@@ -24,8 +24,8 @@ export default function expert_extension(pi: ExtensionAPI) {
 	// Register the expertise tool
 	pi.registerTool(create_expertise_tool(dir_label));
 
-	// Register event hooks
-	register_injection_hook(pi);
+	// Register event hooks (injection, session lifecycle, status tracking)
+	register_hooks(pi);
 
 	// Register message renderer for expertise injection notifications
 	pi.registerMessageRenderer<ExpertiseInjectionDetails>(
@@ -143,7 +143,7 @@ export default function expert_extension(pi: ExtensionAPI) {
 					const message = err instanceof Error ? err.message : String(err);
 					ctx.ui.notify(`Reflection failed: ${message}`, "error");
 				} finally {
-					ctx.ui.setStatus("expert", undefined);
+					restore_status(ctx);
 				}
 				return;
 			}
