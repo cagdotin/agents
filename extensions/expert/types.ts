@@ -72,6 +72,18 @@ export interface ExpertiseInjectionDetails {
 	domains: Array<{
 		domain: string;
 		description: string;
+		pinned?: boolean;
+	}>;
+}
+
+// ---------------------------------------------------------------------------
+// Pinned domains — persisted via appendEntry
+// ---------------------------------------------------------------------------
+
+export interface ExpertisePinnedState {
+	domains: Array<{
+		domain: string;
+		description: string;
 	}>;
 }
 

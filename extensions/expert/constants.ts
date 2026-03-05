@@ -6,8 +6,10 @@ export const REFLECTIONS_LOG_NAME = ".reflections.log";
 export const DEFAULT_SETTINGS = {
 	auto_inject: true,
 	reflection_model: "",
-	max_inject_domains: 2,
+	max_inject_domains: 5,
 };
+
+export const EXPERTISE_PINNED_ENTRY_TYPE = "expertise-pinned";
 
 export const DOMAIN_NAME_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 

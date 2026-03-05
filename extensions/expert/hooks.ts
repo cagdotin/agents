@@ -8,7 +8,8 @@ import {
 import {
 	match_domains_to_prompt,
 } from "./helpers.js";
-import type { ExpertiseInjectionDetails } from "./types.js";
+import { EXPERTISE_PINNED_ENTRY_TYPE } from "./constants.js";
+import type { ExpertiseInjectionDetails, ExpertisePinnedState } from "./types.js";
 
 // ---------------------------------------------------------------------------
 // Custom message type for expertise injection notifications
@@ -23,14 +24,42 @@ export const EXPERTISE_LOADED_MESSAGE_TYPE = "expertise-loaded";
 
 const session_domains: Map<string, string> = new Map(); // domain → description
 
+// ---------------------------------------------------------------------------
+// Pinned domains — user-selected domains that always inject.
+// Persisted via appendEntry, rebuilt on session lifecycle.
+// ---------------------------------------------------------------------------
+
+const pinned_domains: Map<string, string> = new Map(); // domain → description
+
+/** Read the current pinned set. Used by the /expert chat command. */
+export function get_pinned_domains(): Map<string, string> {
+	return pinned_domains;
+}
+
+/** Replace the pinned set and persist. Used by the /expert chat command. */
+export function set_pinned_domains(
+	domains: Array<{ domain: string; description: string }>,
+	pi: ExtensionAPI,
+): void {
+	pinned_domains.clear();
+	for (const d of domains) {
+		pinned_domains.set(d.domain, d.description);
+	}
+	pi.appendEntry<ExpertisePinnedState>(EXPERTISE_PINNED_ENTRY_TYPE, {
+		domains,
+	});
+}
+
 /**
  * Scan the current branch for expertise-loaded custom messages
- * and rebuild the in-memory tracking set.
+ * and pinned-domain entries, then rebuild in-memory state.
  */
 function rebuild_from_session(ctx: ExtensionContext): void {
 	session_domains.clear();
+	pinned_domains.clear();
 
 	for (const entry of ctx.sessionManager.getBranch()) {
+		// Rebuild session_domains from injection messages
 		if (
 			entry.type === "custom_message" &&
 			entry.customType === EXPERTISE_LOADED_MESSAGE_TYPE
@@ -39,6 +68,20 @@ function rebuild_from_session(ctx: ExtensionContext): void {
 			if (details?.domains) {
 				for (const d of details.domains) {
 					session_domains.set(d.domain, d.description);
+				}
+			}
+		}
+
+		// Rebuild pinned_domains from appendEntry records (last one wins)
+		if (
+			entry.type === "custom" &&
+			entry.customType === EXPERTISE_PINNED_ENTRY_TYPE
+		) {
+			const data = entry.data as ExpertisePinnedState | undefined;
+			if (data?.domains) {
+				pinned_domains.clear();
+				for (const d of data.domains) {
+					pinned_domains.set(d.domain, d.description);
 				}
 			}
 		}
@@ -52,12 +95,25 @@ function rebuild_from_session(ctx: ExtensionContext): void {
  * Exported so the /expert reflect command can restore status after temporary overrides.
  */
 export function restore_status(ctx: ExtensionContext): void {
-	if (session_domains.size === 0) {
+	const parts: string[] = [];
+
+	if (pinned_domains.size > 0) {
+		const pinned_names = [...pinned_domains.keys()].join(", ");
+		parts.push(`📌 ${pinned_names}`);
+	}
+
+	// Show auto-matched domains that aren't already pinned
+	const auto_only = [...session_domains.keys()].filter((d) => !pinned_domains.has(d));
+	if (auto_only.length > 0) {
+		parts.push(`🧠 ${auto_only.join(", ")}`);
+	}
+
+	if (parts.length === 0) {
 		ctx.ui.setStatus("expert", undefined);
 		return;
 	}
-	const names = [...session_domains.keys()].join(", ");
-	ctx.ui.setStatus("expert", `🧠 ${names}`);
+
+	ctx.ui.setStatus("expert", parts.join(" · "));
 }
 
 // ---------------------------------------------------------------------------
@@ -74,40 +130,55 @@ export function register_hooks(pi: ExtensionAPI): void {
 	pi.on("session_fork", async (_event, ctx) => rebuild_from_session(ctx));
 	pi.on("session_compact", async (_event, ctx) => rebuild_from_session(ctx));
 
-	// --- Injection: match expertise to prompt, inject into system prompt ------
+	// --- Injection: pinned domains + auto-matched, inject into system prompt ---
 
 	pi.on("before_agent_start", async (event, ctx) => {
 		const expertise_dir = get_expertise_dir(ctx.cwd);
 		const settings = await read_settings(expertise_dir);
 
-		if (!settings.auto_inject) return;
-
 		const domains = await list_domains(expertise_dir);
 		if (domains.length === 0) return;
 
 		const prompt = event.prompt ?? "";
-		if (!prompt.trim()) return;
 
-		// Score domains against the prompt
-		const matches = match_domains_to_prompt(prompt, domains);
-		if (matches.length === 0) return;
-
-		// Take top N domains
-		const top_matches = matches.slice(0, settings.max_inject_domains);
-
-		// Load full expertise for matched domains
+		// --- 1. Always load pinned domains (exempt from max_inject_domains) ---
 		const loaded_domains: ExpertiseInjectionDetails["domains"] = [];
 		const expertise_blocks: string[] = [];
-		for (const match of top_matches) {
-			const record = await read_expertise(expertise_dir, match.domain.domain);
+		const loaded_set = new Set<string>();
+
+		for (const [domain_name, description] of pinned_domains) {
+			const record = await read_expertise(expertise_dir, domain_name);
 			if (!record) continue;
 			expertise_blocks.push(
-				`<expertise domain="${record.domain}">\n${record.raw}\n</expertise>`,
+				`<expertise domain="${record.domain}" pinned="true">\n${record.raw}\n</expertise>`,
 			);
-			loaded_domains.push({
-				domain: record.domain,
-				description: match.domain.description,
-			});
+			loaded_domains.push({ domain: record.domain, description, pinned: true });
+			loaded_set.add(record.domain);
+		}
+
+		// --- 2. Auto-inject additional domains based on prompt matching ---
+		if (settings.auto_inject && prompt.trim()) {
+			const matches = match_domains_to_prompt(prompt, domains);
+			const auto_budget = settings.max_inject_domains;
+			let auto_count = 0;
+
+			for (const match of matches) {
+				if (auto_count >= auto_budget) break;
+				if (loaded_set.has(match.domain.domain)) continue; // already pinned
+
+				const record = await read_expertise(expertise_dir, match.domain.domain);
+				if (!record) continue;
+
+				expertise_blocks.push(
+					`<expertise domain="${record.domain}">\n${record.raw}\n</expertise>`,
+				);
+				loaded_domains.push({
+					domain: record.domain,
+					description: match.domain.description,
+				});
+				loaded_set.add(record.domain);
+				auto_count++;
+			}
 		}
 
 		if (expertise_blocks.length === 0) return;
