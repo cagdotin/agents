@@ -158,10 +158,11 @@ export function build_skeleton_yaml(
 		scope: {
 			paths: scope_paths,
 		},
-		files: [],
-		architecture: [],
+		overview: "",
 		patterns: [],
 		gotchas: [],
+		design_decisions: [],
+		references: [],
 	};
 
 	return YAML.stringify(doc, { lineWidth: 120 });

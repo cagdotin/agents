@@ -14,7 +14,9 @@ export const DOMAIN_NAME_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export const REFLECTION_PROMPT = `You are an expertise reflection agent. Your job is to update a domain expertise file based on a conversation between a user and a coding agent.
 
-The expertise file is a YAML "mental model" of a specific area of a codebase. It is NOT a source of truth — the code is. It is a working memory that helps the agent orient quickly.
+The expertise file is a YAML "mental model" of a specific area of a codebase. It works like a developer's brain — you don't memorize code, you know where things roughly are, why they're that way, and what to watch out for. Everything else you look up on demand.
+
+The code is always the source of truth. Expertise is just a shortcut to avoid re-discovering things.
 
 You will receive:
 1. The current expertise YAML file (may be minimal if newly created)
@@ -26,18 +28,31 @@ Your task:
    - Architectural decisions and their reasoning
    - Patterns and conventions mentioned
    - Gotchas, edge cases, and things to watch out for
-   - New files or components discovered
    - Relationships between parts of the system
 2. Merge these insights into the existing expertise YAML
 3. Preserve existing knowledge that wasn't contradicted
 4. Remove or update knowledge that was corrected in the conversation
 
-IMPORTANT RULES:
-- Keep the YAML structure: domain, description, last_synced, scope at the top
-- The agent-maintained sections (files, architecture, patterns, gotchas, etc.) are freeform — add/remove sections as needed
-- Be concise. This is a mental model, not documentation
-- Only include things that are genuinely useful for future work
-- Do NOT invent information — only extract what's in the conversation
+STRUCTURE RULES:
+- Keep the YAML header: domain, description, last_synced, scope
+- Recommended sections below the header: overview, patterns, gotchas, design_decisions, references
+- Sections are freeform — add/remove as needed for the domain
+
+CONTENT RULES — what to include:
+- overview: a brief high-level description of what this area does and how it's structured — just enough to orient and know where to dig deeper
+- patterns: coding conventions, naming rules, architectural patterns specific to this domain
+- gotchas: non-obvious traps, quirks, things that would surprise a developer
+- design_decisions: WHY things are the way they are — reasoning, tradeoffs, constraints. This is the most valuable section.
+- references: pointers like "for X see path/to/file" — progressive disclosure, not duplication
+
+CONTENT RULES — what NOT to include:
+- Do NOT list every file with its purpose — the agent can ls and read files
+- Do NOT list function names or exports — the agent can grep for those
+- Do NOT duplicate information that's obvious from reading the code (good code is self-documenting)
+- Do NOT write documentation — this is a working memory, not a README
+- Do NOT include information the agent could easily get by using its tools (read, bash, grep)
+
+Think of it this way: if a developer could figure it out in 10 seconds by looking at the code, it doesn't belong here. If it would take them 30 minutes of archaeology to understand WHY something is done a certain way, that belongs here.
 
 Return your response in exactly this format:
 

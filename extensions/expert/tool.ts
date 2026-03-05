@@ -105,7 +105,14 @@ export function create_expertise_tool(pi: ExtensionAPI, dir_label: string) {
 						content: [{
 							type: "text",
 							text: `Domain '${params.domain}' initialized.\n\nFiles in scope:\n${file_listing}\n\n` +
-								"Now read the key files to build your mental model, then use 'update' to save your expertise.",
+								"Now read the key files to understand the domain, then use 'update' to save your expertise.\n\n" +
+								"IMPORTANT: Focus on insights that aren't obvious from reading the code:\n" +
+								"- overview: brief high-level orientation (not a file listing)\n" +
+								"- patterns: conventions and architectural patterns\n" +
+								"- gotchas: non-obvious traps and quirks\n" +
+								"- design_decisions: WHY things are the way they are\n" +
+								"- references: 'for X see path/to/file' pointers\n" +
+								"Do NOT list files, functions, or exports — the agent can look those up with its tools.",
 						}],
 						details: {
 							action: "init",
