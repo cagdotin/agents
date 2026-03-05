@@ -262,3 +262,73 @@ summary: >-
 
   - **Simplified gotchas** — merged domain param note into the two-stage reflection design decision where it belongs,
   added note about CONTENT_PRINCIPLES propagation scope since that's a non-obvious coupling.
+---
+date: 2026-03-05T14:09:32.372Z
+domain: extensions-dev
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-05T14-03-21-758Z_39f65d69-bb75-4fc6-aa4f-da699fd3cdcf.jsonl
+model: (default)
+summary: >-
+  - **Added**: "Pi loads extensions as raw TS — no build/compile step" to overview. This is non-obvious and was
+  confirmed when attempting `npm run build` which doesn't exist. Saves confusion for anyone trying to compile
+  extensions.
+
+  - **No removals**: Nothing in the existing expertise was contradicted. The conversation was primarily about the expert
+  extension's trimming behavior (covered by the `expert-extension` domain), not about extensions-dev patterns in
+  general.
+
+  - The bulk of the conversation insights (router pipeline, trimming philosophy, pushback mechanism) belong in the
+  `expert-extension` domain, not here.
+---
+date: 2026-03-05T14:09:33.614Z
+domain: expert-extension
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-05T14-03-21-758Z_39f65d69-bb75-4fc6-aa4f-da699fd3cdcf.jsonl
+model: (default)
+summary: >-
+  - **Added design decision**: `.pi/expertise/` is now tracked in git (was previously gitignored). This is a non-obvious
+  choice — explains why the `.gitignore` was changed and that only `.pi/todos/` remains ignored.
+
+  - **Updated last_synced** timestamp to reflect current reflection.
+
+  - **No removals**: All existing content remains valid and was not contradicted. The trimming design decision was
+  already captured from the prior reflection in this same conversation.
+
+  - The conversation primarily reinforced the trimming philosophy change that was already documented — the commit itself
+  bundled the router refactor + trimming softening together, but the expertise already covered both from the earlier
+  reflection pass.
+---
+date: 2026-03-05T14:10:02.163Z
+domain: expert-extension
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-05T14-05-21-113Z_e041d206-9de9-4177-bff9-52626af2df9e.jsonl
+model: current session model
+summary: >-
+  - **Added design decision**: Documented the new "expertise injection visibility" feature — custom message sent via
+  `pi.sendMessage()` in `before_agent_start` hook, rendered with `registerMessageRenderer` using Box/Text from pi-tui
+
+  - **Added gotcha**: Custom message renderer must return `undefined` (not `null`) when nothing to render
+
+  - **Added reference**: Custom message pattern reference pointing to hooks.ts + index.ts, modeled after the
+  message-renderer example
+
+  - **Updated overview**: Mentioned that injected domains are now shown in the conversation
+
+  - **Key implementation details captured**: The `ExpertiseInjectionDetails` type in types.ts,
+  `EXPERTISE_LOADED_MESSAGE_TYPE` constant in hooks.ts, theme colors used (customMessageLabel, accent, dim,
+  customMessageBg)
+---
+date: 2026-03-05T14:20:49.255Z
+domain: expert-extension
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-05T14-10-40-646Z_67d0c8e9-38af-407b-a52c-389c3e165c1d.jsonl
+model: (default)
+summary: >-
+  - **Merged** the old "Reflection re-evaluates ALL existing entries" design decision with the new WHY-vs-HOW prompt
+  design insight into a single, more comprehensive entry. The root cause (implementation walkthroughs accumulating
+  because nothing "contradicts" them) and the three-part fix (explicit examples, active re-evaluation, updated "does not
+  belong" list) are now captured together.
+
+  - **No other changes needed** — the expertise file was already cleaned up during the conversation itself (stale
+  `select_reflection_model` reference, custom message implementation walkthrough, etc. were already removed). The
+  remaining entries all pass the 10-second rule.
+
+  - **Considered removing** "Two-stage reflection: Router → parallel domain experts" (borderline code description) but
+  kept it — the "skip router with domain" behavior is a meaningful architectural shortcut that's not obvious without
+  reading reflection.ts carefully.

@@ -1,6 +1,6 @@
 domain: extensions-dev
 description: "Patterns and conventions for building pi extensions in this project"
-last_synced: "2026-03-05T13:11:00Z"
+last_synced: "2026-03-05T15:08:00Z"
 
 scope:
   paths:
@@ -9,6 +9,7 @@ scope:
 overview: |
   All pi extensions live in extensions/<name>/. Use extensions/todos/ as the gold standard
   for a full tool + TUI command. Simple extensions (tmux-*) are single-file index.ts.
+  Pi loads extensions as raw TS — no build/compile step. Changes to .ts files are immediately effective.
   Pi docs (docs/extensions.md, docs/tui.md) cover the API — this expertise covers project-specific
   conventions and non-obvious decisions.
 

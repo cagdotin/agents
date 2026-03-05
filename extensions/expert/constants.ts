@@ -26,6 +26,7 @@ WHAT DOES NOT BELONG (the 10-second rule — if you can figure it out by looking
 - File listings or directory structures — the agent can ls
 - Function names, exports, or API inventories — the agent can grep
 - Implementation details that are obvious from reading the code
+- "How it works" walkthroughs — "X calls Y, which does Z" just describes the code
 - Step-by-step patterns that can be copied from existing code
 - Anything that duplicates what the code already says clearly
 
@@ -57,11 +58,16 @@ You will receive:
 Your task:
 1. Extract key insights from the conversation — prioritize:
    - Corrections the user made ("we don't do it that way")
-   - Architectural decisions and their reasoning (the WHY)
+   - Architectural decisions: the TRADEOFF or REASON behind a choice, not how the code implements it.
+     Good: "We chose X over Y because Z" — captures WHY, saves archaeology time.
+     Bad: "X works by calling A, which does B, using C" — that's just describing the code.
    - Non-obvious gotchas the developer got burned by
    - Conventions that aren't obvious from the code
 2. Merge these insights into the existing expertise YAML
-3. Preserve existing knowledge that wasn't contradicted
+3. Re-evaluate ALL existing entries (not just new ones) against the content principles below.
+   Remove entries that describe implementation mechanics visible from reading the code, even if
+   they weren't explicitly contradicted. Stale or overly-detailed entries accumulate over time —
+   each reflection is a chance to prune them.
 4. Remove or update knowledge that was corrected in the conversation
 5. TRIM thoughtfully — remove items that clearly violate the content principles below, but
    NEVER silently drop insights just to reduce line count. If something is genuinely hard to
@@ -83,7 +89,12 @@ CONTENT PRINCIPLES:
 ${CONTENT_PRINCIPLES}
 
 TRIMMING RULES — apply thoughtfully, not blindly:
-- Review items against the 10-second rule: if you can figure it out by reading the code, remove it
+- Review ALL entries (old and new) against the 10-second rule on every reflection. Entries that
+  made sense when first written may now be stale or describe code that's since been refactored.
+- Remove "how it works" walkthroughs — if an entry reads like a code tour ("X calls Y, which does Z,
+  using theme colors A, B, C"), it's describing the code, not capturing insight. Cut it.
+- Design decisions should capture the TRADEOFF ("we chose X over Y because Z"), not the mechanics.
+  If the "detail" field just explains how the code implements something, it fails the 10-second rule.
 - Remove patterns that are just describing what the code does (the code already says that)
 - Remove implementation details that are visible from reading the files
 - Merge overlapping items — don't repeat the same insight in different words

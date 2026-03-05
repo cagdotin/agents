@@ -1,6 +1,6 @@
 domain: expert-extension
 description: "Self-improving domain expertise extension for pi — manages per-domain mental models as YAML files"
-last_synced: "2026-03-05T15:06:00Z"
+last_synced: "2026-03-05T15:19:00Z"
 
 scope:
   paths:
@@ -14,13 +14,8 @@ overview: |
 design_decisions:
   - reason: "In-process LLM calls, not subprocesses"
     detail: |
-      Uses complete() from @mariozechner/pi-ai directly (see llm.ts). Subprocesses broke:
-      (1) no inherited auth/subscription, (2) parallel processes fight over global settings lock.
-      Pattern borrowed from extensions/answer/extraction.ts.
-  - reason: "Model selected once, passed down"
-    detail: |
-      run_reflection_pipeline() calls select_reflection_model() once, passes to both router
-      and reflection. Avoids redundant model selection.
+      Subprocesses broke: (1) no inherited auth/subscription, (2) parallel processes fight
+      over global settings lock. Pattern borrowed from extensions/answer/extraction.ts.
   - reason: "Reflection is explicit-only, never automatic"
     detail: |
       Auto-reflect on agent_end was removed — it blocked next prompt, ran on every cycle
@@ -31,17 +26,22 @@ design_decisions:
       With domain: skip router, single-domain reflection.
   - reason: "Trimming is thoughtful, not aggressive"
     detail: |
-      Early versions had very aggressive trimming (30-60 line target, "when in doubt leave it out").
-      This caused agents to silently drop valuable insights to hit line counts. Fixed by:
-      (1) raising thresholds (40-80 target, 100-120 codebase concern trigger),
-      (2) changing language from "aggressively" to "thoughtfully",
-      (3) adding explicit pushback mechanism — agent MUST say in reflection_summary when it
-      can't trim further, explaining what it considered removing and why it kept it.
+      Early versions had very aggressive trimming that caused agents to silently drop insights.
+      Fixed by raising thresholds, changing language, and adding explicit pushback mechanism.
       Key principle: never silently drop insights just to meet a line target.
+  - reason: "Prompts must distinguish WHY from HOW, and actively re-evaluate existing content"
+    detail: |
+      Without explicit guidance, reflection agents treat implementation walkthroughs as
+      "architectural decisions" and preserve them forever (nothing "contradicts" a description
+      of how code works). Three-part fix in REFLECTION_PROMPT + CONTENT_PRINCIPLES:
+      (1) Explicit good/bad examples — "We chose X over Y because Z" vs "X calls A which does B"
+      (2) Active re-evaluation of ALL entries each reflection pass, not just passive preservation
+      (3) "How it works" walkthroughs added to the "does not belong" list
+      Without this, expertise files accumulate stale implementation details indefinitely.
 
 gotchas:
-  - "Router XML parse uses regex — fragile if model adds extra whitespace or attributes to XML tags"
-  - "scope.patterns is defined in ExpertiseHeader but currently unused — either implement or remove"
+  - "Router XML parse uses regex — fragile if model adds extra whitespace or attributes"
+  - "scope.patterns is defined in ExpertiseHeader but currently unused"
   - "match_domains_to_prompt() is keyword-only — 'login flow' won't match 'authentication' domain"
   - "CONTENT_PRINCIPLES constant is shared across tool description, init/update responses, and REFLECTION_PROMPT — changes propagate everywhere"
 
@@ -52,5 +52,5 @@ active_todos:
   - "TODO-6087997f: UX — reflection log viewer (/expert log), /expert init command"
 
 references:
-  - "LLM integration pattern: extensions/expert/llm.ts (modeled after extensions/answer/extraction.ts)"
+  - "LLM integration pattern: see extensions/answer/extraction.ts"
   - "Concept origin: IndyDevDan's 'Agent Experts' video"
