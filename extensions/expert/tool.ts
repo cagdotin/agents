@@ -2,6 +2,7 @@ import type { ExtensionAPI, Theme } from "@mariozechner/pi-coding-agent";
 import { Text } from "@mariozechner/pi-tui";
 import type { ExpertiseAction, ExpertiseToolDetails } from "./types.js";
 import { ExpertiseParams } from "./types.js";
+import { CONTENT_PRINCIPLES } from "./constants.js";
 import { validate_domain_name, scan_scope_paths } from "./helpers.js";
 import {
 	get_expertise_dir,
@@ -22,7 +23,8 @@ export function create_expertise_tool(pi: ExtensionAPI, dir_label: string) {
 			`Manage domain expertise files in ${dir_label} — the agent's persistent mental model of specific areas of the codebase. ` +
 			"Actions: list (show all domains), get (read a domain's expertise), init (bootstrap new domain from scope paths), " +
 			"update (replace full YAML content), reflect (extract insights from current conversation and update), delete (remove domain). " +
-			"After completing work that changes code in a domain's scope, use 'reflect' to update the expertise with learnings from the conversation.",
+			"After completing work that changes code in a domain's scope, use 'reflect' to update the expertise with learnings from the conversation.\n\n" +
+			CONTENT_PRINCIPLES,
 		parameters: ExpertiseParams,
 
 		async execute(
@@ -106,13 +108,19 @@ export function create_expertise_tool(pi: ExtensionAPI, dir_label: string) {
 							type: "text",
 							text: `Domain '${params.domain}' initialized.\n\nFiles in scope:\n${file_listing}\n\n` +
 								"Now read the key files to understand the domain, then use 'update' to save your expertise.\n\n" +
-								"IMPORTANT: Focus on insights that aren't obvious from reading the code:\n" +
-								"- overview: brief high-level orientation (not a file listing)\n" +
-								"- patterns: conventions and architectural patterns\n" +
-								"- gotchas: non-obvious traps and quirks\n" +
-								"- design_decisions: WHY things are the way they are\n" +
-								"- references: 'for X see path/to/file' pointers\n" +
-								"Do NOT list files, functions, or exports — the agent can look those up with its tools.",
+								"CRITICAL — write a SHORT expertise file (aim for 30-60 lines of YAML). " +
+								"Only include things that pass the 10-second rule: if a developer could figure it out " +
+								"by reading the code in 10 seconds, LEAVE IT OUT.\n\n" +
+								"Focus on:\n" +
+								"- overview: 2-3 sentences of orientation, not a file listing\n" +
+								"- design_decisions: WHY things are the way they are (most valuable section)\n" +
+								"- gotchas: things that actually burn people\n" +
+								"- references: 'for X see path/to/file' pointers\n\n" +
+								"Do NOT include: file listings, function names, implementation details visible from the code, " +
+								"patterns you can copy from existing files, anything that reads like documentation.\n\n" +
+								"If you find yourself needing many gotchas or explanations, ask WHY — " +
+								"it may signal poor naming, missing docs, or a domain that's too broad. " +
+								"Add a 'codebase_concerns' section to flag these rather than just documenting around them.",
 						}],
 						details: {
 							action: "init",
@@ -138,8 +146,21 @@ export function create_expertise_tool(pi: ExtensionAPI, dir_label: string) {
 					}
 
 					await write_expertise(expertise_dir, params.domain, params.content);
+
+					// Count lines as a quality signal
+					const line_count = params.content.split("\n").length;
+					let size_note = "";
+					if (line_count > 80) {
+						size_note = ` ⚠️ ${line_count} lines — this is unusually long. ` +
+							"First, apply the 10-second rule and remove anything obvious from the code. " +
+							"If it's still long, diagnose the root cause: is the domain scope too broad (split it)? " +
+							"Is the code missing docs or using poor naming (suggest improvements)? " +
+							"Are there too many implicit conventions that should be explicit in the code? " +
+							"Add a 'codebase_concerns' section to flag structural issues rather than just documenting the mess.";
+					}
+
 					return {
-						content: [{ type: "text", text: `Domain '${params.domain}' expertise updated.` }],
+						content: [{ type: "text", text: `Domain '${params.domain}' expertise updated.${size_note}` }],
 						details: { action: "update", domain: params.domain },
 					};
 				}

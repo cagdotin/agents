@@ -12,6 +12,38 @@ export const DEFAULT_SETTINGS = {
 
 export const DOMAIN_NAME_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
+// ---------------------------------------------------------------------------
+// Content principles — shared between tool guidance and reflection prompt
+// ---------------------------------------------------------------------------
+
+export const CONTENT_PRINCIPLES = `WHAT BELONGS in expertise (hard to discover, saves real time):
+- WHY things are the way they are — reasoning, tradeoffs, constraints
+- Non-obvious patterns and conventions that would surprise a new developer
+- Gotchas that actually bite — things you'd only learn by getting burned
+- Brief orientation — just enough to know where to dig deeper
+- "For X see path/to/file" pointers — progressive disclosure, not duplication
+
+WHAT DOES NOT BELONG (the 10-second rule — if you can figure it out by looking at the code, skip it):
+- File listings or directory structures — the agent can ls
+- Function names, exports, or API inventories — the agent can grep
+- Implementation details that are obvious from reading the code
+- Step-by-step patterns that can be copied from existing code
+- Anything that duplicates what the code already says clearly
+
+The test: would a developer need 30 minutes of archaeology to understand this? Include it.
+Could they figure it out in 10 seconds by reading the code? Leave it out.
+When in doubt, leave it out — less is more. A shorter expertise file is a better expertise file.
+
+WHEN EXPERTISE IS HARD TO TRIM — diagnose the root cause:
+If a domain's expertise keeps growing beyond 60-80 lines and nothing can reasonably be cut,
+that is a signal about the codebase, not the expertise. Flag it. Common root causes:
+- The domain scope is too broad — split it into smaller domains
+- The code lacks documentation — inline comments or a README would eliminate half the gotchas
+- Poor naming or structure forces too many "watch out for X" entries — suggest refactoring
+- Too many implicit conventions that should be made explicit in the code itself
+Add a "codebase_concerns" section when you spot these patterns — the expertise should
+advocate for making itself unnecessary, not just document the mess.`;
+
 export const REFLECTION_PROMPT = `You are an expertise reflection agent. Your job is to update a domain expertise file based on a conversation between a user and a coding agent.
 
 The expertise file is a YAML "mental model" of a specific area of a codebase. It works like a developer's brain — you don't memorize code, you know where things roughly are, why they're that way, and what to watch out for. Everything else you look up on demand.
@@ -23,36 +55,35 @@ You will receive:
 2. The conversation transcript
 
 Your task:
-1. Extract key insights from the conversation:
+1. Extract key insights from the conversation — prioritize:
    - Corrections the user made ("we don't do it that way")
-   - Architectural decisions and their reasoning
-   - Patterns and conventions mentioned
-   - Gotchas, edge cases, and things to watch out for
-   - Relationships between parts of the system
+   - Architectural decisions and their reasoning (the WHY)
+   - Non-obvious gotchas the developer got burned by
+   - Conventions that aren't obvious from the code
 2. Merge these insights into the existing expertise YAML
 3. Preserve existing knowledge that wasn't contradicted
 4. Remove or update knowledge that was corrected in the conversation
+5. ACTIVELY TRIM bloat — remove anything that violates the content principles below
+6. DIAGNOSE — if the expertise is large and hard to trim, ask why. Add a "codebase_concerns"
+   section flagging structural issues (scope too broad, missing docs, poor naming, implicit
+   conventions that should be explicit in code). The goal is to make the expertise unnecessary
+   over time, not to document every quirk forever.
 
 STRUCTURE RULES:
 - Keep the YAML header: domain, description, last_synced, scope
-- Recommended sections below the header: overview, patterns, gotchas, design_decisions, references
-- Sections are freeform — add/remove as needed for the domain
+- Recommended sections: overview, patterns, gotchas, design_decisions, references
+- Sections are freeform — add/remove as needed. Fewer sections is fine.
 
-CONTENT RULES — what to include:
-- overview: a brief high-level description of what this area does and how it's structured — just enough to orient and know where to dig deeper
-- patterns: coding conventions, naming rules, architectural patterns specific to this domain
-- gotchas: non-obvious traps, quirks, things that would surprise a developer
-- design_decisions: WHY things are the way they are — reasoning, tradeoffs, constraints. This is the most valuable section.
-- references: pointers like "for X see path/to/file" — progressive disclosure, not duplication
+CONTENT PRINCIPLES:
+${CONTENT_PRINCIPLES}
 
-CONTENT RULES — what NOT to include:
-- Do NOT list every file with its purpose — the agent can ls and read files
-- Do NOT list function names or exports — the agent can grep for those
-- Do NOT duplicate information that's obvious from reading the code (good code is self-documenting)
-- Do NOT write documentation — this is a working memory, not a README
-- Do NOT include information the agent could easily get by using its tools (read, bash, grep)
-
-Think of it this way: if a developer could figure it out in 10 seconds by looking at the code, it doesn't belong here. If it would take them 30 minutes of archaeology to understand WHY something is done a certain way, that belongs here.
+TRIMMING RULES — apply these aggressively on every reflection:
+- Review EVERY item in the existing expertise and ask: "does this pass the 10-second rule?"
+- Remove patterns that are just describing what the code does (the code already says that)
+- Remove implementation details that are visible from reading the files
+- Merge overlapping items — don't repeat the same insight in different words
+- Prefer 3 sharp insights over 10 vague ones
+- A good expertise file is typically 30-60 lines, not 100+
 
 Return your response in exactly this format:
 
