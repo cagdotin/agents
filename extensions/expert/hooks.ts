@@ -2,13 +2,14 @@ import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-age
 import { EXPERTISE_PINNED_ENTRY_TYPE } from "./constants.js";
 import { match_domains_to_prompt } from "./helpers.js";
 import { get_expertise_dir, list_domains, read_expertise, read_settings } from "./storage.js";
-import type { ExpertiseInjectionDetails, ExpertisePinnedState } from "./types.js";
+import type { ExpertiseInjectionDetails, ExpertisePinnedState, ExpertiseSkipDetails } from "./types.js";
 
 // ---------------------------------------------------------------------------
 // Custom message type for expertise injection notifications
 // ---------------------------------------------------------------------------
 
 export const EXPERTISE_LOADED_MESSAGE_TYPE = "expertise-loaded";
+export const EXPERTISE_SKIPPED_MESSAGE_TYPE = "expertise-skipped";
 
 // ---------------------------------------------------------------------------
 // In-memory state — cumulative set of domains loaded in the current session.
@@ -100,6 +101,25 @@ export function restore_status(ctx: ExtensionContext): void {
 	ctx.ui.setStatus("expert", parts.join(" · "));
 }
 
+type ContextInjectionMode = "normal" | "tight" | "critical";
+
+function get_context_injection_mode(
+	usage_percent: number | undefined,
+	auto_threshold: number,
+	any_threshold: number,
+): ContextInjectionMode {
+	if (usage_percent === undefined) {
+		return "normal";
+	}
+	if (usage_percent >= any_threshold) {
+		return "critical";
+	}
+	if (usage_percent >= auto_threshold) {
+		return "tight";
+	}
+	return "normal";
+}
+
 // ---------------------------------------------------------------------------
 // Register all event hooks
 // ---------------------------------------------------------------------------
@@ -122,6 +142,38 @@ export function register_hooks(pi: ExtensionAPI): void {
 		const domains = await list_domains(expertise_dir);
 		if (domains.length === 0) return;
 
+		const context_usage = ctx.getContextUsage();
+		const usage_percent =
+			typeof context_usage?.percent === "number" && Number.isFinite(context_usage.percent)
+				? context_usage.percent
+				: undefined;
+		const injection_mode = get_context_injection_mode(
+			usage_percent,
+			settings.max_context_percent_for_auto_inject,
+			settings.max_context_percent_for_any_inject,
+		);
+
+		if (injection_mode === "critical") {
+			const usage_value = Math.round(usage_percent ?? 100);
+			const threshold = settings.max_context_percent_for_any_inject;
+			const reason =
+				`Skipped expertise injection: context is at ${usage_value}% ` + `(critical threshold: ${threshold}%).`;
+			ctx.ui.notify(reason, "warning");
+
+			return {
+				message: {
+					customType: EXPERTISE_SKIPPED_MESSAGE_TYPE,
+					content: reason,
+					display: true,
+					details: {
+						reason,
+						usage_percent: usage_value,
+						threshold_percent: threshold,
+					} satisfies ExpertiseSkipDetails,
+				},
+			};
+		}
+
 		const prompt = event.prompt ?? "";
 
 		// --- 1. Always load pinned domains (exempt from max_inject_domains) ---
@@ -129,16 +181,23 @@ export function register_hooks(pi: ExtensionAPI): void {
 		const expertise_blocks: string[] = [];
 		const loaded_set = new Set<string>();
 
-		for (const [domain_name, description] of pinned_domains) {
+		for (const [domain_name, pinned_description] of pinned_domains) {
 			const record = await read_expertise(expertise_dir, domain_name);
 			if (!record) continue;
 			expertise_blocks.push(`<expertise domain="${record.domain}" pinned="true">\n${record.raw}\n</expertise>`);
-			loaded_domains.push({ domain: record.domain, description, pinned: true });
+			loaded_domains.push({
+				domain: record.domain,
+				description: pinned_description || record.description,
+				pinned: true,
+				related_domains: record.related_domains,
+			});
 			loaded_set.add(record.domain);
 		}
 
+		const should_auto_inject = injection_mode === "normal";
+
 		// --- 2. Auto-inject additional domains based on prompt matching ---
-		if (settings.auto_inject && prompt.trim()) {
+		if (should_auto_inject && settings.auto_inject && prompt.trim()) {
 			const matches = match_domains_to_prompt(prompt, domains);
 			const auto_budget = settings.max_inject_domains;
 			let auto_count = 0;
@@ -153,7 +212,8 @@ export function register_hooks(pi: ExtensionAPI): void {
 				expertise_blocks.push(`<expertise domain="${record.domain}">\n${record.raw}\n</expertise>`);
 				loaded_domains.push({
 					domain: record.domain,
-					description: match.domain.description,
+					description: match.domain.description || record.description,
+					related_domains: record.related_domains,
 				});
 				loaded_set.add(record.domain);
 				auto_count++;

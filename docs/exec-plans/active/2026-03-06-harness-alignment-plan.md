@@ -130,43 +130,45 @@ Reference:
 
 ## R8 — Decide on prompt-template path strategy (`commands/`)
 
-Status: 🟡 active (next)
+Status: ✅ complete
 
 Reasoning:
-- `package.json` reserves `./commands` as a prompts path but repo currently has no prompt templates.
-- Empty declared resource paths increase ambiguity and maintenance overhead.
+- `package.json` reserved `./commands` as a prompts path but repo had no prompt templates.
+- Empty declared resource paths increased ambiguity and maintenance overhead.
 
-Decision needed:
-- Option A: add real prompt templates in `commands/`
-- Option B: remove `prompts` path from package manifest until needed
+Decision:
+- Adopted Option B: removed `prompts` path from package manifest until prompt templates actually exist.
 
-Reference:
-- Tracked in [[docs/QUALITY]] P1.
+Implemented:
+- Updated `package.json` Pi manifest to include only existing paths (`skills`, `extensions`, `themes`).
+- Updated architecture/reference/quality docs to reflect the manifest contract.
 
 ---
 
 ## R9 — Expert extension hardening (matching + context budget + UX)
 
-Status: 🟡 active (next)
+Status: ✅ complete
 
 Reasoning:
 - Selective injection only works if domain matching is reliable and context-aware.
 - Without budget checks, context can bloat and degrade model performance.
 
-Scope:
-1. Improve domain matching beyond simple keyword matching.
-2. Add context budget checks prior to expertise injection.
-3. Improve `/expert` UX (reflection log viewer/init helper).
+Implemented:
+1. Upgraded matching to include aliases, keywords, `scope.patterns` hints, and score thresholding.
+2. Added context-budget-aware injection modes (normal/tight/critical) using `ctx.getContextUsage()` and settings thresholds.
+3. Added `/expert log` and `/expert init` command flows, including defensive reflection log parsing.
+4. Extended expertise metadata support (`keywords`, `aliases`, `related_domains`) and surfaced related-domain hints in injection metadata.
 
 References:
 - [[docs/references/pi-api-reference]]
 - `.pi/todos` expert TODOs
+- [[specs/2026-03-06-r9-expert-extension-hardening]]
 
 ---
 
 ## R10 — Spec-driven planning for complex upcoming extensions
 
-Status: 🟡 active (next)
+Status: 🟡 active (seeded)
 
 Reasoning:
 - High-complexity extension work benefits from explicit execution plans and decision logs.
@@ -176,14 +178,14 @@ Scope:
 - Use `create-spec` skill for complex planned extensions (subagent/team/safety/orchestration).
 - Store generated specs under `specs/` and cross-link from exec plans.
 
+Implemented seed:
+- Added [[specs/2026-03-06-r9-expert-extension-hardening]] as a concrete spec artifact for upcoming expert-extension hardening work.
+
 ---
 
 ## Execution Order
 
-1. R7 (validation + checks)
-2. R8 (prompts path decision)
-3. R9 (expert hardening)
-4. R10 (spec-driven implementation pipeline)
+1. R10 (spec-driven implementation pipeline)
 
 ---
 

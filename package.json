@@ -10,7 +10,7 @@
 		"format": "biome format --write ."
 	},
 	"version": "1.0.0",
-	"description": "Shared prompts, skills, and extensions for coding agents of cagin",
+	"description": "Shared skills, extensions, themes, and docs for coding agents of cagin",
 	"author": "cagdotin",
 	"repository": {
 		"type": "git",
@@ -24,9 +24,6 @@
 		"pi-package"
 	],
 	"pi": {
-		"prompts": [
-			"./commands"
-		],
 		"skills": [
 			"./skills"
 		],

@@ -1,7 +1,7 @@
 # QUALITY
 
 Status: active  
-Last updated: 2026-03-06
+Last updated: 2026-03-07
 
 This scorecard tracks maintainability and readiness of this package for day-to-day agent use.
 
@@ -22,7 +22,7 @@ This scorecard tracks maintainability and readiness of this package for day-to-d
 | Resource knowledge base (`docs/resources`) | 3 | Good | Strong frontmatter schema and summaries; continue consistent tagging/related links |
 | `extensions/answer` | 3 | Good | Solid README and clear flow; low active maintenance load |
 | `extensions/todos` | 3 | Good | Strong implementation and TUI; docs were stale and are now refreshed |
-| `extensions/expert` | 3 | Good | Rich capability set; known matching/context-budget TODOs still open |
+| `extensions/expert` | 4 | Excellent | Matching now uses aliases/keywords/pattern hints, injection is context-budget-aware, and `/expert log` + `/expert init` close the main UX gaps |
 | `extensions/tmux-notify` | 3 | Good | Useful and focused; now documented |
 | `extensions/tmux-pane-title` | 3 | Good | Useful and focused; now documented |
 | Skills (`skills/*`) | 3 | Good | Consistent SKILL format and clear purpose |
@@ -38,10 +38,7 @@ This scorecard tracks maintainability and readiness of this package for day-to-d
 
 ## P1
 
-1. Either add a real `commands/` prompt-template directory or remove the reserved prompts path from `package.json`.
-2. Improve `extensions/expert` domain matching beyond simple keyword matching.
-3. Add context-budget-aware expertise injection (`ctx.getContextUsage()` before injecting).
-4. Add `/expert` UX improvements (reflection log viewer/init helper).
+- None currently.
 
 ## P2
 

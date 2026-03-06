@@ -20,15 +20,7 @@ Related:
 
 ## P1 Debt
 
-## 2) Reserved `commands/` prompt path without concrete prompts
-
-Impact:
-- Manifest/file-system mismatch adds ambiguity for contributors/agents.
-
-Planned remediation:
-- Implement R8 (add prompts or remove reserved path).
-
-## 3) Expert domain matching precision
+## 1) Expert domain matching precision
 
 Impact:
 - Potentially wrong/missing expertise injection.
@@ -36,7 +28,7 @@ Impact:
 Planned remediation:
 - Implement R9 matching improvements.
 
-## 4) Expertise context budget safeguards
+## 2) Expertise context budget safeguards
 
 Impact:
 - Potential context overuse and degraded generation quality.
@@ -44,7 +36,7 @@ Impact:
 Planned remediation:
 - Implement R9 budget checks before injection.
 
-## 5) Expert command UX gaps
+## 3) Expert command UX gaps
 
 Impact:
 - More operator friction than necessary for reflection workflows.
@@ -56,7 +48,7 @@ Planned remediation:
 
 ## P2 Debt
 
-## 6) Spec discipline for complex extension roadmap items
+## 4) Spec discipline for complex extension roadmap items
 
 Impact:
 - Higher risk of rework and architectural drift in complex features.

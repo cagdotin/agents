@@ -1,74 +1,54 @@
 domain: expert-extension
 description: "Self-improving domain expertise extension for pi — manages per-domain mental models as YAML files"
-last_synced: "2026-03-05T15:53:00Z"
+last_synced: "2026-03-07T00:32:00Z"
 
 scope:
   paths:
     - extensions/expert/
 
 overview: |
-  A pi extension that gives agents persistent, scoped working memory. Each "domain" is a YAML file
-  in .pi/expertise/. Three capabilities: auto-injection (matches domains to prompt), explicit
-  reflection (router + domain-filtered fan-out), and manual control (expertise tool + /expert command).
-  Injected domains are shown per-turn in chat and cumulatively in the footer status bar,
-  with persistence across session reloads via CustomMessageEntry scanning.
+  The extension provides persistent, domain-scoped working memory via YAML files in `.pi/expertise/`.
+  It combines selective injection, explicit reflection, and operator-facing controls (`/expert` + tool).
+  R9 hardening focused on reliability: better domain matching metadata, context-budget-aware injection,
+  and direct UX for reflection logs and domain bootstrapping.
+
+patterns:
+  - "Treat expertise headers as matching metadata, not just labels: keep `scope.paths`, `scope.patterns`, `keywords`, and `aliases` current."
+  - "`related_domains` is for lightweight operator/agent hints, not automatic extra context loading."
+  - "Use `/expert init` and `/expert log` for operator-driven setup/inspection instead of relying on LLM tool invocation."
 
 design_decisions:
-  - reason: "In-process LLM calls, not subprocesses"
-    detail: |
-      Subprocesses broke: (1) no inherited auth/subscription, (2) parallel processes fight
-      over global settings lock. Pattern borrowed from extensions/answer/extraction.ts.
   - reason: "Reflection is explicit-only, never automatic"
-    detail: |
-      Auto-reflect on agent_end was removed — it blocked next prompt, ran on every cycle
-      regardless of relevance. User should control when learning happens.
-  - reason: "Two-stage reflection: Router → parallel domain experts"
-    detail: |
-      Without domain: router identifies affected domains, then parallel per-domain reflection.
-      With domain: skip router, single-domain reflection.
+    detail: "Auto-reflect on every cycle created latency/noise; reflection is user-triggered so learning happens when context justifies it."
+  - reason: "Two-stage reflection (router → per-domain experts) is retained"
+    detail: "Keeps multi-domain reflection scalable while allowing direct single-domain reflection when domain is known."
+  - reason: "R9 intentionally did not redesign LLM invocation architecture"
+    detail: "Hardening was scoped to matching, context budget, and command UX to reduce change risk."
+  - reason: "Matching upgrades are backward-compatible"
+    detail: "New metadata (`keywords`, `aliases`, `related_domains`, `scope.patterns`) is optional so existing YAML files continue to work."
+  - reason: "Context-aware injection uses deterministic degradation"
+    detail: "As context fills, injection behavior becomes more conservative and can fully skip at a critical threshold to avoid prompt bloat/compaction pressure."
   - reason: "Trimming is thoughtful, not aggressive"
-    detail: |
-      Early versions had very aggressive trimming that caused agents to silently drop insights.
-      Fixed by raising thresholds, changing language, and adding explicit pushback mechanism.
-      Key principle: never silently drop insights just to meet a line target.
-  - reason: "Prompts must distinguish WHY from HOW, and actively re-evaluate existing content"
-    detail: |
-      Without explicit guidance, reflection agents treat implementation walkthroughs as
-      "architectural decisions" and preserve them forever (nothing "contradicts" a description
-      of how code works). Three-part fix in REFLECTION_PROMPT + CONTENT_PRINCIPLES:
-      (1) Explicit good/bad examples — "We chose X over Y because Z" vs "X calls A which does B"
-      (2) Active re-evaluation of ALL entries each reflection pass, not just passive preservation
-      (3) "How it works" walkthroughs added to the "does not belong" list
-      Without this, expertise files accumulate stale implementation details indefinitely.
-  - reason: "CustomMessageEntry serves dual purpose: visual + persistence"
-    detail: |
-      The sendMessage() in before_agent_start creates a CustomMessageEntry that both:
-      (1) renders in chat via registerMessageRenderer (per-turn visibility)
-      (2) persists in session JSONL and is scanned on session_start to rebuild state
-      No separate appendEntry() call needed — avoids redundant data in the session tree.
-  - reason: "setStatus over setFooter for domain tracking"
-    detail: |
-      setStatus("expert", text) is a lightweight key/value in the existing footer.
-      setFooter() replaces the entire footer, which would kill other useful info
-      (git branch, token stats, model). setStatus is ephemeral but reconstructed
-      from persisted CustomMessageEntry records on every session lifecycle event.
+    detail: "Expertise updates must preserve hard-won insights; do not silently drop useful knowledge just to satisfy a size target."
 
 gotchas:
-  - "Router XML parse uses regex — fragile if model adds extra whitespace or attributes"
-  - "scope.patterns is defined in ExpertiseHeader but currently unused"
-  - "match_domains_to_prompt() is keyword-only — 'login flow' won't match 'authentication' domain"
-  - "CONTENT_PRINCIPLES constant is shared across tool description, init/update responses, and REFLECTION_PROMPT — changes propagate everywhere"
-  - "/expert reflect temporarily overrides setStatus with progress text — must call restore_status(ctx) in finally block to restore domain tracking"
-  - "session_domains Map is module-level state — survives across hooks but must be cleared on session_switch"
+  - "If expertise appears to stop auto-loading, check context-usage thresholds first; skip behavior is intentional under high context pressure."
+  - "Matching is still heuristic; missing `keywords`/`aliases` causes avoidable false negatives even with improved scoring."
+  - "Router XML parsing is regex-based and can be brittle if model output format drifts."
+  - "CONTENT_PRINCIPLES is a shared contract across tool docs and reflection prompt; changes have broad behavioral impact."
+  - "Reflection/status UX temporarily reuses the same status key; restoration logic must always run to avoid stale status display."
+  - "Session/pinned domain state is in module-level maps rebuilt from session data; lifecycle handling bugs can produce cross-session confusion."
 
 active_todos:
   - "TODO-c93e622f: Rendering polish — keyHint on collapsed views, conditional reflect hint"
-  - "TODO-07388ec8: Domain matching — implement scope.patterns, add keywords/aliases, cross-domain awareness"
-  - "TODO-a48d2d97: Context budget check before injection (use ctx.getContextUsage())"
-  - "TODO-6087997f: UX — reflection log viewer (/expert log), /expert init command"
 
 references:
-  - "LLM integration pattern: see extensions/answer/extraction.ts"
-  - "Custom message rendering: hooks.ts (sendMessage) + index.ts (registerMessageRenderer), modeled after examples/extensions/message-renderer.ts"
-  - "Session state pattern: hooks.ts rebuild_from_session() scans CustomMessageEntry on session_start, per extensions docs State Management section"
-  - "Concept origin: IndyDevDan's 'Agent Experts' video"
+  - "R9 spec: specs/2026-03-06-r9-expert-extension-hardening.md"
+  - "Operator UX and command surface: extensions/expert/index.ts"
+  - "Context-budget injection policy: extensions/expert/hooks.ts"
+  - "Header parsing/settings normalization: extensions/expert/storage.ts"
+  - "Matching heuristics and scope-pattern support: extensions/expert/helpers.ts"
+
+codebase_concerns:
+  - "Key policy is split across prompt text, matching heuristics, and hook-time injection logic; without focused tests/docs, behavior can regress invisibly."
+  - "Reflection and routing depend on strict output-format discipline from models (XML/tags); parser fragility remains a reliability risk."

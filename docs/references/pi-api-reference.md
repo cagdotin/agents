@@ -135,12 +135,13 @@ Examples in this repo:
 
 ```json
 "pi": {
-  "prompts": ["./commands"],
   "skills": ["./skills"],
   "extensions": ["./extensions"],
   "themes": ["./pi-themes/"]
 }
 ```
+
+Only declare manifest paths that exist in-repo (add `prompts` later when real prompt templates are introduced).
 
 For Pi core libs imported by extensions/skills, keep them in `peerDependencies` with `"*"`.
 

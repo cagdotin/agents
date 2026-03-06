@@ -7,7 +7,12 @@ export const DEFAULT_SETTINGS = {
 	auto_inject: true,
 	reflection_model: "",
 	max_inject_domains: 5,
+	max_context_percent_for_auto_inject: 80,
+	max_context_percent_for_any_inject: 92,
 };
+
+export const DEFAULT_REFLECTION_LOG_LIMIT = 20;
+export const MAX_REFLECTION_LOG_LIMIT = 100;
 
 export const EXPERTISE_PINNED_ENTRY_TYPE = "expertise-pinned";
 

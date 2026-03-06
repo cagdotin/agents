@@ -83,7 +83,6 @@ Repository source defines behavior; runtime state lives under `.pi/`.
 
 `package.json` declares this repository as a Pi package via the `pi` manifest:
 
-- prompts: `./commands` (reserved path; currently no prompt templates checked in)
 - skills: `./skills`
 - extensions: `./extensions`
 - themes: `./pi-themes/`

@@ -13,6 +13,9 @@ export interface ExpertiseHeader {
 		paths: string[];
 		patterns?: string[];
 	};
+	keywords?: string[];
+	aliases?: string[];
+	related_domains?: string[];
 }
 
 export interface ExpertiseRecord extends ExpertiseHeader {
@@ -28,6 +31,8 @@ export interface ExpertiseSettings {
 	auto_inject: boolean;
 	reflection_model: string;
 	max_inject_domains: number;
+	max_context_percent_for_auto_inject: number;
+	max_context_percent_for_any_inject: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -73,7 +78,14 @@ export interface ExpertiseInjectionDetails {
 		domain: string;
 		description: string;
 		pinned?: boolean;
+		related_domains?: string[];
 	}>;
+}
+
+export interface ExpertiseSkipDetails {
+	reason: string;
+	usage_percent: number;
+	threshold_percent: number;
 }
 
 // ---------------------------------------------------------------------------

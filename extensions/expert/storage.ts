@@ -60,6 +60,16 @@ function parse_expertise_header(raw: string, domain_fallback: string): Expertise
 
 		const scope_raw = parsed.scope as Record<string, unknown> | undefined;
 
+		const keywords = Array.isArray(parsed.keywords)
+			? (parsed.keywords as unknown[]).filter((value): value is string => typeof value === "string")
+			: undefined;
+		const aliases = Array.isArray(parsed.aliases)
+			? (parsed.aliases as unknown[]).filter((value): value is string => typeof value === "string")
+			: undefined;
+		const related_domains = Array.isArray(parsed.related_domains)
+			? (parsed.related_domains as unknown[]).filter((value): value is string => typeof value === "string")
+			: undefined;
+
 		return {
 			domain: typeof parsed.domain === "string" ? parsed.domain : domain_fallback,
 			description: typeof parsed.description === "string" ? parsed.description : "",
@@ -72,6 +82,9 @@ function parse_expertise_header(raw: string, domain_fallback: string): Expertise
 					? (scope_raw.patterns as unknown[]).filter((p): p is string => typeof p === "string")
 					: undefined,
 			},
+			keywords: keywords && keywords.length > 0 ? keywords : undefined,
+			aliases: aliases && aliases.length > 0 ? aliases : undefined,
+			related_domains: related_domains && related_domains.length > 0 ? related_domains : undefined,
 		};
 	} catch {
 		return make_empty_header(domain_fallback);
@@ -149,6 +162,9 @@ export function build_skeleton_yaml(domain: string, description: string, scope_p
 		scope: {
 			paths: scope_paths,
 		},
+		keywords: [],
+		aliases: [],
+		related_domains: [],
 		overview: "",
 		patterns: [],
 		gotchas: [],
@@ -176,6 +192,15 @@ export async function read_settings(dir: string): Promise<ExpertiseSettings> {
 }
 
 function normalize_settings(raw: Partial<ExpertiseSettings>): ExpertiseSettings {
+	const max_context_percent_for_auto_inject = normalize_context_percent(
+		raw.max_context_percent_for_auto_inject,
+		DEFAULT_SETTINGS.max_context_percent_for_auto_inject,
+	);
+	const raw_any_inject_threshold = normalize_context_percent(
+		raw.max_context_percent_for_any_inject,
+		DEFAULT_SETTINGS.max_context_percent_for_any_inject,
+	);
+
 	return {
 		auto_inject: raw.auto_inject ?? DEFAULT_SETTINGS.auto_inject,
 		reflection_model:
@@ -183,7 +208,16 @@ function normalize_settings(raw: Partial<ExpertiseSettings>): ExpertiseSettings 
 		max_inject_domains: Number.isFinite(raw.max_inject_domains)
 			? Math.max(1, Math.floor(raw.max_inject_domains!))
 			: DEFAULT_SETTINGS.max_inject_domains,
+		max_context_percent_for_auto_inject,
+		max_context_percent_for_any_inject: Math.max(max_context_percent_for_auto_inject, raw_any_inject_threshold),
 	};
+}
+
+function normalize_context_percent(value: unknown, fallback: number): number {
+	if (typeof value !== "number" || !Number.isFinite(value)) {
+		return fallback;
+	}
+	return Math.max(1, Math.min(100, Math.floor(value)));
 }
 
 // ---------------------------------------------------------------------------
@@ -199,4 +233,82 @@ export async function append_reflection_log(dir: string, entry: ReflectionLogEnt
 	const block = `${separator}${yaml_entry}`;
 
 	await fs.appendFile(log_path, block, "utf8");
+}
+
+export interface ReflectionLogReadResult {
+	entries: ReflectionLogEntry[];
+	skipped_entries: number;
+}
+
+export async function read_reflection_log(
+	dir: string,
+	options?: { domain?: string; limit?: number },
+): Promise<ReflectionLogReadResult> {
+	const log_path = get_reflections_log_path(dir);
+	if (!existsSync(log_path)) {
+		return { entries: [], skipped_entries: 0 };
+	}
+
+	const raw = await fs.readFile(log_path, "utf8");
+	const docs = raw.split(/^---\s*$/gm);
+
+	const parsed_entries: ReflectionLogEntry[] = [];
+	let skipped_entries = 0;
+
+	for (const doc of docs) {
+		const trimmed = doc.trim();
+		if (!trimmed) continue;
+
+		try {
+			const parsed = YAML.parse(trimmed) as Record<string, unknown>;
+			const entry = to_reflection_log_entry(parsed);
+			if (!entry) {
+				skipped_entries++;
+				continue;
+			}
+			parsed_entries.push(entry);
+		} catch {
+			skipped_entries++;
+		}
+	}
+
+	const domain_filter = options?.domain?.trim();
+	const filtered_entries = domain_filter
+		? parsed_entries.filter((entry) => entry.domain === domain_filter)
+		: parsed_entries;
+
+	const sorted_entries = filtered_entries.sort((a, b) => b.date.localeCompare(a.date));
+	const limited_entries =
+		typeof options?.limit === "number" && Number.isFinite(options.limit)
+			? sorted_entries.slice(0, Math.max(1, Math.floor(options.limit)))
+			: sorted_entries;
+
+	return {
+		entries: limited_entries,
+		skipped_entries,
+	};
+}
+
+function to_reflection_log_entry(parsed: Record<string, unknown> | null | undefined): ReflectionLogEntry | null {
+	if (!parsed || typeof parsed !== "object") {
+		return null;
+	}
+
+	const date = typeof parsed.date === "string" ? parsed.date : null;
+	const domain = typeof parsed.domain === "string" ? parsed.domain : null;
+	const session = typeof parsed.session === "string" ? parsed.session : null;
+	const model = typeof parsed.model === "string" ? parsed.model : null;
+	const summary = typeof parsed.summary === "string" ? parsed.summary : null;
+
+	if (!date || !domain || !session || !model || !summary) {
+		return null;
+	}
+
+	return {
+		date,
+		domain,
+		session,
+		model,
+		summary,
+	};
 }

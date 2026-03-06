@@ -65,6 +65,7 @@ export async function run_reflection(
 	session_file: string,
 	settings: ExpertiseSettings,
 	scope_paths?: string[],
+	scope_patterns?: string[],
 	router_points?: string,
 ): Promise<ReflectionResult | { error: string }> {
 	const expertise_dir = get_expertise_dir(cwd);
@@ -75,7 +76,7 @@ export async function run_reflection(
 	}
 
 	// Format conversation — filtered to domain scope when scope_paths provided
-	const conversation = format_conversation_for_reflection(messages, scope_paths);
+	const conversation = format_conversation_for_reflection(messages, scope_paths, scope_patterns);
 	if (!conversation.trim()) {
 		return { error: "No conversation content to reflect on" };
 	}
@@ -137,7 +138,15 @@ export async function run_reflection_pipeline(
 
 		on_status?.(`🧠 Reflecting on ${target_domain}...`);
 
-		const result = await run_reflection(target_domain, messages, cwd, session_file, settings, existing.scope.paths);
+		const result = await run_reflection(
+			target_domain,
+			messages,
+			cwd,
+			session_file,
+			settings,
+			existing.scope.paths,
+			existing.scope.patterns,
+		);
 
 		if ("error" in result) {
 			return {
@@ -197,6 +206,7 @@ export async function run_reflection_pipeline(
 			session_file,
 			settings,
 			domain_info.scope.paths,
+			domain_info.scope.patterns,
 			r.points,
 		);
 

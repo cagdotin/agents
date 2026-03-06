@@ -30,46 +30,66 @@ export interface DomainMatch {
 	score: number;
 }
 
+const MIN_DOMAIN_MATCH_SCORE = 6;
+const glob_pattern_cache = new Map<string, RegExp | null>();
+
 export function match_domains_to_prompt(prompt: string, domains: ExpertiseHeader[]): DomainMatch[] {
 	const lower_prompt = prompt.toLowerCase();
-	const prompt_words = new Set(lower_prompt.split(/[\s,.:;!?()[\]{}"'`/\\]+/).filter((w) => w.length > 2));
+	const prompt_words = new Set(split_prompt_words(lower_prompt));
 
 	const matches: DomainMatch[] = [];
 
 	for (const domain of domains) {
 		let score = 0;
 
-		// Match against domain name
-		if (lower_prompt.includes(domain.domain)) {
+		if (lower_prompt.includes(domain.domain.toLowerCase())) {
 			score += 10;
 		}
 
-		// Match against description words
-		const desc_words = domain.description
-			.toLowerCase()
-			.split(/[\s,.:;!?()[\]{}"'`/\\]+/)
-			.filter((w) => w.length > 2);
-
-		for (const word of desc_words) {
-			if (prompt_words.has(word)) {
-				score += 2;
+		const alias_values = new Set((domain.aliases ?? []).map((value) => value.toLowerCase().trim()).filter(Boolean));
+		for (const alias of alias_values) {
+			if (term_matches_prompt(alias, lower_prompt, prompt_words)) {
+				score += 8;
 			}
 		}
 
-		// Match against scope paths — if the prompt mentions files/dirs in scope
-		for (const scope_path of domain.scope.paths) {
-			const normalized = scope_path.replace(/\/$/, "");
-			if (lower_prompt.includes(normalized.toLowerCase())) {
-				score += 8;
-			}
-			// Also check just the last segment (e.g. "db" from "src/db")
-			const last_segment = path.basename(normalized).toLowerCase();
-			if (last_segment.length > 2 && prompt_words.has(last_segment)) {
+		const keyword_values = new Set((domain.keywords ?? []).map((value) => value.toLowerCase().trim()).filter(Boolean));
+		for (const keyword of keyword_values) {
+			if (term_matches_prompt(keyword, lower_prompt, prompt_words)) {
 				score += 4;
 			}
 		}
 
-		if (score > 0) {
+		const description_words = new Set(split_prompt_words(domain.description.toLowerCase()));
+		for (const description_word of description_words) {
+			if (prompt_words.has(description_word)) {
+				score += 2;
+			}
+		}
+
+		for (const scope_path of domain.scope.paths) {
+			const normalized_scope_path = normalize_path_for_match(scope_path).replace(/\/$/, "").toLowerCase();
+			if (normalized_scope_path && lower_prompt.includes(normalized_scope_path)) {
+				score += 8;
+			}
+		}
+
+		for (const scope_pattern of domain.scope.patterns ?? []) {
+			const normalized_pattern = normalize_path_for_match(scope_pattern).toLowerCase();
+			if (!normalized_pattern) continue;
+
+			if (lower_prompt.includes(normalized_pattern)) {
+				score += 6;
+				continue;
+			}
+
+			const basename_hint = extract_pattern_basename_hint(normalized_pattern);
+			if (basename_hint && term_matches_prompt(basename_hint, lower_prompt, prompt_words)) {
+				score += 6;
+			}
+		}
+
+		if (score >= MIN_DOMAIN_MATCH_SCORE) {
 			matches.push({ domain, score });
 		}
 	}
@@ -90,21 +110,133 @@ export function match_files_to_domains(
 
 	for (const file_path of file_paths) {
 		const relative = path.relative(cwd, path.resolve(cwd, file_path));
+		const normalized_relative = normalize_path_for_match(relative);
 
 		for (const domain of domains) {
 			if (matched.has(domain.domain)) continue;
 
+			let domain_matched = false;
+
 			for (const scope_path of domain.scope.paths) {
-				const normalized_scope = scope_path.replace(/\/$/, "");
-				if (relative.startsWith(normalized_scope) || relative === normalized_scope) {
-					matched.add(domain.domain);
+				const normalized_scope = normalize_path_for_match(scope_path).replace(/\/$/, "");
+				if (!normalized_scope) continue;
+
+				if (normalized_relative.startsWith(`${normalized_scope}/`) || normalized_relative === normalized_scope) {
+					domain_matched = true;
 					break;
 				}
+			}
+
+			if (!domain_matched) {
+				for (const scope_pattern of domain.scope.patterns ?? []) {
+					if (glob_matches_path(scope_pattern, normalized_relative)) {
+						domain_matched = true;
+						break;
+					}
+				}
+			}
+
+			if (domain_matched) {
+				matched.add(domain.domain);
 			}
 		}
 	}
 
 	return domains.filter((d) => matched.has(d.domain));
+}
+
+function split_prompt_words(text: string): string[] {
+	return text.split(/[\s,.:;!?()[\]{}"'`/\\]+/).filter((word) => word.length > 2);
+}
+
+function term_matches_prompt(term: string, lower_prompt: string, prompt_words: Set<string>): boolean {
+	const normalized_term = term.trim().toLowerCase();
+	if (normalized_term.length < 3) return false;
+
+	if (!normalized_term.includes(" ")) {
+		return prompt_words.has(normalized_term) || lower_prompt.includes(normalized_term);
+	}
+
+	return lower_prompt.includes(normalized_term);
+}
+
+function extract_pattern_basename_hint(pattern: string): string | null {
+	const segments = pattern.split("/").map((segment) => segment.trim());
+	for (let i = segments.length - 1; i >= 0; i--) {
+		const segment = segments[i];
+		if (!segment) continue;
+		if (segment.includes("*") || segment.includes("?")) continue;
+		const hint = segment.replace(/\.[a-z0-9]+$/i, "").toLowerCase();
+		if (hint.length >= 3) {
+			return hint;
+		}
+	}
+	return null;
+}
+
+function glob_matches_path(pattern: string, target_path: string): boolean {
+	const normalized_pattern = normalize_path_for_match(pattern);
+	if (!normalized_pattern) return false;
+
+	const compiled_pattern = compile_glob_pattern(normalized_pattern);
+	if (!compiled_pattern) return false;
+
+	return compiled_pattern.test(normalize_path_for_match(target_path));
+}
+
+function compile_glob_pattern(pattern: string): RegExp | null {
+	if (glob_pattern_cache.has(pattern)) {
+		return glob_pattern_cache.get(pattern) ?? null;
+	}
+
+	let regex_text = "^";
+
+	for (let i = 0; i < pattern.length; i++) {
+		const ch = pattern[i];
+
+		if (ch === "*") {
+			if (pattern[i + 1] === "*") {
+				if (pattern[i + 2] === "/") {
+					regex_text += "(?:.*/)?";
+					i += 2;
+					continue;
+				}
+				regex_text += ".*";
+				i += 1;
+				continue;
+			}
+
+			regex_text += "[^/]*";
+			continue;
+		}
+
+		if (ch === "?") {
+			regex_text += "[^/]";
+			continue;
+		}
+
+		regex_text += escape_regex_character(ch);
+	}
+
+	regex_text += "$";
+
+	try {
+		const compiled = new RegExp(regex_text);
+		glob_pattern_cache.set(pattern, compiled);
+		return compiled;
+	} catch {
+		glob_pattern_cache.set(pattern, null);
+		console.debug(`[expert] Ignoring invalid scope pattern: ${pattern}`);
+		return null;
+	}
+}
+
+function escape_regex_character(value: string): string {
+	return value.replace(/[|\\{}()[\]^$+*?.]/g, "\\$&");
+}
+
+function normalize_path_for_match(value: string): string {
+	return value.replace(/\\/g, "/").replace(/^\.\//, "");
 }
 
 // ---------------------------------------------------------------------------
@@ -148,7 +280,11 @@ export function extract_modified_files(messages: any[]): string[] {
 // Format conversation for reflection prompt (domain-filtered)
 // ---------------------------------------------------------------------------
 
-export function format_conversation_for_reflection(messages: any[], scope_paths?: string[]): string {
+export function format_conversation_for_reflection(
+	messages: any[],
+	scope_paths?: string[],
+	scope_patterns?: string[],
+): string {
 	const lines: string[] = [];
 
 	for (const msg of messages) {
@@ -167,9 +303,9 @@ export function format_conversation_for_reflection(messages: any[], scope_paths?
 		} else if (msg.role === "toolResult") {
 			// When scope_paths is provided, filter tool results to only include
 			// files within the domain's scope
-			if (scope_paths && scope_paths.length > 0) {
+			if ((scope_paths && scope_paths.length > 0) || (scope_patterns && scope_patterns.length > 0)) {
 				const file_path = extract_tool_file_path(msg);
-				if (file_path && !file_matches_scope(file_path, scope_paths)) {
+				if (file_path && !file_matches_scope(file_path, scope_paths ?? [], scope_patterns)) {
 					continue; // skip tool results outside this domain's scope
 				}
 			}
@@ -223,18 +359,27 @@ export function format_conversation_for_router(messages: any[]): string {
 }
 
 // ---------------------------------------------------------------------------
-// Check if a file path falls within any of the scope paths
+// Check if a file path falls within any scope path or scope pattern
 // ---------------------------------------------------------------------------
 
-export function file_matches_scope(file_path: string, scope_paths: string[]): boolean {
-	const normalized_file = file_path.replace(/^\.\//, "");
+export function file_matches_scope(file_path: string, scope_paths: string[], scope_patterns?: string[]): boolean {
+	const normalized_file = normalize_path_for_match(file_path);
 
 	for (const scope of scope_paths) {
-		const normalized_scope = scope.replace(/\/$/, "");
+		const normalized_scope = normalize_path_for_match(scope).replace(/\/$/, "");
+		if (!normalized_scope) continue;
+
 		if (normalized_file.startsWith(`${normalized_scope}/`) || normalized_file === normalized_scope) {
 			return true;
 		}
 	}
+
+	for (const scope_pattern of scope_patterns ?? []) {
+		if (glob_matches_path(scope_pattern, normalized_file)) {
+			return true;
+		}
+	}
+
 	return false;
 }
 

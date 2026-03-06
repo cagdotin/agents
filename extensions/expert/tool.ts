@@ -292,13 +292,14 @@ export function create_expertise_tool(dir_label: string) {
 						return `  ${theme.fg("accent", d.domain)} ${theme.fg("muted", d.description)}${synced}`;
 					});
 					const header = theme.fg("success", "✓ ") + theme.fg("muted", `${details.domains.length} domain(s)`);
-					const text = expanded ? [header, ...lines].join("\n") : header;
+					const collapsed_hint = theme.fg("dim", " · expand for details");
+					const text = expanded ? [header, ...lines].join("\n") : header + collapsed_hint;
 					return new Text(text, 0, 0);
 				}
 
 				case "get": {
 					const header = theme.fg("success", "✓ ") + theme.fg("muted", "Read ") + theme.fg("accent", details.domain);
-					if (!expanded) return new Text(header, 0, 0);
+					if (!expanded) return new Text(`${header}${theme.fg("dim", " · expand for preview")}`, 0, 0);
 					const preview = details.expertise.raw.split("\n").slice(0, 20).join("\n");
 					return new Text(`${header}\n${theme.fg("dim", preview)}`, 0, 0);
 				}
@@ -335,10 +336,12 @@ export function create_expertise_tool(dir_label: string) {
 
 					if (failures.length > 0) {
 						const fail_note = theme.fg("error", ` (${failures.length} failed)`);
-						if (!expanded) return new Text(header + fail_note, 0, 0);
+						if (!expanded) {
+							return new Text(header + fail_note + theme.fg("dim", " · expand for details"), 0, 0);
+						}
 					}
 
-					if (!expanded) return new Text(header, 0, 0);
+					if (!expanded) return new Text(header + theme.fg("dim", " · expand for details"), 0, 0);
 
 					const detail_lines = successes
 						.map((r: any) => `  ${theme.fg("accent", r.domain)}: ${theme.fg("dim", r.summary)}`)
