@@ -1,0 +1,4 @@
+pre-commit:
+  commands:
+    quality-gates:
+      run: bun run check

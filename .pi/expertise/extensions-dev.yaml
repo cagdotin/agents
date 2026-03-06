@@ -1,38 +1,52 @@
 domain: extensions-dev
 description: "Patterns and conventions for building pi extensions in this project"
-last_synced: "2026-03-05T15:08:00Z"
+last_synced: "2026-03-06T22:46:23Z"
 
 scope:
   paths:
     - extensions/
 
 overview: |
-  All pi extensions live in extensions/<name>/. Use extensions/todos/ as the gold standard
-  for a full tool + TUI command. Simple extensions (tmux-*) are single-file index.ts.
-  Pi loads extensions as raw TS — no build/compile step. Changes to .ts files are immediately effective.
-  Pi docs (docs/extensions.md, docs/tui.md) cover the API — this expertise covers project-specific
-  conventions and non-obvious decisions.
+  Extension work follows a progressive-disclosure docs model. AGENTS.md stays short
+  ("where to look"), while durable guidance lives under docs/: architecture map,
+  quality posture, execution plans/debt tracker, and Pi API reference. External
+  inspiration is captured in docs/resources with structured frontmatter so it is
+  searchable and reusable by agents. Pi runs extensions as raw TypeScript (no build
+  step), so extension changes are available after reload.
+
+patterns:
+  - "Keep AGENTS.md as a table of contents, not a long instruction manual."
+  - "For non-trivial recommendations or architecture/process changes, create/update an exec plan in docs/exec-plans/active with explicit reasoning and wikilink references; track unresolved items in tech-debt-tracker."
+  - "Every extension directory should have a README (including small tmux extensions) so behavior, requirements, and usage are discoverable."
+  - "Capture external articles/videos in docs/resources using TEMPLATE.md; include extracted links plus repository relevance."
 
 design_decisions:
-  - reason: "Component stacking over nested ctx.ui.custom()"
-    detail: "Swap active_component inside a single ctx.ui.custom() call instead of nesting. Nesting stacks UI contexts. Overlays (with overlay: true) are the one exception."
-  - reason: "Compact renderResult by default"
-    detail: "Tool results are compact (one line). Users expand for detail. Always append keyHint('expandTools', 'to expand') when collapsed. Handle isPartial with 'Processing...' in warning color."
-  - reason: "Plain text for LLM, themed rendering for TUI"
-    detail: "content[] has plain text/JSON for the LLM. renderResult has themed output for humans. Never mix them."
-  - reason: "Cheap model for LLM calls"
-    detail: "Extensions needing LLM calls (extraction, reflection) try cheap models first. Check API key availability via registry.getApiKey(). See answer/extraction.ts for the pattern."
+  - reason: "Single custom UI context over nested ctx.ui.custom()"
+    detail: "Prefer swapping active components within one custom UI session; nested custom() flows are harder to reason about. Overlay flows are the intentional exception."
+  - reason: "Compact tool rendering by default"
+    detail: "Collapsed tool output should stay short and signal that richer detail is available in expanded mode."
+  - reason: "Separate agent-facing and human-facing output"
+    detail: "Keep tool content for the LLM plain/structured; put themed/rich formatting in renderResult for TUI users."
+  - reason: "Prefer lower-cost models for helper LLM work"
+    detail: "Extraction/reflection-style calls should try cheaper models first and only escalate when needed."
+  - reason: "Repository docs are the system of record"
+    detail: "Architecture, quality posture, API reference, and execution plans are maintained in-repo to reduce hidden conventions and onboarding friction."
 
 gotchas:
-  - "StringEnum from pi-ai is required for tool action enums — Type.Union/Type.Literal breaks Google's API"
-  - "DynamicBorder color param needs explicit type annotation: (s: string) => theme.fg('accent', s) — inference breaks without it"
-  - "ctx.ui.custom() blocks until done() is called — nested async work (like opening overlays) must be handled carefully"
-  - "Tool execute() positional params: (toolCallId, params, signal, onUpdate, ctx) — ctx comes last"
-  - "sendMessage with triggerTurn: true injects results back to the agent (used by answer extension)"
-  - "setEditorText pre-fills the prompt editor without sending — set next_prompt, call done(), then setEditorText"
+  - "Use StringEnum from pi-ai for tool action enums; Type.Union/Type.Literal has caused provider compatibility failures."
+  - "DynamicBorder color callbacks may need explicit parameter typing (e.g., (s: string) => ...); inference can fail unexpectedly."
+  - "ctx.ui.custom() does not return until done() is called; wrong done() timing can deadlock async overlay/follow-up flows."
+  - "Tool execute() argument order is positional; ctx is the last parameter."
+  - "sendMessage(..., { triggerTurn: true }) feeds extension output back into the agent turn loop (intentional in answer-style flows)."
+  - "setEditorText only pre-fills input; if you need submit-after-UI flows, end custom UI cleanly before handing control back."
 
 references:
-  - "Gold standard extension: extensions/todos/"
-  - "LLM extraction pattern: extensions/answer/extraction.ts"
-  - "Pi extension API: docs/extensions.md"
-  - "Pi TUI components: docs/tui.md"
+  - "Entry map: AGENTS.md"
+  - "Architecture map: docs/ARCHITECTURE.md"
+  - "Quality posture and prioritized gaps: docs/QUALITY.md"
+  - "Execution plans and debt tracker: docs/exec-plans/README.md"
+  - "Debt register: docs/exec-plans/tech-debt-tracker.md"
+  - "Pi extension/TUI quick reference (repo-local): docs/references/pi-api-reference.md"
+  - "External resource index: docs/resources/README.md"
+  - "Resource capture template: docs/resources/TEMPLATE.md"
+  - "Gold standard extension pattern: extensions/todos/"
