@@ -1,12 +1,18 @@
 import { describe, expect, it } from "vitest";
 import {
+	categorize_file,
+	extract_bash_programs,
+	extract_tool_call_detail,
 	format_duration_ms,
 	get_current_model,
 	get_session_duration_label,
 	get_sorted_tool_tallies,
 	get_unique_models_used,
+	group_files_by_category,
 	reconstruct_stats,
+	split_command_quote_aware,
 } from "../tracker.js";
+import type { ToolDetails } from "../types.js";
 
 // ── helpers for building fake session entries ────────────────
 
@@ -34,6 +40,40 @@ function assistant_entry(timestamp?: string) {
 		},
 		timestamp,
 	);
+}
+
+function assistant_with_tool_calls(
+	tool_calls: Array<{ name: string; arguments: Record<string, unknown> }>,
+	timestamp?: string,
+) {
+	return message_entry(
+		{
+			role: "assistant",
+			content: tool_calls.map((tc, i) => ({
+				type: "toolCall",
+				id: `tc-${i}`,
+				name: tc.name,
+				arguments: tc.arguments,
+			})),
+			model: "test",
+			provider: "test",
+			usage: {},
+			stopReason: "stop",
+			timestamp: Date.now(),
+		},
+		timestamp,
+	);
+}
+
+function create_empty_tool_details(): ToolDetails {
+	return {
+		bash_programs: new Map(),
+		read_files: [],
+		edit_files: [],
+		write_files: [],
+		expertise_actions: new Map(),
+		todo_actions: new Map(),
+	};
 }
 
 function tool_result_entry(tool_name: string, is_error = false, timestamp?: string) {
@@ -279,5 +319,355 @@ describe("get_unique_models_used", () => {
 		expect(unique).toHaveLength(2);
 		expect(unique[0].model_id).toBe("claude-sonnet-4");
 		expect(unique[1].model_id).toBe("gpt-4o");
+	});
+});
+
+// ── Phase 2: Tool detail extraction ─────────────────────────
+
+describe("split_command_quote_aware", () => {
+	it("splits on && outside quotes", () => {
+		expect(split_command_quote_aware("cd src && bun test")).toEqual(["cd src ", " bun test"]);
+	});
+
+	it("does NOT split on ; inside double quotes", () => {
+		const segments = split_command_quote_aware('node -e "const x = 1; console.log(x)"');
+		expect(segments).toHaveLength(1);
+		expect(segments[0]).toContain("node");
+	});
+
+	it("does NOT split on | inside single quotes", () => {
+		const segments = split_command_quote_aware("grep 'foo|bar' file.txt | sort");
+		expect(segments).toHaveLength(2);
+		expect(segments[0].trim()).toBe("grep 'foo|bar' file.txt");
+	});
+
+	it("handles escaped quotes inside double quotes", () => {
+		const segments = split_command_quote_aware('echo "he said \\"hello\\""; pwd');
+		expect(segments).toHaveLength(2);
+	});
+
+	it("handles mixed quote types", () => {
+		const segments = split_command_quote_aware(`echo "it's fine" && echo 'he said "hi"'`);
+		expect(segments).toHaveLength(2);
+	});
+
+	it("handles unclosed quotes gracefully", () => {
+		const segments = split_command_quote_aware('echo "unterminated');
+		expect(segments).toHaveLength(1);
+	});
+});
+
+describe("extract_bash_programs", () => {
+	it("extracts a simple command", () => {
+		expect(extract_bash_programs("git status")).toEqual(["git"]);
+	});
+
+	it("extracts from chained && commands", () => {
+		expect(extract_bash_programs("cd src && bun test")).toEqual(["cd", "bun"]);
+	});
+
+	it("extracts from || chains", () => {
+		expect(extract_bash_programs("cat file.txt || echo fallback")).toEqual(["cat", "echo"]);
+	});
+
+	it("extracts from piped commands", () => {
+		expect(extract_bash_programs("grep -r pattern | sort | uniq -c")).toEqual(["grep", "sort", "uniq"]);
+	});
+
+	it("extracts from semicolon-separated commands", () => {
+		expect(extract_bash_programs("ls; pwd; whoami")).toEqual(["ls", "pwd", "whoami"]);
+	});
+
+	it("skips env var prefixes", () => {
+		expect(extract_bash_programs("NODE_ENV=production bun run build")).toEqual(["bun"]);
+	});
+
+	it("skips multiple env var prefixes", () => {
+		expect(extract_bash_programs("FOO=1 BAR=2 node script.js")).toEqual(["node"]);
+	});
+
+	it("takes basename from paths", () => {
+		expect(extract_bash_programs("/usr/bin/env node")).toEqual(["env"]);
+		expect(extract_bash_programs("./node_modules/.bin/vitest")).toEqual(["vitest"]);
+	});
+
+	it("returns empty array for empty/whitespace input", () => {
+		expect(extract_bash_programs("")).toEqual([]);
+		expect(extract_bash_programs("   ")).toEqual([]);
+	});
+
+	it("handles complex one-liners", () => {
+		const result = extract_bash_programs("cd /tmp && git clone repo.git; cd repo && bun install | tee log.txt");
+		expect(result).toEqual(["cd", "git", "cd", "bun", "tee"]);
+	});
+
+	// ── quote-aware tests (phase 2 fixes) ────────────────
+
+	it("extracts only the program from node -e with inline JS", () => {
+		expect(extract_bash_programs('node -e "const x = JSON.parse(raw); console.log(typeof x)"')).toEqual(["node"]);
+	});
+
+	it("extracts only the program from python -c with inline code", () => {
+		expect(extract_bash_programs('python -c "import json; print(json.loads(x))"')).toEqual(["python"]);
+	});
+
+	it("extracts only the program from bun -e with inline JS", () => {
+		expect(extract_bash_programs('bun -e "const words = text.split(/\\s+/); console.log(words.length)"')).toEqual([
+			"bun",
+		]);
+	});
+
+	it("handles grep patterns with special chars in quotes", () => {
+		expect(extract_bash_programs('grep -r "YAML\\.parse\\(" src/')).toEqual(["grep"]);
+		expect(extract_bash_programs('grep -r "RESOURCE_REQUIRED_FIELDS" docs/')).toEqual(["grep"]);
+	});
+
+	it("handles pipes after quoted grep patterns", () => {
+		expect(extract_bash_programs('grep -rn "extract_frontmatter" src/ | sort | head -20')).toEqual([
+			"grep",
+			"sort",
+			"head",
+		]);
+	});
+
+	it("handles rg with quoted patterns piped", () => {
+		expect(extract_bash_programs('rg "RESOURCE_FIELD_HINTS" src/ --json | head -5')).toEqual(["rg", "head"]);
+	});
+
+	it("rejects tokens with parens as program names", () => {
+		// Even if something leaks through, parens are not valid program names
+		expect(extract_bash_programs("console.log(x)")).toEqual([]);
+	});
+
+	it("rejects tokens with quotes as program names", () => {
+		expect(extract_bash_programs('"')).toEqual([]);
+	});
+
+	it("rejects tokens with backslashes as program names", () => {
+		expect(extract_bash_programs("YAML\\.parse\\(")).toEqual([]);
+	});
+
+	it("handles multiline node -e scripts without false positives", () => {
+		const cmd =
+			"node -e \"const RESOURCE_REQUIRED_FIELDS = ['title']; push_resource_frontmatter_errors(errors); console.log('done');\"";
+		expect(extract_bash_programs(cmd)).toEqual(["node"]);
+	});
+
+	it("handles real compound commands with quotes correctly", () => {
+		expect(extract_bash_programs('echo "hello; world" && grep "foo|bar" file | sort')).toEqual([
+			"echo",
+			"grep",
+			"sort",
+		]);
+	});
+});
+
+describe("categorize_file", () => {
+	it("categorizes docs/ prefix as docs", () => {
+		expect(categorize_file("docs/ARCHITECTURE.md")).toBe("docs");
+	});
+
+	it("categorizes .md files as docs", () => {
+		expect(categorize_file("CHANGELOG.md")).toBe("docs");
+	});
+
+	it("categorizes README files as docs", () => {
+		expect(categorize_file("README.md")).toBe("docs");
+		expect(categorize_file("README")).toBe("docs");
+	});
+
+	it("categorizes AGENTS.md as docs", () => {
+		expect(categorize_file("AGENTS.md")).toBe("docs");
+	});
+
+	it("categorizes skills/ prefix as skills", () => {
+		expect(categorize_file("skills/plan/SKILL.md")).toBe("skills");
+	});
+
+	it("categorizes SKILL.md anywhere as skills", () => {
+		expect(categorize_file("extensions/foo/SKILL.md")).toBe("skills");
+	});
+
+	it("categorizes __tests__/ files as tests", () => {
+		expect(categorize_file("extensions/foo/__tests__/bar.test.ts")).toBe("tests");
+	});
+
+	it("categorizes .test.ts files as tests", () => {
+		expect(categorize_file("src/utils.test.ts")).toBe("tests");
+	});
+
+	it("categorizes .spec.js files as tests", () => {
+		expect(categorize_file("lib/thing.spec.js")).toBe("tests");
+	});
+
+	it("categorizes everything else as code", () => {
+		expect(categorize_file("extensions/session-stats/tracker.ts")).toBe("code");
+		expect(categorize_file("src/index.ts")).toBe("code");
+		expect(categorize_file("package.json")).toBe("code");
+	});
+});
+
+describe("group_files_by_category", () => {
+	it("groups mixed paths into correct categories", () => {
+		const paths = [
+			"src/index.ts",
+			"docs/README.md",
+			"skills/plan/SKILL.md",
+			"src/__tests__/util.test.ts",
+			"AGENTS.md",
+			"src/utils.ts",
+		];
+		const grouped = group_files_by_category(paths);
+		expect(grouped.get("docs")).toEqual(["AGENTS.md", "docs/README.md"]);
+		expect(grouped.get("skills")).toEqual(["skills/plan/SKILL.md"]);
+		expect(grouped.get("tests")).toEqual(["src/__tests__/util.test.ts"]);
+		expect(grouped.get("code")).toEqual(["src/index.ts", "src/utils.ts"]);
+	});
+
+	it("returns empty map for empty input", () => {
+		const grouped = group_files_by_category([]);
+		expect(grouped.size).toBe(0);
+	});
+
+	it("sorts files within each category", () => {
+		const paths = ["src/z.ts", "src/a.ts", "src/m.ts"];
+		const grouped = group_files_by_category(paths);
+		expect(grouped.get("code")).toEqual(["src/a.ts", "src/m.ts", "src/z.ts"]);
+	});
+});
+
+describe("extract_tool_call_detail", () => {
+	it("extracts bash program counts", () => {
+		const details = create_empty_tool_details();
+		extract_tool_call_detail(details, "Bash", { command: "git status && bun test" });
+		extract_tool_call_detail(details, "Bash", { command: "git log" });
+		expect(details.bash_programs.get("git")).toBe(2);
+		expect(details.bash_programs.get("bun")).toBe(1);
+	});
+
+	it("extracts unique Read file paths", () => {
+		const details = create_empty_tool_details();
+		extract_tool_call_detail(details, "Read", { path: "src/index.ts" });
+		extract_tool_call_detail(details, "Read", { path: "src/index.ts" }); // duplicate
+		extract_tool_call_detail(details, "Read", { path: "docs/README.md" });
+		expect(details.read_files).toEqual(["src/index.ts", "docs/README.md"]);
+	});
+
+	it("extracts unique Edit file paths", () => {
+		const details = create_empty_tool_details();
+		extract_tool_call_detail(details, "Edit", { path: "src/index.ts" });
+		extract_tool_call_detail(details, "Edit", { path: "src/index.ts" });
+		expect(details.edit_files).toEqual(["src/index.ts"]);
+	});
+
+	it("extracts unique Write file paths", () => {
+		const details = create_empty_tool_details();
+		extract_tool_call_detail(details, "Write", { path: "new-file.ts" });
+		expect(details.write_files).toEqual(["new-file.ts"]);
+	});
+
+	it("extracts expertise actions with domains", () => {
+		const details = create_empty_tool_details();
+		extract_tool_call_detail(details, "expertise", { action: "get", domain: "auth" });
+		extract_tool_call_detail(details, "expertise", { action: "get", domain: "db" });
+		extract_tool_call_detail(details, "expertise", { action: "reflect", domain: "auth" });
+		expect(details.expertise_actions.get("get")).toEqual(["auth", "db"]);
+		expect(details.expertise_actions.get("reflect")).toEqual(["auth"]);
+	});
+
+	it("extracts todo action counts", () => {
+		const details = create_empty_tool_details();
+		extract_tool_call_detail(details, "todo", { action: "create" });
+		extract_tool_call_detail(details, "todo", { action: "create" });
+		extract_tool_call_detail(details, "todo", { action: "list" });
+		expect(details.todo_actions.get("create")).toBe(2);
+		expect(details.todo_actions.get("list")).toBe(1);
+	});
+
+	it("handles case-insensitive tool names", () => {
+		const details = create_empty_tool_details();
+		extract_tool_call_detail(details, "bash", { command: "ls" });
+		extract_tool_call_detail(details, "BASH", { command: "pwd" });
+		expect(details.bash_programs.get("ls")).toBe(1);
+		expect(details.bash_programs.get("pwd")).toBe(1);
+	});
+
+	it("skips missing or invalid arguments", () => {
+		const details = create_empty_tool_details();
+		extract_tool_call_detail(details, "Bash", {} as Record<string, string>);
+		extract_tool_call_detail(details, "Read", {} as Record<string, string>);
+		expect(details.bash_programs.size).toBe(0);
+		expect(details.read_files).toEqual([]);
+	});
+});
+
+describe("reconstruct_stats with tool call arguments", () => {
+	it("extracts bash programs from assistant tool calls", () => {
+		const entries = [
+			user_entry(),
+			assistant_with_tool_calls([{ name: "Bash", arguments: { command: "git status" } }]),
+			tool_result_entry("Bash"),
+		];
+		const stats = reconstruct_stats(entries);
+		expect(stats.tool_details.bash_programs.get("git")).toBe(1);
+	});
+
+	it("extracts file paths from Read/Edit/Write tool calls", () => {
+		const entries = [
+			user_entry(),
+			assistant_with_tool_calls([
+				{ name: "Read", arguments: { path: "docs/README.md" } },
+				{ name: "Edit", arguments: { path: "src/index.ts", oldText: "a", newText: "b" } },
+				{ name: "Write", arguments: { path: "new-file.ts", content: "hello" } },
+			]),
+			tool_result_entry("Read"),
+			tool_result_entry("Edit"),
+			tool_result_entry("Write"),
+		];
+		const stats = reconstruct_stats(entries);
+		expect(stats.tool_details.read_files).toEqual(["docs/README.md"]);
+		expect(stats.tool_details.edit_files).toEqual(["src/index.ts"]);
+		expect(stats.tool_details.write_files).toEqual(["new-file.ts"]);
+	});
+
+	it("handles multiple tool calls across multiple assistant messages", () => {
+		const entries = [
+			user_entry(),
+			assistant_with_tool_calls([
+				{ name: "Bash", arguments: { command: "git status" } },
+				{ name: "Read", arguments: { path: "src/a.ts" } },
+			]),
+			tool_result_entry("Bash"),
+			tool_result_entry("Read"),
+			assistant_with_tool_calls([
+				{ name: "Bash", arguments: { command: "git diff && bun test" } },
+				{ name: "Edit", arguments: { path: "src/a.ts", oldText: "x", newText: "y" } },
+			]),
+			tool_result_entry("Bash"),
+			tool_result_entry("Edit"),
+		];
+		const stats = reconstruct_stats(entries);
+		expect(stats.tool_details.bash_programs.get("git")).toBe(2);
+		expect(stats.tool_details.bash_programs.get("bun")).toBe(1);
+		expect(stats.tool_details.read_files).toEqual(["src/a.ts"]);
+		expect(stats.tool_details.edit_files).toEqual(["src/a.ts"]);
+	});
+
+	it("handles assistant message with no content array", () => {
+		const entries = [
+			user_entry(),
+			message_entry({
+				role: "assistant",
+				content: undefined as unknown,
+				model: "test",
+				provider: "test",
+				usage: {},
+				stopReason: "stop",
+				timestamp: Date.now(),
+			}),
+		];
+		const stats = reconstruct_stats(entries);
+		expect(stats.tool_details.bash_programs.size).toBe(0);
+		expect(stats.turn_count).toBe(1);
 	});
 });

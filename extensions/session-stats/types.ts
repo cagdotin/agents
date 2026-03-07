@@ -10,6 +10,25 @@ export interface ModelUsageEntry {
 	selected_at: string;
 }
 
+/** Detail data extracted from tool call arguments in assistant messages. */
+export interface ToolDetails {
+	/** bash: CLI program name → invocation count */
+	bash_programs: Map<string, number>;
+	/** Read: unique file paths seen */
+	read_files: string[];
+	/** Edit: unique file paths seen */
+	edit_files: string[];
+	/** Write: unique file paths seen */
+	write_files: string[];
+	/** expertise: action → domain list */
+	expertise_actions: Map<string, string[]>;
+	/** todo: action → count */
+	todo_actions: Map<string, number>;
+}
+
+/** File category for read files. */
+export type FileCategory = "docs" | "skills" | "tests" | "code";
+
 export interface SessionStats {
 	session_started_at: string | null;
 	tool_tallies: Map<string, ToolTally>;
@@ -21,9 +40,9 @@ export interface SessionStats {
 	user_bash_count: number;
 	compaction_count: number;
 	model_history: ModelUsageEntry[];
-	/** CLI programs invoked via the bash tool, keyed by program name */
-	bash_programs: Map<string, number>;
-	/** Total available tools in the session */
+	/** Extracted argument details per tool */
+	tool_details: ToolDetails;
+	/** Total available tools in session (from pi.getAllTools()) */
 	available_tool_count: number;
 	/** Names of all available tools */
 	available_tool_names: string[];

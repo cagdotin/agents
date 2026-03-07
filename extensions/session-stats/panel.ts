@@ -1,13 +1,21 @@
 import type { Theme } from "@mariozechner/pi-coding-agent";
 import { matchesKey, type TUI, truncateToWidth, visibleWidth } from "@mariozechner/pi-tui";
-import { SESSION_STATS_BAR_CHAR, SESSION_STATS_BAR_MAX_WIDTH, SESSION_STATS_STATUS_ICON } from "./constants.js";
+import {
+	SESSION_STATS_BAR_CHAR,
+	SESSION_STATS_BAR_MAX_WIDTH,
+	SESSION_STATS_PANEL_WIDTH,
+	SESSION_STATS_STATUS_ICON,
+} from "./constants.js";
 import {
 	get_current_model,
 	get_session_duration_label,
 	get_sorted_tool_tallies,
 	get_unique_models_used,
+	group_files_by_category,
 } from "./tracker.js";
-import type { SessionStats } from "./types.js";
+import type { FileCategory, SessionStats, ToolDetails, ToolTally } from "./types.js";
+
+type PanelView = "list" | "detail";
 
 interface ShowSessionStatsPanelOptions {
 	get_stats: () => SessionStats;
@@ -29,7 +37,7 @@ export async function show_session_stats_panel(
 			overlay: true,
 			overlayOptions: {
 				anchor: "center" as const,
-				width: 62,
+				width: SESSION_STATS_PANEL_WIDTH,
 				maxHeight: "70%",
 			},
 		},
@@ -42,9 +50,16 @@ export class SessionStatsPanel {
 	private readonly options: ShowSessionStatsPanelOptions;
 	private readonly done: () => void;
 	private stats: SessionStats;
+
+	// View state
+	private view: PanelView = "list";
+	private selected_tool_index = 0;
 	private scroll_offset = 0;
 	private scroll_view_height = 0;
 	private content_lines: string[] = [];
+	private detail_scroll_offset = 0;
+	private detail_lines: string[] = [];
+	private detail_view_height = 0;
 
 	constructor(tui: TUI, theme: Theme, options: ShowSessionStatsPanelOptions, done: () => void) {
 		this.tui = tui;
@@ -55,7 +70,31 @@ export class SessionStatsPanel {
 	}
 
 	handleInput(key_data: string): void {
-		if (matchesKey(key_data, "ctrl+c") || matchesKey(key_data, "escape") || matchesKey(key_data, "q")) {
+		if (matchesKey(key_data, "ctrl+c")) {
+			this.done();
+			return;
+		}
+
+		if (this.view === "detail") {
+			this.handle_detail_input(key_data);
+		} else {
+			this.handle_list_input(key_data);
+		}
+	}
+
+	render(width: number): string[] {
+		if (this.view === "detail") {
+			return this.render_detail_view(width);
+		}
+		return this.render_list_view(width);
+	}
+
+	invalidate(): void {}
+
+	// ── List view input ─────────────────────────────────────
+
+	private handle_list_input(key_data: string): void {
+		if (matchesKey(key_data, "escape") || matchesKey(key_data, "q")) {
 			this.done();
 			return;
 		}
@@ -67,126 +106,207 @@ export class SessionStatsPanel {
 			this.refresh();
 			return;
 		}
+		if (matchesKey(key_data, "enter") || matchesKey(key_data, "l") || matchesKey(key_data, "right")) {
+			const tallies = get_sorted_tool_tallies(this.stats);
+			if (tallies.length > 0) {
+				this.open_detail_view();
+			}
+			return;
+		}
 		if (matchesKey(key_data, "j") || matchesKey(key_data, "down")) {
-			this.scroll(1);
+			this.move_selection(1);
 			return;
 		}
 		if (matchesKey(key_data, "k") || matchesKey(key_data, "up")) {
-			this.scroll(-1);
-			return;
-		}
-		if (matchesKey(key_data, "pageDown")) {
-			this.scroll(this.scroll_view_height || 1);
-			return;
-		}
-		if (matchesKey(key_data, "pageUp")) {
-			this.scroll(-(this.scroll_view_height || 1));
+			this.move_selection(-1);
 			return;
 		}
 		if (matchesKey(key_data, "g") || matchesKey(key_data, "home")) {
-			this.scroll_offset = 0;
-			this.tui.requestRender();
+			this.set_selection(0);
 			return;
 		}
 		if (matchesKey(key_data, "shift+g") || matchesKey(key_data, "end")) {
-			const max = Math.max(0, this.content_lines.length - this.scroll_view_height);
-			this.scroll_offset = max;
-			this.tui.requestRender();
+			const tallies = get_sorted_tool_tallies(this.stats);
+			this.set_selection(tallies.length - 1);
+			return;
+		}
+		if (matchesKey(key_data, "pageDown")) {
+			this.move_selection(this.scroll_view_height || 1);
+			return;
+		}
+		if (matchesKey(key_data, "pageUp")) {
+			this.move_selection(-(this.scroll_view_height || 1));
 			return;
 		}
 	}
 
-	render(width: number): string[] {
+	// ── Detail view input ───────────────────────────────────
+
+	private handle_detail_input(key_data: string): void {
+		if (
+			matchesKey(key_data, "escape") ||
+			matchesKey(key_data, "q") ||
+			matchesKey(key_data, "h") ||
+			matchesKey(key_data, "left")
+		) {
+			this.view = "list";
+			this.detail_scroll_offset = 0;
+			this.tui.requestRender();
+			return;
+		}
+		if (matchesKey(key_data, this.options.shortcut_key)) {
+			this.done();
+			return;
+		}
+		if (matchesKey(key_data, "r")) {
+			this.refresh();
+			return;
+		}
+		if (matchesKey(key_data, "j") || matchesKey(key_data, "down")) {
+			this.scroll_detail(1);
+			return;
+		}
+		if (matchesKey(key_data, "k") || matchesKey(key_data, "up")) {
+			this.scroll_detail(-1);
+			return;
+		}
+		if (matchesKey(key_data, "g") || matchesKey(key_data, "home")) {
+			this.detail_scroll_offset = 0;
+			this.tui.requestRender();
+			return;
+		}
+		if (matchesKey(key_data, "shift+g") || matchesKey(key_data, "end")) {
+			const max_scroll = Math.max(0, this.detail_lines.length - this.detail_view_height);
+			this.detail_scroll_offset = max_scroll;
+			this.tui.requestRender();
+			return;
+		}
+		if (matchesKey(key_data, "pageDown")) {
+			this.scroll_detail(this.detail_view_height || 1);
+			return;
+		}
+		if (matchesKey(key_data, "pageUp")) {
+			this.scroll_detail(-(this.detail_view_height || 1));
+			return;
+		}
+	}
+
+	// ── List view rendering ─────────────────────────────────
+
+	private render_list_view(width: number): string[] {
 		const t = this.theme;
 		const w = Math.max(30, width);
 		const iw = w - 2;
-
 		const max_h = this.get_max_height();
 		const stats = this.stats;
 
-		// ── build content ────────────────────────────────────
 		const content: string[] = [];
 
-		// title row
+		// ── header ───────────────────────────────────────────
+		content.push("");
 		const icon = t.fg("accent", SESSION_STATS_STATUS_ICON);
 		const duration = get_session_duration_label(stats);
-		const title = `${icon} ${t.fg("accent", t.bold("Session Stats"))}`;
-		const dur_label = t.fg("dim", `duration ${duration}`);
-		const gap = Math.max(1, iw - visibleWidth(title) - visibleWidth(dur_label));
-		content.push(`${title}${" ".repeat(gap)}${dur_label}`);
+		const title = ` ${icon} ${t.fg("accent", t.bold("Session Stats"))}`;
+		const dur_label = t.fg("dim", duration);
+		const gap = Math.max(1, iw - visibleWidth(title) - visibleWidth(dur_label) - 1);
+		content.push(`${title}${" ".repeat(gap)}${dur_label} `);
+		content.push("");
 
-		// divider
-		content.push(t.fg("dim", "─".repeat(iw)));
+		// ── summary ──────────────────────────────────────────
+		const tools_used = stats.tool_tallies.size;
+		const tools_avail = stats.available_tool_count;
+		const tools_str =
+			tools_avail > 0
+				? `${t.fg("accent", `${tools_used}`)}${t.fg("dim", "/")}${t.fg("dim", `${tools_avail}`)} ${t.fg("muted", "tools")}`
+				: "";
 
-		// summary row
-		const summary_items = [
+		const summary_line_1 = [
 			`${t.fg("accent", `${stats.turn_count}`)} ${t.fg("muted", "turns")}`,
 			`${t.fg("accent", `${stats.agent_loop_count}`)} ${t.fg("muted", "loops")}`,
 			`${t.fg("accent", `${stats.compaction_count}`)} ${t.fg("muted", "compactions")}`,
-		];
-		content.push(`  ${summary_items.join("    ")}`);
+			tools_str,
+		]
+			.filter(Boolean)
+			.join(t.fg("dim", "   ·   "));
+		content.push(`  ${summary_line_1}`);
 
-		const activity_items = [
+		const summary_line_2 = [
 			`${t.fg("accent", `${stats.user_prompt_count}`)} ${t.fg("muted", "prompts")}`,
 			`${t.fg("accent", `${stats.user_bash_count}`)} ${t.fg("muted", "user !cmds")}`,
-		];
-		content.push(`  ${activity_items.join("    ")}`);
+		].join(t.fg("dim", "   ·   "));
+		content.push(`  ${summary_line_2}`);
 
-		// divider + tool calls section
-		content.push(t.fg("dim", "─".repeat(iw)));
+		content.push("");
 
+		// ── tool calls section ───────────────────────────────
 		const sorted_tallies = get_sorted_tool_tallies(stats);
+		const tool_count = sorted_tallies.length;
 
-		if (sorted_tallies.length === 0) {
-			content.push(`  ${t.fg("muted", "Tool Calls")}  ${t.fg("dim", "(none yet)")}`);
-		} else {
-			const error_label =
-				stats.total_tool_errors > 0
-					? `, ${t.fg("error", `${stats.total_tool_errors}`)} ${t.fg("muted", stats.total_tool_errors === 1 ? "error" : "errors")}`
-					: "";
-			content.push(
-				`  ${t.fg("muted", "Tool Calls")}  ${t.fg("accent", `${stats.total_tool_calls}`)} ${t.fg("muted", "total")}${error_label}`,
-			);
-			content.push("");
+		if (tool_count > 0) {
+			this.selected_tool_index = Math.max(0, Math.min(this.selected_tool_index, tool_count - 1));
+		}
 
+		const error_str =
+			stats.total_tool_errors > 0
+				? `  ${t.fg("error", `${stats.total_tool_errors}`)} ${t.fg("muted", stats.total_tool_errors === 1 ? "error" : "errors")}`
+				: "";
+		const section_right =
+			sorted_tallies.length > 0
+				? `${t.fg("dim", `${stats.total_tool_calls} total`)}${error_str} `
+				: `${t.fg("dim", "none yet")} `;
+		content.push(this.section_header("Tool Calls", section_right, iw));
+		content.push("");
+
+		if (sorted_tallies.length > 0) {
 			const max_calls = sorted_tallies[0][1].calls;
 			const max_name_len = Math.max(...sorted_tallies.map(([name]) => name.length));
 
-			for (const [name, tally] of sorted_tallies) {
+			for (let i = 0; i < sorted_tallies.length; i++) {
+				const [name, tally] = sorted_tallies[i];
+				const is_selected = i === this.selected_tool_index;
+
+				const marker = is_selected ? t.fg("accent", " ▸") : "  ";
 				const bar_width =
 					max_calls > 0 ? Math.max(1, Math.round((tally.calls / max_calls) * SESSION_STATS_BAR_MAX_WIDTH)) : 0;
-				const bar = t.fg("accent", SESSION_STATS_BAR_CHAR.repeat(bar_width));
-				const padded_name = t.fg("muted", name.padEnd(max_name_len));
+				const bar_color = is_selected ? "accent" : "dim";
+				const bar = t.fg(bar_color, SESSION_STATS_BAR_CHAR.repeat(bar_width));
+				const tool_name = is_selected
+					? t.fg("accent", t.bold(name.padEnd(max_name_len)))
+					: t.fg("muted", name.padEnd(max_name_len));
 				const count = `${tally.calls}`.padStart(4);
+				const count_str = is_selected ? t.fg("accent", count) : count;
 
-				let error_suffix = "";
+				let err_suffix = "";
 				if (tally.errors > 0) {
-					error_suffix = `  ${t.fg("error", `${tally.errors} err`)}`;
+					err_suffix = `  ${t.fg("error", `${tally.errors} err`)}`;
 				}
 
-				content.push(`  ${padded_name}  ${bar}  ${count}${error_suffix}`);
+				content.push(`${marker} ${tool_name}  ${bar}  ${count_str}${err_suffix}`);
 			}
 		}
 
-		// divider + models section
 		content.push("");
-		content.push(t.fg("dim", "─".repeat(iw)));
 
+		// ── models section ───────────────────────────────────
 		const unique_models = get_unique_models_used(stats);
 		const current_model = get_current_model(stats);
 
-		if (unique_models.length === 0) {
-			content.push(`  ${t.fg("muted", "Models")}  ${t.fg("dim", "(none recorded)")}`);
-		} else {
-			content.push(`  ${t.fg("muted", "Models")}`);
+		content.push(this.section_header("Models", unique_models.length === 0 ? `${t.fg("dim", "none")} ` : "", iw));
+
+		if (unique_models.length > 0) {
+			content.push("");
 			for (const entry of unique_models) {
 				const is_current = current_model && entry.model_id === current_model.model_id;
-				const marker = is_current ? t.fg("accent", "▸") : " ";
-				const label = `${entry.model_name} ${t.fg("dim", `(${entry.provider})`)}`;
-				const suffix = is_current ? `  ${t.fg("dim", "— current")}` : "";
-				content.push(`  ${marker} ${label}${suffix}`);
+				const m_marker = is_current ? t.fg("accent", "▸") : " ";
+				const label = is_current
+					? `${t.fg("accent", entry.model_name)} ${t.fg("dim", `(${entry.provider})`)}`
+					: `${entry.model_name} ${t.fg("dim", `(${entry.provider})`)}`;
+				const suffix = is_current ? `  ${t.fg("dim", "current")}` : "";
+				content.push(`   ${m_marker} ${label}${suffix}`);
 			}
 		}
+
+		content.push("");
 
 		this.content_lines = content;
 
@@ -194,12 +314,10 @@ export class SessionStatsPanel {
 		const footer: string[] = [];
 		footer.push(t.fg("dim", "─".repeat(iw)));
 
-		const hints = [`${t.fg("accent", "esc")} close`, `${t.fg("accent", "r")} refresh`];
-		if (this.content_lines.length > this.scroll_view_height && this.scroll_view_height > 0) {
-			hints.push(`${t.fg("accent", "j/k")} scroll`);
-			const start = this.scroll_offset + 1;
-			const end = Math.min(this.content_lines.length, this.scroll_offset + this.scroll_view_height);
-			hints.push(t.fg("dim", `${start}-${end}/${this.content_lines.length}`));
+		const hints: string[] = [`${t.fg("accent", "esc")} close`, `${t.fg("accent", "r")} refresh`];
+		if (tool_count > 0) {
+			hints.push(`${t.fg("accent", "j/k")} select`);
+			hints.push(`${t.fg("accent", "enter")} detail`);
 		}
 		footer.push(`  ${hints.join(t.fg("dim", "  ·  "))}`);
 
@@ -208,12 +326,13 @@ export class SessionStatsPanel {
 		const border_count = 2;
 		this.scroll_view_height = Math.max(1, max_h - footer_count - border_count);
 
+		this.ensure_selection_visible(sorted_tallies);
+
 		const max_scroll = Math.max(0, this.content_lines.length - this.scroll_view_height);
 		this.scroll_offset = Math.max(0, Math.min(this.scroll_offset, max_scroll));
 
 		const visible = this.content_lines.slice(this.scroll_offset, this.scroll_offset + this.scroll_view_height);
 
-		// pad to fill
 		const fill = this.scroll_view_height - visible.length;
 		for (let i = 0; i < fill; i++) {
 			visible.push("");
@@ -223,21 +342,302 @@ export class SessionStatsPanel {
 		return this.frame_content(all_lines, w, iw);
 	}
 
-	invalidate(): void {}
+	// ── Detail view rendering ───────────────────────────────
 
-	// ── helpers ──────────────────────────────────────────────
+	private render_detail_view(width: number): string[] {
+		const t = this.theme;
+		const w = Math.max(30, width);
+		const iw = w - 2;
+		const max_h = this.get_max_height();
+
+		const sorted_tallies = get_sorted_tool_tallies(this.stats);
+		if (sorted_tallies.length === 0) {
+			this.view = "list";
+			return this.render_list_view(width);
+		}
+
+		const [tool_name, tally] = sorted_tallies[this.selected_tool_index];
+
+		// ── header ───────────────────────────────────────────
+		const header: string[] = [];
+		header.push("");
+
+		const icon = t.fg("accent", SESSION_STATS_STATUS_ICON);
+		const breadcrumb = ` ${icon} ${t.fg("dim", "Session Stats")} ${t.fg("dim", "›")} ${t.fg("accent", t.bold(tool_name))}`;
+		const count_badge = `${t.fg("accent", `${tally.calls}`)} ${t.fg("dim", tally.calls === 1 ? "call" : "calls")} `;
+		const gap = Math.max(1, iw - visibleWidth(breadcrumb) - visibleWidth(count_badge));
+		header.push(`${breadcrumb}${" ".repeat(gap)}${count_badge}`);
+
+		header.push("");
+		header.push(t.fg("dim", "─".repeat(iw)));
+
+		// ── detail content ───────────────────────────────────
+		const detail_content = this.build_detail_content(tool_name, this.stats.tool_details, iw);
+		this.detail_lines = detail_content;
+
+		// ── footer ───────────────────────────────────────────
+		const footer: string[] = [];
+		footer.push(t.fg("dim", "─".repeat(iw)));
+
+		const hints: string[] = [`${t.fg("accent", "esc")} back`, `${t.fg("accent", "r")} refresh`];
+		if (this.detail_lines.length > 5) {
+			hints.push(`${t.fg("accent", "j/k")} scroll`);
+		}
+		if (this.detail_lines.length > this.detail_view_height && this.detail_view_height > 0) {
+			const start = this.detail_scroll_offset + 1;
+			const end = Math.min(this.detail_lines.length, this.detail_scroll_offset + this.detail_view_height);
+			hints.push(t.fg("dim", `${start}–${end}/${this.detail_lines.length}`));
+		}
+		footer.push(`  ${hints.join(t.fg("dim", "  ·  "))}`);
+
+		// ── assemble with scrolling ──────────────────────────
+		const footer_count = footer.length;
+		const header_count = header.length;
+		const border_count = 2;
+		this.detail_view_height = Math.max(1, max_h - header_count - footer_count - border_count);
+
+		const max_scroll = Math.max(0, this.detail_lines.length - this.detail_view_height);
+		this.detail_scroll_offset = Math.max(0, Math.min(this.detail_scroll_offset, max_scroll));
+
+		const visible = this.detail_lines.slice(
+			this.detail_scroll_offset,
+			this.detail_scroll_offset + this.detail_view_height,
+		);
+
+		const fill = this.detail_view_height - visible.length;
+		for (let i = 0; i < fill; i++) {
+			visible.push("");
+		}
+
+		const all_lines = [...header, ...visible, ...footer];
+		return this.frame_content(all_lines, w, iw);
+	}
+
+	// ── Detail content builders ─────────────────────────────
+
+	private build_detail_content(tool_name: string, details: ToolDetails, iw: number): string[] {
+		const name_lower = tool_name.toLowerCase();
+		switch (name_lower) {
+			case "bash":
+				return this.detail_bash(details, iw);
+			case "read":
+				return this.detail_read(details, iw);
+			case "edit":
+				return this.detail_file_list("Files Edited", details.edit_files, iw);
+			case "write":
+				return this.detail_file_list("Files Written", details.write_files, iw);
+			case "expertise":
+				return this.detail_expertise(details, iw);
+			case "todo":
+				return this.detail_todo(details, iw);
+			default:
+				return this.detail_generic(tool_name);
+		}
+	}
+
+	private detail_bash(details: ToolDetails, iw: number): string[] {
+		const t = this.theme;
+		const lines: string[] = [];
+		const programs = Array.from(details.bash_programs.entries()).sort((a, b) => b[1] - a[1]);
+
+		lines.push("");
+		lines.push(`  ${t.fg("muted", "CLI Programs")} ${t.fg("dim", `(${programs.length})`)}`);
+		lines.push("");
+
+		if (programs.length === 0) {
+			lines.push(`  ${t.fg("dim", "No commands parsed.")}`);
+			return lines;
+		}
+
+		const max_count = programs[0][1];
+		const max_name_len = Math.max(...programs.map(([name]) => name.length));
+		const bar_max = Math.min(SESSION_STATS_BAR_MAX_WIDTH, iw - max_name_len - 14);
+
+		for (const [name, count] of programs) {
+			const bar_width = max_count > 0 ? Math.max(1, Math.round((count / max_count) * Math.max(1, bar_max))) : 0;
+			const bar = t.fg("accent", SESSION_STATS_BAR_CHAR.repeat(bar_width));
+			const padded_name = t.fg("muted", name.padEnd(max_name_len));
+			const count_str = `${count}`.padStart(4);
+			lines.push(`    ${padded_name}  ${bar}  ${count_str}`);
+		}
+
+		lines.push("");
+		return lines;
+	}
+
+	private detail_read(details: ToolDetails, iw: number): string[] {
+		const t = this.theme;
+		const lines: string[] = [];
+		const total = details.read_files.length;
+
+		lines.push("");
+		lines.push(`  ${t.fg("muted", "Files Read")} ${t.fg("dim", `(${total})`)}`);
+		lines.push("");
+
+		if (total === 0) {
+			lines.push(`  ${t.fg("dim", "No files read.")}`);
+			return lines;
+		}
+
+		const grouped = group_files_by_category(details.read_files);
+		const category_order: FileCategory[] = ["docs", "skills", "tests", "code"];
+		const category_icons: Record<FileCategory, string> = {
+			docs: "◇",
+			skills: "◆",
+			tests: "△",
+			code: "○",
+		};
+
+		for (const cat of category_order) {
+			const files = grouped.get(cat);
+			if (!files || files.length === 0) continue;
+
+			const icon = t.fg("dim", category_icons[cat]);
+			const label = t.fg("muted", cat.charAt(0).toUpperCase() + cat.slice(1));
+			lines.push(`  ${icon} ${label} ${t.fg("dim", `(${files.length})`)}`);
+
+			for (const file of files) {
+				const display_path = truncateToWidth(file, iw - 8);
+				lines.push(`    ${t.fg("dim", "│")} ${display_path}`);
+			}
+			lines.push("");
+		}
+
+		return lines;
+	}
+
+	private detail_file_list(title: string, files: string[], iw: number): string[] {
+		const t = this.theme;
+		const lines: string[] = [];
+		const total = files.length;
+
+		lines.push("");
+		lines.push(`  ${t.fg("muted", title)} ${t.fg("dim", `(${total})`)}`);
+		lines.push("");
+
+		if (total === 0) {
+			lines.push(`  ${t.fg("dim", "None.")}`);
+			return lines;
+		}
+
+		const sorted = [...files].sort();
+		for (const file of sorted) {
+			lines.push(`    ${truncateToWidth(file, iw - 4)}`);
+		}
+
+		lines.push("");
+		return lines;
+	}
+
+	private detail_expertise(details: ToolDetails, _iw: number): string[] {
+		const t = this.theme;
+		const lines: string[] = [];
+
+		lines.push("");
+		lines.push(`  ${t.fg("muted", "Expertise Actions")}`);
+		lines.push("");
+
+		if (details.expertise_actions.size === 0) {
+			lines.push(`  ${t.fg("dim", "No expertise calls.")}`);
+			return lines;
+		}
+
+		for (const [action, domains] of details.expertise_actions.entries()) {
+			lines.push(`  ${t.fg("accent", action)}`);
+			for (const domain of domains) {
+				lines.push(`    ${t.fg("dim", "│")} ${domain}`);
+			}
+			lines.push("");
+		}
+
+		return lines;
+	}
+
+	private detail_todo(details: ToolDetails, _iw: number): string[] {
+		const t = this.theme;
+		const lines: string[] = [];
+
+		lines.push("");
+		lines.push(`  ${t.fg("muted", "Todo Actions")}`);
+		lines.push("");
+
+		if (details.todo_actions.size === 0) {
+			lines.push(`  ${t.fg("dim", "No todo calls.")}`);
+			return lines;
+		}
+
+		const sorted = Array.from(details.todo_actions.entries()).sort((a, b) => b[1] - a[1]);
+		for (const [action, count] of sorted) {
+			lines.push(`    ${t.fg("muted", action)}  ${t.fg("accent", `${count}`)}`);
+		}
+
+		lines.push("");
+		return lines;
+	}
+
+	private detail_generic(tool_name: string): string[] {
+		const t = this.theme;
+		return ["", `  ${t.fg("dim", `No detail view available for ${tool_name}.`)}`, ""];
+	}
+
+	// ── Helpers ──────────────────────────────────────────────
+
+	private section_header(label: string, right_text: string, iw: number): string {
+		const t = this.theme;
+		const left = `${t.fg("dim", "──")} ${t.fg("muted", label)} `;
+		const right = right_text ? `${right_text}${t.fg("dim", "──")}` : "";
+		const left_vis = visibleWidth(left);
+		const right_vis = visibleWidth(right);
+		const fill = Math.max(0, iw - left_vis - right_vis);
+		return `${left}${t.fg("dim", "─".repeat(fill))}${right}`;
+	}
 
 	private refresh(): void {
 		this.stats = this.options.get_stats();
 		this.scroll_offset = 0;
+		this.detail_scroll_offset = 0;
 		this.tui.requestRender();
 	}
 
-	private scroll(delta: number): void {
-		const max = Math.max(0, this.content_lines.length - this.scroll_view_height);
-		const new_offset = Math.max(0, Math.min(this.scroll_offset + delta, max));
-		if (new_offset === this.scroll_offset) return;
-		this.scroll_offset = new_offset;
+	private move_selection(delta: number): void {
+		const tallies = get_sorted_tool_tallies(this.stats);
+		if (tallies.length === 0) return;
+		const new_idx = Math.max(0, Math.min(this.selected_tool_index + delta, tallies.length - 1));
+		if (new_idx === this.selected_tool_index) return;
+		this.selected_tool_index = new_idx;
+		this.tui.requestRender();
+	}
+
+	private set_selection(index: number): void {
+		const tallies = get_sorted_tool_tallies(this.stats);
+		if (tallies.length === 0) return;
+		const new_idx = Math.max(0, Math.min(index, tallies.length - 1));
+		if (new_idx === this.selected_tool_index) return;
+		this.selected_tool_index = new_idx;
+		this.tui.requestRender();
+	}
+
+	private ensure_selection_visible(sorted_tallies: Array<[string, ToolTally]>): void {
+		// Find the content line index for the selected tool row
+		// Tool rows start after the header lines — just ensure scroll doesn't hide it
+		if (sorted_tallies.length === 0) return;
+		// The tool rows are near the middle of content, auto-scroll not needed for typical panels
+		// but ensure scroll stays in bounds
+		const max_scroll = Math.max(0, this.content_lines.length - this.scroll_view_height);
+		this.scroll_offset = Math.max(0, Math.min(this.scroll_offset, max_scroll));
+	}
+
+	private open_detail_view(): void {
+		this.view = "detail";
+		this.detail_scroll_offset = 0;
+		this.tui.requestRender();
+	}
+
+	private scroll_detail(delta: number): void {
+		const max_scroll = Math.max(0, this.detail_lines.length - this.detail_view_height);
+		const new_offset = Math.max(0, Math.min(this.detail_scroll_offset + delta, max_scroll));
+		if (new_offset === this.detail_scroll_offset) return;
+		this.detail_scroll_offset = new_offset;
 		this.tui.requestRender();
 	}
 
@@ -274,6 +674,10 @@ export function build_plain_text_summary(stats: SessionStats): string {
 	lines.push(`Turns: ${stats.turn_count}  Loops: ${stats.agent_loop_count}  Compactions: ${stats.compaction_count}`);
 	lines.push(`Prompts: ${stats.user_prompt_count}  User !cmds: ${stats.user_bash_count}`);
 
+	if (stats.available_tool_count > 0) {
+		lines.push(`Tools: ${stats.tool_tallies.size}/${stats.available_tool_count} used`);
+	}
+
 	const sorted = get_sorted_tool_tallies(stats);
 	if (sorted.length === 0) {
 		lines.push("Tool calls: none");
@@ -282,6 +686,38 @@ export function build_plain_text_summary(stats: SessionStats): string {
 		for (const [name, tally] of sorted) {
 			const err = tally.errors > 0 ? ` (${tally.errors} err)` : "";
 			lines.push(`  ${name}: ${tally.calls}${err}`);
+		}
+	}
+
+	// Tool details in plain text
+	const details = stats.tool_details;
+
+	if (details.bash_programs.size > 0) {
+		const programs = Array.from(details.bash_programs.entries()).sort((a, b) => b[1] - a[1]);
+		lines.push("Bash programs:");
+		for (const [prog, count] of programs) {
+			lines.push(`  ${prog}: ${count}`);
+		}
+	}
+
+	if (details.read_files.length > 0) {
+		lines.push(`Files read (${details.read_files.length}):`);
+		for (const f of [...details.read_files].sort()) {
+			lines.push(`  ${f}`);
+		}
+	}
+
+	if (details.edit_files.length > 0) {
+		lines.push(`Files edited (${details.edit_files.length}):`);
+		for (const f of [...details.edit_files].sort()) {
+			lines.push(`  ${f}`);
+		}
+	}
+
+	if (details.write_files.length > 0) {
+		lines.push(`Files written (${details.write_files.length}):`);
+		for (const f of [...details.write_files].sort()) {
+			lines.push(`  ${f}`);
 		}
 	}
 

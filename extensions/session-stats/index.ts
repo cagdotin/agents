@@ -18,7 +18,14 @@ export default function session_stats_extension(pi: ExtensionAPI) {
 		const branch = ctx.sessionManager.getBranch();
 		const model = ctx.model;
 		const current_model = model ? { id: model.id, name: model.name, provider: model.provider } : undefined;
-		return reconstruct_stats(branch as Array<{ type: string; timestamp: string }>, current_model);
+		const stats = reconstruct_stats(branch as Array<{ type: string; timestamp: string }>, current_model);
+
+		// Inject tool availability (not in session entries)
+		const all_tools = pi.getAllTools();
+		stats.available_tool_count = all_tools.length;
+		stats.available_tool_names = all_tools.map((t) => t.name);
+
+		return stats;
 	};
 
 	const set_footer_status = (ctx: ExtensionContext) => {

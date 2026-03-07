@@ -41,6 +41,7 @@ Use `skills/plan` for both artifact types.
 ## Current active plans
 
 - [[docs/exec-plans/active/2026-03-07-session-stats-extension]]
+- [[docs/exec-plans/active/2026-03-07-session-stats-phase2-tool-details]]
 
 ## Recently completed
 

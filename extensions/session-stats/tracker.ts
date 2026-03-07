@@ -1,4 +1,4 @@
-import type { ModelUsageEntry, SessionStats, ToolTally } from "./types.js";
+import type { FileCategory, ModelUsageEntry, SessionStats, ToolDetails, ToolTally } from "./types.js";
 
 export function create_stats(): SessionStats {
 	return {
@@ -12,6 +12,20 @@ export function create_stats(): SessionStats {
 		user_bash_count: 0,
 		compaction_count: 0,
 		model_history: [],
+		tool_details: create_tool_details(),
+		available_tool_count: 0,
+		available_tool_names: [],
+	};
+}
+
+function create_tool_details(): ToolDetails {
+	return {
+		bash_programs: new Map(),
+		read_files: [],
+		edit_files: [],
+		write_files: [],
+		expertise_actions: new Map(),
+		todo_actions: new Map(),
 	};
 }
 
@@ -58,6 +72,18 @@ export function reconstruct_stats(
 					if (last_was_user) {
 						stats.agent_loop_count += 1;
 						last_was_user = false;
+					}
+
+					// Extract tool call arguments from assistant content
+					const content = message.content as
+						| Array<{ type: string; name?: string; arguments?: Record<string, unknown> }>
+						| undefined;
+					if (Array.isArray(content)) {
+						for (const block of content) {
+							if (block.type === "toolCall" && block.name && block.arguments) {
+								extract_tool_call_detail(stats.tool_details, block.name, block.arguments as Record<string, string>);
+							}
+						}
 					}
 					break;
 				}
@@ -172,4 +198,290 @@ export function get_unique_models_used(stats: SessionStats): ModelUsageEntry[] {
 		}
 	}
 	return unique;
+}
+
+// ── tool detail extraction ──────────────────────────────────
+
+/**
+ * Extract CLI program names from a bash command string.
+ *
+ * Uses quote-aware splitting (respects single/double quotes) then takes
+ * the first non-env-var token of each segment. Validates that extracted
+ * tokens look like real CLI program names.
+ */
+export function extract_bash_programs(command: string): string[] {
+	if (!command || !command.trim()) return [];
+
+	const segments = split_command_quote_aware(command);
+	const programs: string[] = [];
+
+	for (const segment of segments) {
+		const trimmed = segment.trim();
+		if (!trimmed) continue;
+
+		// Tokenize the segment (outside quotes) to get the first program token
+		const tokens = tokenize_unquoted(trimmed);
+		let program: string | null = null;
+
+		for (const token of tokens) {
+			// Skip env var prefixes like KEY=val
+			if (/^\w+=/.test(token)) continue;
+			program = token;
+			break;
+		}
+
+		if (program) {
+			// If it's a path, take the basename
+			if (program.includes("/")) {
+				const parts = program.split("/");
+				program = parts[parts.length - 1];
+			}
+			if (program && is_valid_program_name(program)) {
+				programs.push(program);
+			}
+		}
+	}
+
+	return programs;
+}
+
+/**
+ * Split a command string on &&, ||, ;, | — but only when outside quotes.
+ * Respects both single and double quotes, including backslash escapes.
+ */
+export function split_command_quote_aware(command: string): string[] {
+	const segments: string[] = [];
+	let current = "";
+	let quote_char: string | null = null;
+	let i = 0;
+
+	while (i < command.length) {
+		const ch = command[i];
+
+		// Handle backslash escapes inside double quotes
+		if (ch === "\\" && quote_char === '"' && i + 1 < command.length) {
+			current += ch + command[i + 1];
+			i += 2;
+			continue;
+		}
+
+		// Toggle quote state
+		if ((ch === '"' || ch === "'") && !quote_char) {
+			quote_char = ch;
+			current += ch;
+			i++;
+			continue;
+		}
+		if (ch === quote_char) {
+			quote_char = null;
+			current += ch;
+			i++;
+			continue;
+		}
+
+		// Only split on operators when outside quotes
+		if (!quote_char) {
+			// Check for && and ||
+			if (i + 1 < command.length) {
+				const two = command[i] + command[i + 1];
+				if (two === "&&" || two === "||") {
+					segments.push(current);
+					current = "";
+					i += 2;
+					continue;
+				}
+			}
+			// Check for ; and |
+			if (ch === ";" || ch === "|") {
+				segments.push(current);
+				current = "";
+				i++;
+				continue;
+			}
+		}
+
+		current += ch;
+		i++;
+	}
+
+	if (current) {
+		segments.push(current);
+	}
+
+	return segments;
+}
+
+/**
+ * Tokenize a command segment by whitespace, but skip over quoted regions.
+ * Returns only the unquoted tokens (strips the quoted arguments entirely).
+ */
+function tokenize_unquoted(segment: string): string[] {
+	const tokens: string[] = [];
+	let current = "";
+	let quote_char: string | null = null;
+	let in_token = false;
+
+	for (let i = 0; i < segment.length; i++) {
+		const ch = segment[i];
+
+		// Handle backslash escapes inside double quotes
+		if (ch === "\\" && quote_char === '"' && i + 1 < segment.length) {
+			i++; // skip escaped char
+			continue;
+		}
+
+		// Toggle quote state — skip quoted content entirely
+		if ((ch === '"' || ch === "'") && !quote_char) {
+			quote_char = ch;
+			in_token = true;
+			continue;
+		}
+		if (ch === quote_char) {
+			quote_char = null;
+			continue;
+		}
+
+		// Inside quotes — skip
+		if (quote_char) continue;
+
+		// Whitespace outside quotes — end current token
+		if (/\s/.test(ch)) {
+			if (in_token && current) {
+				tokens.push(current);
+				current = "";
+			}
+			in_token = false;
+			continue;
+		}
+
+		// Regular character outside quotes
+		in_token = true;
+		current += ch;
+	}
+
+	if (current) {
+		tokens.push(current);
+	}
+
+	return tokens;
+}
+
+/** Validate that a token looks like a real CLI program name. */
+function is_valid_program_name(name: string): boolean {
+	if (!name || name.length === 0) return false;
+	// Must start with a letter, digit, underscore, or dot (e.g. .bin scripts)
+	// Can contain letters, digits, hyphens, underscores, dots
+	// Must NOT contain parens, quotes, backslashes, braces, semicolons, etc.
+	return /^[a-zA-Z0-9_.][a-zA-Z0-9_.-]*$/.test(name);
+}
+
+/** Categorize a file path as docs/skills/tests/code. */
+export function categorize_file(path: string): FileCategory {
+	const filename = path.split("/").pop() || "";
+
+	// Skills: starts with skills/ or contains /SKILL.md or is SKILL.md
+	if (path.startsWith("skills/") || path.includes("/SKILL.md") || filename === "SKILL.md") {
+		return "skills";
+	}
+
+	// Tests: contains __tests__/ or ends with .test.ts/.spec.ts/.test.js/.spec.js
+	if (path.includes("__tests__/") || /\.(test|spec)\.(ts|js)$/.test(path)) {
+		return "tests";
+	}
+
+	// Docs: starts with docs/ or doc/, ends with .md, or filename is README* or AGENTS.md
+	if (
+		path.startsWith("docs/") ||
+		path.startsWith("doc/") ||
+		path.endsWith(".md") ||
+		filename.startsWith("README") ||
+		filename === "AGENTS.md"
+	) {
+		return "docs";
+	}
+
+	return "code";
+}
+
+/** Group file paths by category, sorted within each group. */
+export function group_files_by_category(paths: string[]): Map<FileCategory, string[]> {
+	const groups = new Map<FileCategory, string[]>();
+
+	for (const path of paths) {
+		const category = categorize_file(path);
+		let list = groups.get(category);
+		if (!list) {
+			list = [];
+			groups.set(category, list);
+		}
+		list.push(path);
+	}
+
+	// Sort within each group
+	for (const list of groups.values()) {
+		list.sort();
+	}
+
+	return groups;
+}
+
+/** Dispatch tool call arguments into the appropriate detail bucket. */
+export function extract_tool_call_detail(details: ToolDetails, tool_name: string, args: Record<string, string>): void {
+	const name_lower = tool_name.toLowerCase();
+
+	switch (name_lower) {
+		case "bash": {
+			const command = args.command;
+			if (typeof command === "string") {
+				const programs = extract_bash_programs(command);
+				for (const prog of programs) {
+					details.bash_programs.set(prog, (details.bash_programs.get(prog) || 0) + 1);
+				}
+			}
+			break;
+		}
+		case "read": {
+			const path = args.path;
+			if (typeof path === "string" && !details.read_files.includes(path)) {
+				details.read_files.push(path);
+			}
+			break;
+		}
+		case "edit": {
+			const path = args.path;
+			if (typeof path === "string" && !details.edit_files.includes(path)) {
+				details.edit_files.push(path);
+			}
+			break;
+		}
+		case "write": {
+			const path = args.path;
+			if (typeof path === "string" && !details.write_files.includes(path)) {
+				details.write_files.push(path);
+			}
+			break;
+		}
+		case "expertise": {
+			const action = args.action;
+			const domain = args.domain;
+			if (typeof action === "string") {
+				let domains = details.expertise_actions.get(action);
+				if (!domains) {
+					domains = [];
+					details.expertise_actions.set(action, domains);
+				}
+				if (typeof domain === "string" && !domains.includes(domain)) {
+					domains.push(domain);
+				}
+			}
+			break;
+		}
+		case "todo": {
+			const action = args.action;
+			if (typeof action === "string") {
+				details.todo_actions.set(action, (details.todo_actions.get(action) || 0) + 1);
+			}
+			break;
+		}
+	}
 }

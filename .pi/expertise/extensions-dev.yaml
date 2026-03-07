@@ -1,72 +1,87 @@
 domain: extensions-dev
-description: "Cross-extension conventions for docs-first planning workflows, portable planning skills, and deterministic quality gates."
-last_synced: "2026-03-07T13:14:44Z"
+description: "Cross-extension conventions for docs-first delivery and schema-first boundary validation: TypeBox/StringEnum for tool params, Zod for runtime parsing."
+last_synced: "2026-03-07T16:07:00Z"
 
 scope:
   paths:
     - AGENTS.md
+    - docs/ARCHITECTURE.md
     - docs/exec-plans/
     - docs/specs/
     - docs/resources/
     - skills/plan/
     - scripts/validate-docs.ts
-    - lefthook.yml
+    - scripts/__tests__/validate-docs.test.ts
+    - extensions/answer/
+    - extensions/damage-control/
+    - extensions/expert/
+    - extensions/todos/
     - vitest.config.ts
+    - package.json
 
 overview: |
   This repo treats committed docs/code as long-term memory for humans and agents.
-  For medium+ work, default to two artifacts unless the user explicitly waives one:
+  For medium+ work, default to two artifacts unless explicitly waived:
   - spec (`docs/specs/`) for design intent
   - execution plan (`docs/exec-plans/`) for rollout state
-  Execution plans are living docs (decision/progress updates during work), then moved
-  from `active/` to `completed/` when done.
-  The canonical execution-plan standard is shipped with the planning skill at
-  `skills/plan/PLAN.md` (portable across repos). A root `PLANS.md` is not required.
+
+  Validation doctrine is explicit and now documented in canonical repo guidance:
+  - TypeBox + `StringEnum` for Pi tool parameter contracts
+  - Zod for runtime boundary parsing (YAML/JSON/frontmatter/LLM output)
+
+  Key lesson from this rollout: schema-first must be applied consistently across similar boundaries
+  (not just one function) to avoid mixed validation styles and follow-up rework.
 
 patterns:
-  - "Capture external guidance in `docs/resources/` as structured notes (summary + source + repo relevance), not chat-only links."
   - "For medium/large initiatives, create both spec + execution plan by default; skip one only with explicit user waiver."
   - "Create spec first, then execution plan, and cross-link both artifacts."
-  - "Keep execution-plan lifecycle accurate: active while in progress, completed once exit criteria are met."
-  - "Treat plans as living artifacts: keep decision/progress/blocker sections current during execution, not only at the end."
-  - "If planning doctrine changes, update AGENTS + docs/exec-plans + docs/specs + `skills/plan/{SKILL.md,PLAN.md}` together."
-  - "Skills must be self-sustaining: if a skill depends on a standard/template, ship it in the skill directory."
-  - "Prefer mechanical enforcement (`bun run check`) over convention-memory for docs/skill invariants."
-  - "Every extension under `extensions/` needs a practical README; docs validation enforces baseline coverage."
+  - "Treat execution plans as living docs; keep progress/decision/discovery sections current and move plans from `active/` to `completed/` when done."
+  - "When plans move lifecycle state, update `docs/exec-plans/README.md` index links in the same change."
+  - "Use schema-first boundary validation: define one Zod contract per external payload and parse once; avoid split manual-vs-schema paths."
+  - "When migrating a module to schema-first, migrate sibling boundaries in that module together (e.g., resource + skill frontmatter) to prevent doctrine drift."
+  - "Keep tool registration schemas TypeBox-compatible (`StringEnum` for enums); apply Zod inside runtime parsing paths."
+  - "Keep validation diagnostics agent-legible: map Zod issues to stable, actionable messages/hints instead of exposing raw parser errors."
+  - "For persisted user-editable or legacy data, preserve compatibility by normalizing field-by-field instead of hard-failing whole payloads."
+  - "When doctrine changes, update canonical surfaces together (`AGENTS.md`, `docs/ARCHITECTURE.md`, relevant specs/plans/skills/tests)."
+  - "Prefer mechanical enforcement (`bun run check`) over convention-memory."
 
 design_decisions:
-  - reason: "Specs and execution plans are separate on purpose"
-    detail: "Specs are relatively stable design contracts; execution plans are mutable operational logs. Separation preserves lifecycle clarity."
-  - reason: "Plan underuse was treated as a trigger/policy problem, not folder topology"
-    detail: "Adoption was improved via skill + AGENTS + docs policy updates; adding `docs/exec-plans/specs/` was explicitly rejected."
+  - reason: "Specs and execution plans are intentionally separate"
+    detail: "Specs are relatively stable design contracts; execution plans are mutable operational logs. Separation keeps lifecycle and ownership clear."
   - reason: "Planning standard is skill-local, not repo-root"
-    detail: "User direction was to avoid root `PLANS.md`; `skills/plan/PLAN.md` is the canonical standard so the skill remains portable across repositories."
-  - reason: "Skill naming follows actual behavior"
-    detail: "`create-spec` was renamed to `plan` because it now produces spec and/or execution-plan artifacts; naming mismatch was causing discoverability/confusion."
-  - reason: "External guidance is adapted to be tool-agnostic"
-    detail: "Codex article guidance was adopted for process value, while removing product-specific wording to keep repo conventions reusable."
-  - reason: "Repository artifacts are the system of record"
-    detail: "Process decisions and external learnings must be committed in-repo so future agents avoid chat archaeology."
+    detail: "Canonical plan structure lives in `skills/plan/PLAN.md` so planning behavior stays portable across repositories."
+  - reason: "Hybrid validation over full schema unification"
+    detail: "Pi tool registration expects TypeBox `TSchema`; using Zod at runtime boundaries improves safety without risking tool interface compatibility."
+  - reason: "Docs frontmatter validation uses typed Zod contracts for both resources and skills"
+    detail: "Contract-first parsing reduces ad-hoc logic drift; README length/heading checks remain manual because they are policy heuristics, not data contracts."
+  - reason: "Do not emit raw Zod errors to users/agents"
+    detail: "Curated error/hint mapping keeps diagnostics stable, actionable, and testable across refactors."
+  - reason: "Compatibility-preserving hardening over breakage"
+    detail: "Boundary strictness increased while retaining tolerant behavior for existing user-managed files and legacy formats."
 
 gotchas:
-  - "Path-targeted Biome checks on docs/skill markdown can fail with `No files were processed` due to ignore config; rely on repo check scripts for intended coverage."
-  - "Repo-wide `bun run check` can fail on unrelated baseline files (e.g., formatting drift in `skills-lock.json`); call out residual unrelated failures explicitly."
-  - "If a skill depends on companion docs (e.g., `skills/plan/PLAN.md`), keep validator rules in sync with skill renames/moves or docs checks will fail."
-  - "Use StringEnum for tool action enums; literal-union schemas have caused provider compatibility issues."
-  - "`ctx.ui.custom()` blocks follow-up flow until `done()` is called."
+  - "Path-targeted Biome checks can report `No files were processed` due ignore config; rely on repo scripts (`bun run check`) for intended coverage."
+  - "Repo-wide `bun run check` may fail on unrelated dirty/baseline files; explicitly separate unrelated failures from your change."
+  - "Docs validation now uses real YAML parsing + Zod contracts for resource/skill frontmatter; syntax-invalid frontmatter fails `bun run check:docs`."
+  - "In resource frontmatter validation, semantically-empty required values (e.g., `tags: []`) are intentionally reported as 'missing required frontmatter field'."
+  - "Manual settings files with wrong scalar types are tolerated field-by-field and defaulted; this can look like settings were silently reset."
+  - "Legacy todo JSON-frontmatter migration sanitizes/coerces mixed primitive types instead of strict rejection; odd legacy values may survive as normalized strings."
   - "Vitest aliases Pi packages to local mocks; missing mock exports often surface as runtime `... is not a function` errors."
 
 references:
-  - "Global workflow policy: AGENTS.md"
+  - "Global workflow + validation policy: AGENTS.md"
+  - "Repository architecture/invariants: docs/ARCHITECTURE.md"
   - "Execution-plan conventions/lifecycle: docs/exec-plans/README.md"
-  - "Execution-plan starter scaffold: docs/exec-plans/TEMPLATE.md"
-  - "Specs conventions: docs/specs/README.md"
-  - "Planning skill contract: skills/plan/SKILL.md"
-  - "Canonical execution-plan standard (portable): skills/plan/PLAN.md"
-  - "Resource capture policy: docs/resources/README.md"
-  - "Codex execution-plan source note: docs/resources/codex-exec-plans-openai.md"
+  - "Canonical execution-plan standard: skills/plan/PLAN.md"
+  - "Docs validator boundary contracts: scripts/validate-docs.ts"
+  - "Docs validator regression coverage: scripts/__tests__/validate-docs.test.ts"
+  - "Expert settings/reflection tolerance patterns: extensions/expert/storage.ts"
+  - "Todos settings + legacy frontmatter tolerance: extensions/todos/storage.ts"
+  - "Hybrid validation spec: docs/specs/2026-03-07-zod-hybrid-validation-integration.md"
+  - "Hybrid validation rollout record: docs/exec-plans/completed/2026-03-07-zod-hybrid-validation-integration.md"
 
 codebase_concerns:
-  - "Spec+plan adoption for medium/large work is still partly convention-driven; if misses continue, consider stronger mechanical prompts/checks."
-  - "Recent rename (`create-spec` → `plan`) creates stale-reference risk across docs; lightweight linting for legacy skill name/path could prevent drift."
-  - "This domain still mixes planning-governance guidance with Pi runtime/testing gotchas; splitting into narrower expertise files may improve retrieval precision."
+  - "This domain still mixes planning-governance and runtime-validation/testing conventions; split into narrower expertise domains if retrieval quality drops."
+  - "Agent-friendly Zod issue mapping is repeated across modules/scripts; consider a shared formatter/helper to reduce drift in wording/hints."
+  - "Boundary coverage still depends on manual sweeps (grep for YAML.parse/JSON.parse); add a lightweight lint/checklist guard so missed parsers are caught automatically."
+  - "Cross-cutting doctrine spans multiple canonical docs; drift risk remains unless consistency checks are automated."
