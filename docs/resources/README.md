@@ -50,9 +50,9 @@ bookmarks, and memory. Resources are written for both humans and coding agents.
 
 ## Status Meanings
 
-- **captured** — source recorded, minimal processing
-- **reviewed** — summarized with takeaways and relevance notes
-- **applied** — resulted in concrete repository changes
+- **captured** - source recorded, minimal processing
+- **reviewed** - summarized with takeaways and relevance notes
+- **applied** - resulted in concrete repository changes
 
 ---
 
@@ -61,7 +61,9 @@ bookmarks, and memory. Resources are written for both humans and coding agents.
 ### Foundational
 
 - [[agent-experts-indydevdan]] — Persistent agent mental models and reflection loops.
-- [[harness-engineering-openai]] — OpenAI’s agent-first engineering playbook (map-not-manual,
+- [[architecture-md-matklad]] — Why every project needs an ARCHITECTURE.md: codemap,
+  invariants, boundaries. The structural blueprint for our own architecture doc.
+- [[harness-engineering-openai]] — OpenAI's agent-first engineering playbook (map-not-manual,
   progressive disclosure, mechanical enforcement, entropy management).
 - [[pi-vs-claude-code-indydevdan]] — Harness customization tiers and practical extension strategy.
 
