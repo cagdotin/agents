@@ -1,26 +1,36 @@
 domain: extensions-dev
-description: "Patterns and conventions for building pi extensions in this project"
-last_synced: "2026-03-06T22:46:23Z"
+description: "Conventions for building Pi extensions and maintaining documentation/process policy in this repo"
+last_synced: "2026-03-07T11:07:43Z"
 
 scope:
   paths:
+    - AGENTS.md
     - extensions/
+    - docs/
 
 overview: |
-  Extension work follows a progressive-disclosure docs model. AGENTS.md stays short
-  ("where to look"), while durable guidance lives under docs/: architecture map,
-  quality posture, execution plans/debt tracker, and Pi API reference. External
-  inspiration is captured in docs/resources with structured frontmatter so it is
-  searchable and reusable by agents. Pi runs extensions as raw TypeScript (no build
-  step), so extension changes are available after reload.
+  This repo uses progressive-disclosure docs: AGENTS.md is a short entrypoint, and durable
+  policy/architecture guidance lives in docs/. Documentation governance is now centralized in
+  docs/CONTRIBUTING-DOCS.md (for both humans and agents), with ARCHITECTURE.md intentionally
+  framed around constraints, decisions, and rationale rather than a static code tour.
 
 patterns:
   - "Keep AGENTS.md as a table of contents, not a long instruction manual."
-  - "For non-trivial recommendations or architecture/process changes, create/update an exec plan in docs/exec-plans/active with explicit reasoning and wikilink references; track unresolved items in tech-debt-tracker."
-  - "Every extension directory should have a README (including small tmux extensions) so behavior, requirements, and usage are discoverable."
-  - "Capture external articles/videos in docs/resources using TEMPLATE.md; include extracted links plus repository relevance."
+  - "Before applying ideas from external sources, capture them in docs/resources/ using TEMPLATE.md and add them to docs/resources/README.md."
+  - "Use docs/specs for planned/complex extension work before coding; link decisions back to the initiating todo/plan."
+  - "Use exec plans for cross-cutting repo/process initiatives; keep extension feature specifics in specs."
+  - "Treat docs/CONTRIBUTING-DOCS.md as the canonical docs policy; retire duplicated guidance from other files when this doc subsumes it."
+  - "Cross-link docs governance from key entrypoints (AGENTS.md, docs/README.md) so agents and humans find rules from normal navigation paths."
+  - "Every extension directory should have a README so behavior and constraints are discoverable."
+  - "After docs/process changes, run docs validation and full checks (not just spot-checking edited files)."
 
 design_decisions:
+  - reason: "Architecture docs follow decision/constraint/rationale framing"
+    detail: "ARCHITECTURE.md is meant to explain boundaries and tradeoffs, not just list folders/modules."
+  - reason: "Single canonical docs policy file"
+    detail: "docs/CONTRIBUTING-DOCS.md centralizes doc rules (including resource usage) to reduce drift and ambiguous agent behavior."
+  - reason: "Repository docs are the system of record"
+    detail: "Architecture, quality posture, API references, specs, and resource captures stay in-repo to avoid hidden chat-only conventions."
   - reason: "Single custom UI context over nested ctx.ui.custom()"
     detail: "Prefer swapping active components within one custom UI session; nested custom() flows are harder to reason about. Overlay flows are the intentional exception."
   - reason: "Compact tool rendering by default"
@@ -29,8 +39,14 @@ design_decisions:
     detail: "Keep tool content for the LLM plain/structured; put themed/rich formatting in renderResult for TUI users."
   - reason: "Prefer lower-cost models for helper LLM work"
     detail: "Extraction/reflection-style calls should try cheaper models first and only escalate when needed."
-  - reason: "Repository docs are the system of record"
-    detail: "Architecture, quality posture, API reference, and execution plans are maintained in-repo to reduce hidden conventions and onboarding friction."
+  - reason: "Avoid redundant capability surfaces"
+    detail: "If a skill already covers a workflow adequately (e.g., Linear), prefer the skill over building/maintaining a parallel extension."
+  - reason: "Damage-control is default-on in this package"
+    detail: "The project runs fast (YOLO) by design, so safety policy enforcement is treated as baseline behavior, not opt-in."
+  - reason: "Layered safety policy sources"
+    detail: "Damage-control rules compose in order: bundled extension defaults, global Pi rules, then project-local rules discovered up the directory tree."
+  - reason: "Conservative v1 policy semantics for damage-control"
+    detail: "Rule layering is additive-only in v1 (no inherited-rule disabling yet), and expert-extension path-policy integration is explicitly deferred."
 
 gotchas:
   - "Use StringEnum from pi-ai for tool action enums; Type.Union/Type.Literal has caused provider compatibility failures."
@@ -39,14 +55,20 @@ gotchas:
   - "Tool execute() argument order is positional; ctx is the last parameter."
   - "sendMessage(..., { triggerTurn: true }) feeds extension output back into the agent turn loop (intentional in answer-style flows)."
   - "setEditorText only pre-fills input; if you need submit-after-UI flows, end custom UI cleanly before handing control back."
+  - "Damage-control ask-rules must fail closed when UI is unavailable (block by default)."
+  - "Damage-control v1 merge is additive-only; local/global files cannot relax bundled defaults yet."
 
 references:
   - "Entry map: AGENTS.md"
+  - "Docs policy (canonical): docs/CONTRIBUTING-DOCS.md"
   - "Architecture map: docs/ARCHITECTURE.md"
+  - "Docs navigation/read order: docs/README.md"
   - "Quality posture and prioritized gaps: docs/QUALITY.md"
   - "Execution plans and debt tracker: docs/exec-plans/README.md"
-  - "Debt register: docs/exec-plans/tech-debt-tracker.md"
   - "Pi extension/TUI quick reference (repo-local): docs/references/pi-api-reference.md"
-  - "External resource index: docs/resources/README.md"
-  - "Resource capture template: docs/resources/TEMPLATE.md"
+  - "External resources index and capture workflow: docs/resources/README.md"
+  - "Resource template: docs/resources/TEMPLATE.md"
+  - "Resource capture (matklad architecture guidance): docs/resources/architecture-md-matklad.md"
+  - "Spec: docs/specs/2026-03-07-damage-control-extension.md"
+  - "Extension: extensions/damage-control/README.md"
   - "Gold standard extension pattern: extensions/todos/"
