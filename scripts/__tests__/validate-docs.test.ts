@@ -110,6 +110,46 @@ tags:
 		expect(result.stderr).toContain("invalid frontmatter YAML");
 	});
 
+	it("reports invalid resource contract fields", async () => {
+		await write_valid_repo_fixture(test_dir);
+		await writeFile(
+			path.join(test_dir, "docs", "resources", "sample.md"),
+			`---
+title: Sample Resource
+type: article
+source: web
+url: not-a-url
+author: Example Author
+date_captured: 07-03-2026
+tags: []
+status: reviewed
+description: Sample description
+---
+`,
+		);
+
+		const result = run_validator(test_dir);
+		expect(result.status).toBe(1);
+		expect(result.stderr).toContain("invalid url field");
+		expect(result.stderr).toContain("invalid date_captured format");
+		expect(result.stderr).toContain("missing required frontmatter field: tags");
+	});
+
+	it("reports missing skill required fields", async () => {
+		await write_valid_repo_fixture(test_dir);
+		await writeFile(
+			path.join(test_dir, "skills", "plan", "SKILL.md"),
+			`---
+name: plan
+---
+`,
+		);
+
+		const result = run_validator(test_dir);
+		expect(result.status).toBe(1);
+		expect(result.stderr).toContain("missing required frontmatter field: description");
+	});
+
 	it("reports skill name mismatch", async () => {
 		await write_valid_repo_fixture(test_dir);
 		await writeFile(

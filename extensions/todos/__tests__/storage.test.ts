@@ -163,6 +163,20 @@ Old body content.
 		expect(result.body).toContain("Old body content.");
 	});
 
+	it("migrates legacy JSON frontmatter with mixed primitive types", async () => {
+		const content = `{"id":1234,"title":42,"tags":["old",7,true],"status":true,"created_at":"2025-01-01T00:00:00Z"}
+
+Body content.
+`;
+		await write_raw_todo(test_dir, "legacymix", content);
+		const result = await read_todo_file(path.join(test_dir, "legacymix.md"), "legacymix");
+		expect(result.id).toBe("legacymix");
+		expect(result.title).toBe("");
+		expect(result.tags).toEqual(["old", "7", "true"]);
+		expect(result.status).toBe("true");
+		expect(result.body).toContain("Body content.");
+	});
+
 	it("handles no frontmatter — returns empty + full body", async () => {
 		const content = "Just some plain text with no frontmatter.";
 		await write_raw_todo(test_dir, "nofm1234", content);

@@ -21,7 +21,11 @@ const RESOURCE_REQUIRED_FIELDS = [
 	"description",
 ] as const;
 
+type ResourceRequiredField = (typeof RESOURCE_REQUIRED_FIELDS)[number];
+
 const SKILL_REQUIRED_FIELDS = ["name", "description"] as const;
+type SkillRequiredField = (typeof SKILL_REQUIRED_FIELDS)[number];
+
 const SKILL_REQUIRED_SUPPORT_FILES: Record<string, string[]> = {
 	plan: ["PLAN.md"],
 };
@@ -39,6 +43,61 @@ const non_empty_string_list_schema = z
 	.refine((values) => values.length > 0);
 const required_frontmatter_value_schema = z.union([non_empty_scalar_schema, non_empty_string_list_schema]);
 const frontmatter_fields_schema = z.record(z.string(), z.unknown());
+
+// Boundary contract for docs/resources/*.md frontmatter.
+// We validate the full shape with Zod, then map issues to stable, agent-legible hints.
+const resource_frontmatter_schema = z
+	.object({
+		title: z.string().trim().min(1),
+		type: z.string().trim().min(1),
+		source: z.string().trim().min(1),
+		url: z
+			.string()
+			.trim()
+			.url()
+			.refine((value) => /^https?:\/\/\S+/u.test(value)),
+		author: z.string().trim().min(1),
+		date_captured: z
+			.string()
+			.trim()
+			.regex(/^\d{4}-\d{2}-\d{2}$/u),
+		tags: z.array(z.string().trim().min(1)).min(1),
+		status: z.string().trim().min(1),
+		description: z.string().trim().min(1),
+	})
+	.passthrough();
+
+const RESOURCE_FIELD_HINTS: Record<ResourceRequiredField, string> = {
+	title:
+		"Add 'title' to the YAML frontmatter. This field is required for resource indexing and agent discoverability. See docs/resources/TEMPLATE.md for the full schema.",
+	type: "Add 'type' to the YAML frontmatter. This field is required for resource indexing and agent discoverability. See docs/resources/TEMPLATE.md for the full schema.",
+	source:
+		"Add 'source' to the YAML frontmatter. This field is required for resource indexing and agent discoverability. See docs/resources/TEMPLATE.md for the full schema.",
+	url: "Set 'url' to a full http(s) URL so agents can trace back to the original source. Example: url: https://example.com/article",
+	author:
+		"Add 'author' to the YAML frontmatter. This field is required for resource indexing and agent discoverability. See docs/resources/TEMPLATE.md for the full schema.",
+	date_captured:
+		"Use YYYY-MM-DD format for date_captured (e.g. 2026-03-06). This enables staleness checks and chronological sorting.",
+	tags: "Set 'tags' to a non-empty YAML list so agents can classify and retrieve resources by topic.",
+	status:
+		"Add 'status' to the YAML frontmatter. This field is required for resource indexing and agent discoverability. See docs/resources/TEMPLATE.md for the full schema.",
+	description:
+		"Add 'description' to the YAML frontmatter. This field is required for resource indexing and agent discoverability. See docs/resources/TEMPLATE.md for the full schema.",
+};
+
+// Boundary contract for skills/*/SKILL.md frontmatter.
+const skill_frontmatter_schema = z
+	.object({
+		name: z.string().trim().min(1),
+		description: z.string().trim().min(1),
+	})
+	.passthrough();
+
+const SKILL_FIELD_HINTS: Record<SkillRequiredField, string> = {
+	name: "Add 'name' to the SKILL.md frontmatter. Pi needs this to register and match the skill to user requests.",
+	description:
+		"Add 'description' to the SKILL.md frontmatter. Pi needs this to register and match the skill to user requests.",
+};
 
 async function main() {
 	const repo_root = process.cwd();
@@ -101,38 +160,9 @@ async function validate_resource_frontmatter(repo_root: string, errors: Validati
 			continue;
 		}
 
-		for (const field_name of RESOURCE_REQUIRED_FIELDS) {
-			if (!has_required_frontmatter_value(fields[field_name])) {
-				push_error(
-					repo_root,
-					errors,
-					file_path,
-					`missing required frontmatter field: ${field_name}`,
-					`Add '${field_name}' to the YAML frontmatter. This field is required for resource indexing and agent discoverability. See docs/resources/TEMPLATE.md for the full schema.`,
-				);
-			}
-		}
-
-		const normalized_url = parse_required_scalar(fields.url);
-		if (normalized_url && !/^https?:\/\/\S+/u.test(normalized_url)) {
-			push_error(
-				repo_root,
-				errors,
-				file_path,
-				"invalid url field",
-				"Set 'url' to a full http(s) URL so agents can trace back to the original source. Example: url: https://example.com/article",
-			);
-		}
-
-		const normalized_date_captured = parse_required_scalar(fields.date_captured);
-		if (normalized_date_captured && !/^\d{4}-\d{2}-\d{2}$/u.test(normalized_date_captured)) {
-			push_error(
-				repo_root,
-				errors,
-				file_path,
-				"invalid date_captured format",
-				"Use YYYY-MM-DD format for date_captured (e.g. 2026-03-06). This enables staleness checks and chronological sorting.",
-			);
+		const resource_result = resource_frontmatter_schema.safeParse(fields);
+		if (!resource_result.success) {
+			push_resource_frontmatter_errors(repo_root, errors, file_path, fields, resource_result.error);
 		}
 	}
 }
@@ -187,19 +217,14 @@ async function validate_skill_frontmatter(repo_root: string, errors: ValidationE
 			continue;
 		}
 
-		for (const field_name of SKILL_REQUIRED_FIELDS) {
-			if (!parse_required_scalar(fields[field_name])) {
-				push_error(
-					repo_root,
-					errors,
-					file_path,
-					`missing required frontmatter field: ${field_name}`,
-					`Add '${field_name}' to the SKILL.md frontmatter. Pi needs this to register and match the skill to user requests.`,
-				);
-			}
+		const skill_result = skill_frontmatter_schema.safeParse(fields);
+		if (!skill_result.success) {
+			push_skill_frontmatter_errors(repo_root, errors, file_path, fields, skill_result.error);
 		}
 
-		const normalized_name = parse_required_scalar(fields.name)?.replace(/^"|"$/gu, "").replace(/^'|'$/gu, "");
+		const normalized_name = parse_required_scalar(skill_result.success ? skill_result.data.name : fields.name)
+			?.replace(/^"|"$/gu, "")
+			.replace(/^'|'$/gu, "");
 		if (normalized_name && normalized_name !== expected_name) {
 			push_error(
 				repo_root,
@@ -299,8 +324,121 @@ function parse_frontmatter_fields(frontmatter: string): Record<string, unknown> 
 	}
 }
 
+function is_resource_required_field(field_name: string): field_name is ResourceRequiredField {
+	return RESOURCE_REQUIRED_FIELDS.includes(field_name as ResourceRequiredField);
+}
+
+function is_skill_required_field(field_name: string): field_name is SkillRequiredField {
+	return SKILL_REQUIRED_FIELDS.includes(field_name as SkillRequiredField);
+}
+
 function has_required_frontmatter_value(value: unknown): boolean {
 	return required_frontmatter_value_schema.safeParse(value).success;
+}
+
+// Keep user-facing diagnostics stable even when schema internals change.
+function push_resource_frontmatter_errors(
+	repo_root: string,
+	errors: ValidationError[],
+	file_path: string,
+	fields: Record<string, unknown>,
+	error: z.ZodError,
+) {
+	const handled_fields = new Set<ResourceRequiredField>();
+
+	for (const issue of error.issues) {
+		const field_name = typeof issue.path[0] === "string" ? issue.path[0] : undefined;
+		if (!field_name || !is_resource_required_field(field_name)) {
+			continue;
+		}
+		if (handled_fields.has(field_name)) {
+			continue;
+		}
+		handled_fields.add(field_name);
+
+		if (!has_required_frontmatter_value(fields[field_name])) {
+			push_error(
+				repo_root,
+				errors,
+				file_path,
+				`missing required frontmatter field: ${field_name}`,
+				RESOURCE_FIELD_HINTS[field_name],
+			);
+			continue;
+		}
+
+		if (field_name === "url") {
+			push_error(repo_root, errors, file_path, "invalid url field", RESOURCE_FIELD_HINTS.url);
+			continue;
+		}
+
+		if (field_name === "date_captured") {
+			push_error(repo_root, errors, file_path, "invalid date_captured format", RESOURCE_FIELD_HINTS.date_captured);
+			continue;
+		}
+
+		if (field_name === "tags") {
+			push_error(repo_root, errors, file_path, "invalid tags field", RESOURCE_FIELD_HINTS.tags);
+			continue;
+		}
+
+		push_error(repo_root, errors, file_path, `invalid ${field_name} field`, RESOURCE_FIELD_HINTS[field_name]);
+	}
+
+	if (handled_fields.size === 0) {
+		push_error(
+			repo_root,
+			errors,
+			file_path,
+			"invalid resource frontmatter",
+			"Ensure docs/resources frontmatter matches docs/resources/TEMPLATE.md and uses valid YAML scalar/list types.",
+		);
+	}
+}
+
+// Mirror resource error-mapping style for skill frontmatter consistency.
+function push_skill_frontmatter_errors(
+	repo_root: string,
+	errors: ValidationError[],
+	file_path: string,
+	fields: Record<string, unknown>,
+	error: z.ZodError,
+) {
+	const handled_fields = new Set<SkillRequiredField>();
+
+	for (const issue of error.issues) {
+		const field_name = typeof issue.path[0] === "string" ? issue.path[0] : undefined;
+		if (!field_name || !is_skill_required_field(field_name)) {
+			continue;
+		}
+		if (handled_fields.has(field_name)) {
+			continue;
+		}
+		handled_fields.add(field_name);
+
+		if (!has_required_frontmatter_value(fields[field_name])) {
+			push_error(
+				repo_root,
+				errors,
+				file_path,
+				`missing required frontmatter field: ${field_name}`,
+				SKILL_FIELD_HINTS[field_name],
+			);
+			continue;
+		}
+
+		push_error(repo_root, errors, file_path, `invalid ${field_name} field`, SKILL_FIELD_HINTS[field_name]);
+	}
+
+	if (handled_fields.size === 0) {
+		push_error(
+			repo_root,
+			errors,
+			file_path,
+			"invalid skill frontmatter",
+			"Ensure SKILL.md frontmatter is valid YAML with non-empty 'name' and 'description' fields.",
+		);
+	}
 }
 
 function parse_required_scalar(value: unknown): string | undefined {

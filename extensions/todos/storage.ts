@@ -79,6 +79,21 @@ const lock_info_schema = z.object({
 	created_at: z.string().min(1),
 });
 
+// Legacy JSON frontmatter (older todo files) is tolerated and normalized before conversion.
+const legacy_json_frontmatter_schema = z
+	.object({
+		id: z.preprocess(normalize_legacy_scalar_value, z.string().min(1).optional()),
+		title: z.preprocess((value) => (typeof value === "string" ? value : undefined), z.string().optional()),
+		tags: z.preprocess((value) => (Array.isArray(value) ? value : undefined), z.array(z.unknown()).optional()),
+		status: z.preprocess(normalize_legacy_scalar_value, z.string().min(1).optional()),
+		created_at: z.preprocess((value) => (typeof value === "string" ? value : undefined), z.string().optional()),
+		assigned_to_session: z.preprocess(
+			(value) => (typeof value === "string" && value.trim().length > 0 ? value : undefined),
+			z.string().optional(),
+		),
+	})
+	.passthrough();
+
 // ---------------------------------------------------------------------------
 // YAML frontmatter
 // ---------------------------------------------------------------------------
@@ -279,6 +294,21 @@ function find_json_object_end(content: string): number {
 	return -1;
 }
 
+// Preserve backward compatibility by accepting primitive legacy scalars.
+function normalize_legacy_scalar_value(value: unknown): string | undefined {
+	if (typeof value === "string") {
+		const trimmed = value.trim();
+		return trimmed.length > 0 ? trimmed : undefined;
+	}
+	if (typeof value === "number" && Number.isFinite(value)) {
+		return String(value);
+	}
+	if (typeof value === "boolean") {
+		return String(value);
+	}
+	return undefined;
+}
+
 function split_json_front_matter(content: string): { front_matter: string; body: string } {
 	const end_index = find_json_object_end(content);
 	if (end_index === -1) {
@@ -290,24 +320,32 @@ function split_json_front_matter(content: string): { front_matter: string; body:
 
 	// Convert JSON frontmatter to parsed fields for the same parse_frontmatter path
 	try {
-		const parsed = JSON.parse(json_text) as Record<string, unknown>;
+		const parsed = JSON.parse(json_text);
+		const legacy_frontmatter_result = legacy_json_frontmatter_schema.safeParse(parsed);
+		if (!legacy_frontmatter_result.success) {
+			return { front_matter: "", body: content };
+		}
+
+		const legacy_frontmatter = legacy_frontmatter_result.data;
 		const yaml_lines: string[] = [];
-		if (parsed.id) yaml_lines.push(`id: ${parsed.id}`);
-		if (typeof parsed.title === "string") yaml_lines.push(`title: ${yaml_quote(parsed.title)}`);
-		if (Array.isArray(parsed.tags)) {
-			if (parsed.tags.length === 0) {
+		if (legacy_frontmatter.id) yaml_lines.push(`id: ${legacy_frontmatter.id}`);
+		if (typeof legacy_frontmatter.title === "string") yaml_lines.push(`title: ${yaml_quote(legacy_frontmatter.title)}`);
+		if (Array.isArray(legacy_frontmatter.tags)) {
+			if (legacy_frontmatter.tags.length === 0) {
 				yaml_lines.push("tags: []");
 			} else {
 				yaml_lines.push("tags:");
-				for (const tag of parsed.tags) {
+				for (const tag of legacy_frontmatter.tags) {
 					yaml_lines.push(`  - ${yaml_quote(String(tag))}`);
 				}
 			}
 		}
-		if (parsed.status) yaml_lines.push(`status: ${parsed.status}`);
-		if (typeof parsed.created_at === "string") yaml_lines.push(`created_at: ${yaml_quote(parsed.created_at)}`);
-		if (typeof parsed.assigned_to_session === "string" && parsed.assigned_to_session.trim()) {
-			yaml_lines.push(`assigned_to_session: ${parsed.assigned_to_session}`);
+		if (legacy_frontmatter.status) yaml_lines.push(`status: ${legacy_frontmatter.status}`);
+		if (typeof legacy_frontmatter.created_at === "string") {
+			yaml_lines.push(`created_at: ${yaml_quote(legacy_frontmatter.created_at)}`);
+		}
+		if (typeof legacy_frontmatter.assigned_to_session === "string" && legacy_frontmatter.assigned_to_session.trim()) {
+			yaml_lines.push(`assigned_to_session: ${legacy_frontmatter.assigned_to_session}`);
 		}
 		return { front_matter: yaml_lines.join("\n"), body };
 	} catch {
