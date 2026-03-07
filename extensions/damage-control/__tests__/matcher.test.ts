@@ -248,6 +248,44 @@ describe("is_bash_mutation_operation", () => {
 		expect(is_bash_mutation_operation("cat file.txt")).toBe(false);
 		expect(is_bash_mutation_operation("grep -r pattern .")).toBe(false);
 	});
+
+	// ── safe redirect patterns (should NOT be flagged) ───────
+
+	it("does not flag 2>/dev/null (stderr to null)", () => {
+		expect(is_bash_mutation_operation("grep -r pattern dir/ 2>/dev/null")).toBe(false);
+	});
+
+	it("does not flag >/dev/null (stdout to null)", () => {
+		expect(is_bash_mutation_operation("command >/dev/null")).toBe(false);
+	});
+
+	it("does not flag 2>&1 (stderr to stdout)", () => {
+		expect(is_bash_mutation_operation("grep -r pattern dir/ 2>&1")).toBe(false);
+	});
+
+	it("does not flag &>/dev/null (both to null)", () => {
+		expect(is_bash_mutation_operation("command &>/dev/null")).toBe(false);
+	});
+
+	it("does not flag combined safe redirects", () => {
+		expect(is_bash_mutation_operation("grep -r 'text' src/ 2>/dev/null | head -5")).toBe(false);
+	});
+
+	it("does not flag grep with path containing dist/ and 2>/dev/null", () => {
+		expect(
+			is_bash_mutation_operation("grep -r 'wrapText' node_modules/@mariozechner/pi-tui/dist/ 2>/dev/null | head -5"),
+		).toBe(false);
+	});
+
+	// ── dangerous redirect patterns (SHOULD be flagged) ─────
+
+	it("still flags real file redirect with 2>/dev/null present", () => {
+		expect(is_bash_mutation_operation("cmd > output.txt 2>/dev/null")).toBe(true);
+	});
+
+	it("still flags >> append to real file", () => {
+		expect(is_bash_mutation_operation("echo data >> log.txt 2>&1")).toBe(true);
+	});
 });
 
 // ---------------------------------------------------------------------------
