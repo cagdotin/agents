@@ -1,11 +1,11 @@
 ---
 name: create-spec
-description: "Create a detailed implementation spec for a todo/task/issue. Self-discovers context from the codebase and research before asking questions. Produces a spec markdown file under specs/."
+description: "Create a detailed implementation spec for a todo/task/issue. Self-discovers context from the codebase and research before asking questions. Produces a spec markdown file under docs/specs/."
 ---
 
 # Create Spec
 
-Generate a comprehensive, agent-consumable implementation specification for a given todo, task, or issue. The output is a markdown file saved under `specs/` in the project root.
+Generate a comprehensive, agent-consumable implementation specification for a given todo, task, or issue. The output is a markdown file saved under `docs/specs/` in the project root.
 
 ## Philosophy
 
@@ -35,7 +35,7 @@ cat CLAUDE.md 2>/dev/null
 cat README.md 2>/dev/null
 
 # Read existing specs for format/pattern reference
-ls specs/ 2>/dev/null && cat specs/*.md 2>/dev/null
+ls docs/specs/ 2>/dev/null && cat docs/specs/*.md 2>/dev/null
 
 # Understand the domain area affected by the task
 # Use grep/rg to find relevant code, tests, types, interfaces
@@ -75,7 +75,7 @@ After self-discovery, identify what you still DON'T know. Common gaps:
 
 ### Phase 4: Write the Spec
 
-Generate the spec following the anatomy below. Save it to `specs/<kebab-case-name>.md`.
+Generate the spec following the anatomy below. Save it to `docs/specs/<kebab-case-name>.md`.
 
 Not every section applies to every task. **Scale the spec to the task complexity:**
 - Small bug fix or config change → Sections 1-4, 8, 9 may suffice
@@ -199,7 +199,7 @@ Each should state what you know, what you don't, and your recommended default.
 
 ## Output
 
-- Save the spec to `specs/<kebab-case-name>.md`
-- Create the `specs/` directory if it doesn't exist
+- Save the spec to `docs/specs/<kebab-case-name>.md`
+- Create the `docs/specs/` directory if it doesn't exist
 - Use the task/todo title to derive the filename
 - Tell the user the file path when done

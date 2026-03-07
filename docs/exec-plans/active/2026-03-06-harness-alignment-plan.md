@@ -162,7 +162,7 @@ Implemented:
 References:
 - [[docs/references/pi-api-reference]]
 - `.pi/todos` expert TODOs
-- [[specs/2026-03-06-r9-expert-extension-hardening]]
+- [[docs/specs/2026-03-06-r9-expert-extension-hardening]]
 
 ---
 
@@ -176,10 +176,10 @@ Reasoning:
 
 Scope:
 - Use `create-spec` skill for complex planned extensions (subagent/team/safety/orchestration).
-- Store generated specs under `specs/` and cross-link from exec plans.
+- Store generated specs under `docs/specs/` and cross-link from exec plans.
 
 Implemented seed:
-- Added [[specs/2026-03-06-r9-expert-extension-hardening]] as a concrete spec artifact for upcoming expert-extension hardening work.
+- Added [[docs/specs/2026-03-06-r9-expert-extension-hardening]] as a concrete spec artifact for upcoming expert-extension hardening work.
 
 ---
 

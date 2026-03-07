@@ -10,6 +10,7 @@ agents/
 ├── docs/
 │   ├── ARCHITECTURE.md  # Repository architecture + boundaries
 │   ├── QUALITY.md       # Quality scorecard + prioritized gaps
+│   ├── specs/           # Implementation specs for planned/complex work
 │   ├── references/      # Internal quick references (Pi API, etc.)
 │   └── resources/       # External resource captures (articles/videos)
 ├── extensions/          # Pi extensions

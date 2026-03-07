@@ -7,6 +7,7 @@ This repository defines global commands, skills, extensions, and themes for codi
 - Repository architecture map: `docs/ARCHITECTURE.md`
 - Current quality status and prioritized gaps: `docs/QUALITY.md`
 - Active execution plans and debt tracker: `docs/exec-plans/README.md`
+- Implementation specs for planned/complex work: `docs/specs/`
 - Pi extension API quick reference (repo-focused): `docs/references/pi-api-reference.md`
 - External resources index and capture workflow: `docs/resources/README.md`
 - Resource template for new captures: `docs/resources/TEMPLATE.md`

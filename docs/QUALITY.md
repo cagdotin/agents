@@ -42,7 +42,7 @@ This scorecard tracks maintainability and readiness of this package for day-to-d
 
 ## P2
 
-1. Add `specs/` usage for larger planned extensions (subagent/widget/team patterns).
+1. Add `docs/specs/` usage for larger planned extensions (subagent/widget/team patterns).
 2. Introduce component-level quality trend tracking over time (monthly snapshots).
 
 ---

@@ -9,6 +9,7 @@ Tooling policy: examples and commands in docs should use **Bun** (`bun`, `bun ru
 - `ARCHITECTURE.md` — repository domains, boundaries, and design principles
 - `QUALITY.md` — quality scorecard and prioritized improvement backlog
 - `exec-plans/` — active/completed plans and debt tracker
+- `specs/` — implementation specs for planned/complex work
 - `references/` — internal quick references (implementation-facing)
 - `resources/` — curated external resources and analyses
 
