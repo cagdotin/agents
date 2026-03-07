@@ -40,9 +40,10 @@ Use `skills/plan` for both artifact types.
 
 ## Current active plans
 
-- *(none currently)*
+- [[docs/exec-plans/active/2026-03-07-session-stats-extension]]
 
 ## Recently completed
 
+- [[docs/exec-plans/completed/2026-03-07-zod-hybrid-validation-integration]]
 - [[docs/exec-plans/completed/2026-03-06-harness-alignment-plan]]
 - [[docs/exec-plans/completed/2026-03-06-pre-commit-quality-gates-lefthook]]

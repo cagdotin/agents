@@ -378,4 +378,12 @@ describe("read_todo_settings", () => {
 		expect(settings.gc).toBe(true);
 		expect(settings.gc_days).toBe(7);
 	});
+
+	it("ignores invalid field types while preserving valid settings", async () => {
+		await mkdir(test_dir, { recursive: true });
+		await writeFile(path.join(test_dir, "settings.json"), JSON.stringify({ gc: false, gc_days: "soon" }));
+		const settings = await read_todo_settings(test_dir);
+		expect(settings.gc).toBe(false);
+		expect(settings.gc_days).toBe(7);
+	});
 });

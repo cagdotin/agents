@@ -21,4 +21,10 @@ export interface SessionStats {
 	user_bash_count: number;
 	compaction_count: number;
 	model_history: ModelUsageEntry[];
+	/** CLI programs invoked via the bash tool, keyed by program name */
+	bash_programs: Map<string, number>;
+	/** Total available tools in the session */
+	available_tool_count: number;
+	/** Names of all available tools */
+	available_tool_names: string[];
 }

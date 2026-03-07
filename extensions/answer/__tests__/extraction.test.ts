@@ -40,6 +40,10 @@ describe("parse_extraction_result", () => {
 		expect(parse_extraction_result('{"questions": "not an array"}')).toBeNull();
 	});
 
+	it("returns null when question entries are malformed", () => {
+		expect(parse_extraction_result('{"questions": [{"context": "missing question"}]}')).toBeNull();
+	});
+
 	it("handles empty questions array", () => {
 		const result = parse_extraction_result('{"questions": []}');
 		expect(result).not.toBeNull();

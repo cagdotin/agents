@@ -7,6 +7,7 @@
  */
 
 import { type Api, complete, type Model, type UserMessage } from "@mariozechner/pi-ai";
+import { z } from "zod";
 import { CODEX_MODEL_ID, EXTRACTION_SYSTEM_PROMPT, HAIKU_MODEL_ID } from "./constants.js";
 import type { ExtractionResult } from "./types.js";
 
@@ -53,6 +54,19 @@ export async function select_extraction_model(current_model: Model<Api>, registr
 // JSON parsing
 // ---------------------------------------------------------------------------
 
+const extracted_question_schema = z
+	.object({
+		question: z.string().trim().min(1),
+		context: z.string().optional(),
+	})
+	.passthrough();
+
+const extraction_result_schema = z
+	.object({
+		questions: z.array(extracted_question_schema),
+	})
+	.passthrough();
+
 /**
  * Parse the LLM response text into a structured {@link ExtractionResult}.
  *
@@ -70,10 +84,12 @@ export function parse_extraction_result(text: string): ExtractionResult | null {
 		}
 
 		const parsed = JSON.parse(json_str);
-		if (parsed && Array.isArray(parsed.questions)) {
-			return parsed as ExtractionResult;
+		const result = extraction_result_schema.safeParse(parsed);
+		if (!result.success) {
+			return null;
 		}
-		return null;
+
+		return result.data as ExtractionResult;
 	} catch {
 		return null;
 	}

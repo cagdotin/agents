@@ -4,13 +4,12 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getAgentDir } from "@mariozechner/pi-coding-agent";
 import YAML from "yaml";
+import { z } from "zod";
 import { DAMAGE_CONTROL_PROJECT_DIR_NAME, DAMAGE_CONTROL_RULES_FILE_NAME } from "./constants.js";
 import type {
 	ActiveRules,
 	CompiledBashPatternRule,
 	PathRule,
-	RawBashPatternRule,
-	RawRulesFile,
 	RuleAction,
 	RuleSource,
 	RulesLoadResult,
@@ -23,6 +22,25 @@ const RULE_FILE_KEYS = new Set([
 	"read_only_paths",
 	"no_delete_paths",
 ]);
+
+const raw_rules_file_schema = z
+	.object({
+		version: z.unknown().optional(),
+		bash_tool_patterns: z.unknown().optional(),
+		zero_access_paths: z.unknown().optional(),
+		read_only_paths: z.unknown().optional(),
+		no_delete_paths: z.unknown().optional(),
+	})
+	.passthrough();
+
+const raw_bash_pattern_rule_schema = z
+	.object({
+		id: z.string().trim().min(1).optional(),
+		pattern: z.string().optional(),
+		reason: z.string().optional(),
+		action: z.enum(["block", "ask"]).optional(),
+	})
+	.passthrough();
 
 export async function load_rules(cwd: string, import_meta_url: string): Promise<RulesLoadResult> {
 	const bundled_source: RuleSource = {
@@ -121,29 +139,35 @@ async function parse_rules_source(source: RuleSource): Promise<ParseSourceResult
 		return { ...empty, error: `read failed: ${error?.message ?? "unknown error"}` };
 	}
 
-	let parsed: RawRulesFile;
+	let parsed_raw: unknown;
 	try {
-		parsed = (YAML.parse(raw_text) ?? {}) as RawRulesFile;
+		parsed_raw = YAML.parse(raw_text);
 	} catch (error: any) {
 		return { ...empty, error: `yaml parse failed: ${error?.message ?? "unknown error"}` };
 	}
 
-	if (!parsed || typeof parsed !== "object") {
+	const parsed_result = raw_rules_file_schema.safeParse(parsed_raw ?? {});
+	if (!parsed_result.success) {
 		return { ...empty, error: "yaml root is not an object" };
 	}
+	const parsed = parsed_result.data;
 
 	const warnings: string[] = [];
 	let invalid_rule_count = 0;
 
-	for (const key of Object.keys(parsed as Record<string, unknown>)) {
+	for (const key of Object.keys(parsed)) {
 		if (!RULE_FILE_KEYS.has(key)) {
 			warnings.push(`${source.kind}: ignoring unknown key '${key}' in ${source.path}`);
 		}
 	}
 
 	const bash_tool_patterns: CompiledBashPatternRule[] = [];
-	const raw_bash_rules = Array.isArray(parsed.bash_tool_patterns) ? parsed.bash_tool_patterns : [];
-	for (const raw_rule of raw_bash_rules) {
+	const raw_bash_rules = parsed.bash_tool_patterns;
+	if (raw_bash_rules !== undefined && !Array.isArray(raw_bash_rules)) {
+		invalid_rule_count += 1;
+		warnings.push(`${source.kind}: 'bash_tool_patterns' must be an array`);
+	}
+	for (const raw_rule of Array.isArray(raw_bash_rules) ? raw_bash_rules : []) {
 		const normalized_rule = normalize_bash_rule(raw_rule, source);
 		if (!normalized_rule.valid || !normalized_rule.rule) {
 			invalid_rule_count += 1;
@@ -172,20 +196,22 @@ async function parse_rules_source(source: RuleSource): Promise<ParseSourceResult
 }
 
 function normalize_bash_rule(
-	raw_rule: RawBashPatternRule,
+	raw_rule: unknown,
 	source: RuleSource,
 ): { valid: boolean; reason?: string; rule?: CompiledBashPatternRule } {
-	if (!raw_rule || typeof raw_rule !== "object") {
-		return { valid: false, reason: "expected object" };
+	const parsed_rule = raw_bash_pattern_rule_schema.safeParse(raw_rule);
+	if (!parsed_rule.success) {
+		return { valid: false, reason: format_zod_issues(parsed_rule.error) };
 	}
 
-	const pattern = typeof raw_rule.pattern === "string" ? raw_rule.pattern.trim() : "";
-	const reason = typeof raw_rule.reason === "string" ? raw_rule.reason.trim() : "";
+	const normalized_rule = parsed_rule.data;
+	const pattern = normalized_rule.pattern?.trim() ?? "";
+	const reason = normalized_rule.reason?.trim() ?? "";
 	if (!pattern) return { valid: false, reason: "missing pattern" };
 	if (!reason) return { valid: false, reason: "missing reason" };
 
-	const action: RuleAction = raw_rule.action === "ask" ? "ask" : "block";
-	const id = typeof raw_rule.id === "string" && raw_rule.id.trim() ? raw_rule.id.trim() : undefined;
+	const action: RuleAction = normalized_rule.action === "ask" ? "ask" : "block";
+	const id = normalized_rule.id?.trim() || undefined;
 
 	let regex: RegExp;
 	try {
@@ -251,6 +277,14 @@ function normalize_path_rules(
 	}
 
 	return { rules, warnings, invalid_rule_count };
+}
+
+function format_zod_issues(error: z.ZodError): string {
+	const issue_messages = error.issues.map((issue) => {
+		const field_path = issue.path.length > 0 ? issue.path.join(".") : "entry";
+		return `${field_path}: ${issue.message}`;
+	});
+	return issue_messages.join("; ");
 }
 
 function append_unique_bash_rules(target: CompiledBashPatternRule[], incoming: CompiledBashPatternRule[]): void {

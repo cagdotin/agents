@@ -119,6 +119,19 @@ zero_access_paths: []
 		const result = await load_rules(test_dir, import_url);
 		expect(result.rules.warnings.some((w) => w.includes("custom_key"))).toBe(true);
 	});
+
+	it("warns when bash_tool_patterns is not an array", async () => {
+		const import_url = await create_bundled_rules(
+			test_dir,
+			`version: 1
+bash_tool_patterns: not-an-array
+`,
+		);
+
+		const result = await load_rules(test_dir, import_url);
+		expect(result.rules.warnings.some((warning) => warning.includes("bash_tool_patterns"))).toBe(true);
+		expect(result.stats.invalid_rule_count).toBeGreaterThan(0);
+	});
 });
 
 // ---------------------------------------------------------------------------

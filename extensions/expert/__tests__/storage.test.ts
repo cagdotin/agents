@@ -218,6 +218,17 @@ describe("read_settings", () => {
 		expect(settings.auto_inject).toBe(true);
 	});
 
+	it("keeps valid settings while ignoring invalid field types", async () => {
+		await mkdir(test_dir, { recursive: true });
+		await writeFile(
+			path.join(test_dir, "settings.json"),
+			JSON.stringify({ auto_inject: false, max_inject_domains: "invalid" }),
+		);
+		const settings = await read_settings(test_dir);
+		expect(settings.auto_inject).toBe(false);
+		expect(settings.max_inject_domains).toBe(5);
+	});
+
 	it("clamps context percentages to valid range", async () => {
 		await mkdir(test_dir, { recursive: true });
 		await writeFile(
@@ -319,5 +330,29 @@ describe("reflection log", () => {
 		const { entries, skipped_entries } = await read_reflection_log(nonexistent);
 		expect(entries).toEqual([]);
 		expect(skipped_entries).toBe(0);
+	});
+
+	it("skips malformed log entries", async () => {
+		await mkdir(test_dir, { recursive: true });
+		await writeFile(
+			path.join(test_dir, ".reflections.log"),
+			`---
+date: 2026-01-01T00:00:00Z
+domain: test
+session: s1
+model: m
+summary: ok
+---
+date: 2026-01-02T00:00:00Z
+domain: test
+session: s2
+model: 42
+summary: bad
+`,
+		);
+
+		const { entries, skipped_entries } = await read_reflection_log(test_dir);
+		expect(entries.length).toBe(1);
+		expect(skipped_entries).toBe(1);
 	});
 });

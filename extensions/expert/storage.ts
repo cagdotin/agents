@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import YAML from "yaml";
+import { z } from "zod";
 import {
 	DEFAULT_SETTINGS,
 	EXPERTISE_DIR_NAME,
@@ -51,40 +52,84 @@ function get_reflections_log_path(dir: string): string {
 // YAML parsing — extract header fields from raw YAML
 // ---------------------------------------------------------------------------
 
+const required_string_list_schema = z.preprocess(
+	(value) => (Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string") : []),
+	z.array(z.string()),
+);
+
+const optional_string_list_schema = z.preprocess(
+	(value) => (Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string") : undefined),
+	z.array(z.string()).optional(),
+);
+
+const expertise_scope_schema = z
+	.object({
+		paths: required_string_list_schema,
+		patterns: optional_string_list_schema,
+	})
+	.passthrough();
+
+const expertise_header_yaml_schema = z
+	.object({
+		domain: z.string().optional(),
+		description: z.string().optional(),
+		last_synced: z.string().optional(),
+		scope: expertise_scope_schema.optional(),
+		keywords: optional_string_list_schema,
+		aliases: optional_string_list_schema,
+		related_domains: optional_string_list_schema,
+	})
+	.passthrough();
+
+const reflection_log_entry_schema = z.object({
+	date: z.string(),
+	domain: z.string(),
+	session: z.string(),
+	model: z.string(),
+	summary: z.string(),
+});
+
+const expertise_settings_schema = z
+	.object({
+		auto_inject: z.preprocess((value) => (typeof value === "boolean" ? value : undefined), z.boolean().optional()),
+		reflection_model: z.preprocess((value) => (typeof value === "string" ? value : undefined), z.string().optional()),
+		max_inject_domains: z.preprocess(
+			(value) => (typeof value === "number" && Number.isFinite(value) ? value : undefined),
+			z.number().finite().optional(),
+		),
+		max_context_percent_for_auto_inject: z.preprocess(
+			(value) => (typeof value === "number" && Number.isFinite(value) ? value : undefined),
+			z.number().finite().optional(),
+		),
+		max_context_percent_for_any_inject: z.preprocess(
+			(value) => (typeof value === "number" && Number.isFinite(value) ? value : undefined),
+			z.number().finite().optional(),
+		),
+	})
+	.passthrough();
+
 function parse_expertise_header(raw: string, domain_fallback: string): ExpertiseHeader {
 	try {
-		const parsed = YAML.parse(raw) as Record<string, unknown>;
-		if (!parsed || typeof parsed !== "object") {
+		const parsed = YAML.parse(raw);
+		const parsed_header = expertise_header_yaml_schema.safeParse(parsed);
+		if (!parsed_header.success) {
 			return make_empty_header(domain_fallback);
 		}
 
-		const scope_raw = parsed.scope as Record<string, unknown> | undefined;
-
-		const keywords = Array.isArray(parsed.keywords)
-			? (parsed.keywords as unknown[]).filter((value): value is string => typeof value === "string")
-			: undefined;
-		const aliases = Array.isArray(parsed.aliases)
-			? (parsed.aliases as unknown[]).filter((value): value is string => typeof value === "string")
-			: undefined;
-		const related_domains = Array.isArray(parsed.related_domains)
-			? (parsed.related_domains as unknown[]).filter((value): value is string => typeof value === "string")
-			: undefined;
+		const data = parsed_header.data;
+		const scope = data.scope ?? { paths: [] };
 
 		return {
-			domain: typeof parsed.domain === "string" ? parsed.domain : domain_fallback,
-			description: typeof parsed.description === "string" ? parsed.description : "",
-			last_synced: typeof parsed.last_synced === "string" ? parsed.last_synced : "",
+			domain: data.domain ?? domain_fallback,
+			description: data.description ?? "",
+			last_synced: data.last_synced ?? "",
 			scope: {
-				paths: Array.isArray(scope_raw?.paths)
-					? (scope_raw.paths as unknown[]).filter((p): p is string => typeof p === "string")
-					: [],
-				patterns: Array.isArray(scope_raw?.patterns)
-					? (scope_raw.patterns as unknown[]).filter((p): p is string => typeof p === "string")
-					: undefined,
+				paths: scope.paths,
+				patterns: scope.patterns && scope.patterns.length > 0 ? scope.patterns : undefined,
 			},
-			keywords: keywords && keywords.length > 0 ? keywords : undefined,
-			aliases: aliases && aliases.length > 0 ? aliases : undefined,
-			related_domains: related_domains && related_domains.length > 0 ? related_domains : undefined,
+			keywords: data.keywords && data.keywords.length > 0 ? data.keywords : undefined,
+			aliases: data.aliases && data.aliases.length > 0 ? data.aliases : undefined,
+			related_domains: data.related_domains && data.related_domains.length > 0 ? data.related_domains : undefined,
 		};
 	} catch {
 		return make_empty_header(domain_fallback);
@@ -184,8 +229,12 @@ export async function read_settings(dir: string): Promise<ExpertiseSettings> {
 
 	try {
 		const raw = await fs.readFile(settings_path, "utf8");
-		const parsed = JSON.parse(raw) as Partial<ExpertiseSettings>;
-		return normalize_settings(parsed);
+		const parsed = JSON.parse(raw);
+		const validated_settings = expertise_settings_schema.safeParse(parsed);
+		if (!validated_settings.success) {
+			return { ...DEFAULT_SETTINGS };
+		}
+		return normalize_settings(validated_settings.data);
 	} catch {
 		return { ...DEFAULT_SETTINGS };
 	}
@@ -260,7 +309,7 @@ export async function read_reflection_log(
 		if (!trimmed) continue;
 
 		try {
-			const parsed = YAML.parse(trimmed) as Record<string, unknown>;
+			const parsed = YAML.parse(trimmed);
 			const entry = to_reflection_log_entry(parsed);
 			if (!entry) {
 				skipped_entries++;
@@ -289,26 +338,11 @@ export async function read_reflection_log(
 	};
 }
 
-function to_reflection_log_entry(parsed: Record<string, unknown> | null | undefined): ReflectionLogEntry | null {
-	if (!parsed || typeof parsed !== "object") {
+function to_reflection_log_entry(parsed: unknown): ReflectionLogEntry | null {
+	const validated_entry = reflection_log_entry_schema.safeParse(parsed);
+	if (!validated_entry.success) {
 		return null;
 	}
 
-	const date = typeof parsed.date === "string" ? parsed.date : null;
-	const domain = typeof parsed.domain === "string" ? parsed.domain : null;
-	const session = typeof parsed.session === "string" ? parsed.session : null;
-	const model = typeof parsed.model === "string" ? parsed.model : null;
-	const summary = typeof parsed.summary === "string" ? parsed.summary : null;
-
-	if (!date || !domain || !session || !model || !summary) {
-		return null;
-	}
-
-	return {
-		date,
-		domain,
-		session,
-		model,
-		summary,
-	};
+	return validated_entry.data;
 }

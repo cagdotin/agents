@@ -17,7 +17,7 @@ This repository defines global commands, skills, extensions, and themes for codi
 ## Golden Rules
 
 1. **Reuse before inventing** — check `extensions/todos/` and existing patterns before creating new ones.
-2. **Validate at boundaries** — use StringEnum, typed schemas, and frontmatter checks at entry points.
+2. **Validate at boundaries** — use TypeBox + `StringEnum` for tool params, and Zod for runtime boundary parsing (YAML/JSON/frontmatter/LLM output).
 3. **Shared utilities over hand-rolled helpers** — extract common logic; don't duplicate across extensions.
 4. **Every extension gets a README** — behavior, triggers, setup. No undocumented extensions.
 5. **Repo is the system of record** — if it's not committed, it doesn't exist for agents. No chat-only decisions.

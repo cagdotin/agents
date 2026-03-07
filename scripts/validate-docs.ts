@@ -1,5 +1,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
+import YAML from "yaml";
+import { z } from "zod";
 
 type ValidationError = {
 	file_path: string;
@@ -17,15 +19,26 @@ const RESOURCE_REQUIRED_FIELDS = [
 	"tags",
 	"status",
 	"description",
-];
+] as const;
 
-const SKILL_REQUIRED_FIELDS = ["name", "description"];
+const SKILL_REQUIRED_FIELDS = ["name", "description"] as const;
 const SKILL_REQUIRED_SUPPORT_FILES: Record<string, string[]> = {
 	plan: ["PLAN.md"],
 };
 
 const MIN_EXTENSION_README_WORDS = 80;
 const MIN_EXTENSION_README_HEADINGS = 3;
+
+const trimmed_string_schema = z.string().transform((value) => value.trim());
+const non_empty_scalar_schema = trimmed_string_schema.refine(
+	(value) => value.length > 0 && value !== "[]" && value !== "{}" && value !== "|" && value !== ">",
+);
+const non_empty_string_list_schema = z
+	.array(trimmed_string_schema)
+	.transform((values) => values.filter((value) => value.length > 0))
+	.refine((values) => values.length > 0);
+const required_frontmatter_value_schema = z.union([non_empty_scalar_schema, non_empty_string_list_schema]);
+const frontmatter_fields_schema = z.record(z.string(), z.unknown());
 
 async function main() {
 	const repo_root = process.cwd();
@@ -77,8 +90,19 @@ async function validate_resource_frontmatter(repo_root: string, errors: Validati
 		}
 
 		const fields = parse_frontmatter_fields(frontmatter);
+		if (!fields) {
+			push_error(
+				repo_root,
+				errors,
+				file_path,
+				"invalid frontmatter YAML",
+				"Fix YAML syntax in the frontmatter block. Start from docs/resources/TEMPLATE.md and ensure indentation/list markers are valid YAML.",
+			);
+			continue;
+		}
+
 		for (const field_name of RESOURCE_REQUIRED_FIELDS) {
-			if (!has_value(fields[field_name])) {
+			if (!has_required_frontmatter_value(fields[field_name])) {
 				push_error(
 					repo_root,
 					errors,
@@ -89,7 +113,8 @@ async function validate_resource_frontmatter(repo_root: string, errors: Validati
 			}
 		}
 
-		if (has_value(fields.url) && !/^https?:\/\/\S+/u.test(normalize_value(fields.url))) {
+		const normalized_url = parse_required_scalar(fields.url);
+		if (normalized_url && !/^https?:\/\/\S+/u.test(normalized_url)) {
 			push_error(
 				repo_root,
 				errors,
@@ -99,7 +124,8 @@ async function validate_resource_frontmatter(repo_root: string, errors: Validati
 			);
 		}
 
-		if (has_value(fields.date_captured) && !/^\d{4}-\d{2}-\d{2}$/u.test(normalize_value(fields.date_captured))) {
+		const normalized_date_captured = parse_required_scalar(fields.date_captured);
+		if (normalized_date_captured && !/^\d{4}-\d{2}-\d{2}$/u.test(normalized_date_captured)) {
 			push_error(
 				repo_root,
 				errors,
@@ -150,8 +176,19 @@ async function validate_skill_frontmatter(repo_root: string, errors: ValidationE
 		}
 
 		const fields = parse_frontmatter_fields(frontmatter);
+		if (!fields) {
+			push_error(
+				repo_root,
+				errors,
+				file_path,
+				"invalid frontmatter YAML",
+				"Fix YAML syntax in SKILL.md frontmatter. Keep a valid YAML block with at least 'name' and 'description'.",
+			);
+			continue;
+		}
+
 		for (const field_name of SKILL_REQUIRED_FIELDS) {
-			if (!has_value(fields[field_name])) {
+			if (!parse_required_scalar(fields[field_name])) {
 				push_error(
 					repo_root,
 					errors,
@@ -162,17 +199,15 @@ async function validate_skill_frontmatter(repo_root: string, errors: ValidationE
 			}
 		}
 
-		if (has_value(fields.name)) {
-			const normalized_name = normalize_value(fields.name).replace(/^"|"$/gu, "").replace(/^'|'$/gu, "");
-			if (normalized_name !== expected_name) {
-				push_error(
-					repo_root,
-					errors,
-					file_path,
-					`frontmatter name '${normalized_name}' does not match directory name '${expected_name}'`,
-					`The SKILL.md 'name' field must match the directory name '${expected_name}'. Pi uses the directory name for routing; a mismatch causes silent registration failures.`,
-				);
-			}
+		const normalized_name = parse_required_scalar(fields.name)?.replace(/^"|"$/gu, "").replace(/^'|'$/gu, "");
+		if (normalized_name && normalized_name !== expected_name) {
+			push_error(
+				repo_root,
+				errors,
+				file_path,
+				`frontmatter name '${normalized_name}' does not match directory name '${expected_name}'`,
+				`The SKILL.md 'name' field must match the directory name '${expected_name}'. Pi uses the directory name for routing; a mismatch causes silent registration failures.`,
+			);
 		}
 
 		const required_support_files = SKILL_REQUIRED_SUPPORT_FILES[expected_name] ?? [];
@@ -251,57 +286,29 @@ function extract_frontmatter(file_content: string): string | null {
 	return match[1];
 }
 
-function parse_frontmatter_fields(frontmatter: string): Record<string, string> {
-	const lines = frontmatter.split(/\r?\n/u);
-	const fields: Record<string, string> = {};
-
-	for (let index = 0; index < lines.length; index += 1) {
-		const line = lines[index];
-		const key_match = line.match(/^([a-zA-Z0-9_]+):\s*(.*)$/u);
-		if (!key_match) {
-			continue;
+function parse_frontmatter_fields(frontmatter: string): Record<string, unknown> | null {
+	try {
+		const parsed = YAML.parse(frontmatter, { schema: "failsafe" });
+		const result = frontmatter_fields_schema.safeParse(parsed);
+		if (!result.success) {
+			return null;
 		}
-
-		const field_name = key_match[1];
-		let field_value = key_match[2].trim();
-		const uses_block_scalar = /^[>|][+-]?$/u.test(field_value);
-
-		if (field_value.length === 0 || uses_block_scalar) {
-			const multiline_lines: string[] = [];
-			let cursor = index + 1;
-			while (cursor < lines.length && !/^[a-zA-Z0-9_]+:\s*/u.test(lines[cursor])) {
-				multiline_lines.push(lines[cursor]);
-				cursor += 1;
-			}
-			field_value = multiline_lines.join("\n").trim();
-			index = cursor - 1;
-		}
-
-		fields[field_name] = field_value;
+		return result.data;
+	} catch {
+		return null;
 	}
-
-	return fields;
 }
 
-function has_value(value: string | undefined): boolean {
-	if (!value) {
-		return false;
-	}
-
-	const normalized = normalize_value(value);
-	if (normalized.length === 0) {
-		return false;
-	}
-
-	if (normalized === "[]" || normalized === "{}" || normalized === "|" || normalized === ">") {
-		return false;
-	}
-
-	return true;
+function has_required_frontmatter_value(value: unknown): boolean {
+	return required_frontmatter_value_schema.safeParse(value).success;
 }
 
-function normalize_value(value: string): string {
-	return value.trim();
+function parse_required_scalar(value: unknown): string | undefined {
+	const result = non_empty_scalar_schema.safeParse(value);
+	if (!result.success) {
+		return undefined;
+	}
+	return result.data;
 }
 
 function push_error(repo_root: string, errors: ValidationError[], file_path: string, message: string, hint: string) {

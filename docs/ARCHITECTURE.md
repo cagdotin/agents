@@ -162,7 +162,8 @@ These are enforced project-wide, including in docs examples.
 When building new extensions, match the patterns in `todos` unless there is a strong
 reason to diverge. Key patterns: tool + command + TUI surface, compact collapsed
 rendering, separate agent-facing vs. human-facing output, `StringEnum` for action
-parameters.
+parameters. Validation stack convention: TypeBox + `StringEnum` at Pi tool interfaces,
+Zod at runtime data boundaries (files/frontmatter/YAML/JSON/LLM output).
 
 ---
 

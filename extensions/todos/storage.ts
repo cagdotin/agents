@@ -3,6 +3,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
+import { z } from "zod";
 import { DEFAULT_TODO_SETTINGS, LOCK_TTL_MS, TODO_DIR_NAME, TODO_PATH_ENV, TODO_SETTINGS_NAME } from "./constants.js";
 import {
 	clear_assignment_if_closed,
@@ -48,6 +49,35 @@ export function get_todo_settings_path(todos_dir: string): string {
 export async function ensure_todos_dir(todos_dir: string) {
 	await fs.mkdir(todos_dir, { recursive: true });
 }
+
+const todo_frontmatter_schema = z.object({
+	id: z.string().min(1),
+	title: z.string(),
+	tags: z.array(z.string()),
+	status: z.string().min(1),
+	created_at: z.string(),
+	assigned_to_session: z.preprocess(
+		(value) => (typeof value === "string" && value.trim().length > 0 ? value : undefined),
+		z.string().optional(),
+	),
+});
+
+const todo_settings_schema = z
+	.object({
+		gc: z.preprocess((value) => (typeof value === "boolean" ? value : undefined), z.boolean().optional()),
+		gc_days: z.preprocess(
+			(value) => (typeof value === "number" && Number.isFinite(value) ? value : undefined),
+			z.number().finite().optional(),
+		),
+	})
+	.passthrough();
+
+const lock_info_schema = z.object({
+	id: z.string().min(1),
+	pid: z.number().int(),
+	session: z.string().nullable().optional(),
+	created_at: z.string().min(1),
+});
 
 // ---------------------------------------------------------------------------
 // YAML frontmatter
@@ -95,6 +125,22 @@ function serialize_frontmatter(fm: TodoFrontMatter): string {
 	return lines.join("\n");
 }
 
+function normalize_frontmatter(data: TodoFrontMatter, id_fallback: string): TodoFrontMatter {
+	const validated = todo_frontmatter_schema.safeParse(data);
+	if (validated.success) {
+		return validated.data;
+	}
+
+	return {
+		id: id_fallback,
+		title: "",
+		tags: [],
+		status: "open",
+		created_at: "",
+		assigned_to_session: undefined,
+	};
+}
+
 function parse_frontmatter(text: string, id_fallback: string): TodoFrontMatter {
 	const data: TodoFrontMatter = {
 		id: id_fallback,
@@ -106,7 +152,7 @@ function parse_frontmatter(text: string, id_fallback: string): TodoFrontMatter {
 	};
 
 	const trimmed = text.trim();
-	if (!trimmed) return data;
+	if (!trimmed) return normalize_frontmatter(data, id_fallback);
 
 	let current_key: string | null = null;
 	let collecting_array = false;
@@ -167,7 +213,7 @@ function parse_frontmatter(text: string, id_fallback: string): TodoFrontMatter {
 		}
 	}
 
-	return data;
+	return normalize_frontmatter(data, id_fallback);
 }
 
 function split_front_matter(content: string): { front_matter: string; body: string } {
@@ -353,7 +399,9 @@ export async function read_todo_settings(todos_dir: string): Promise<TodoSetting
 
 	try {
 		const raw = await fs.readFile(settings_path, "utf8");
-		data = JSON.parse(raw) as Partial<TodoSettings>;
+		const parsed = JSON.parse(raw);
+		const validated_settings = todo_settings_schema.safeParse(parsed);
+		data = validated_settings.success ? validated_settings.data : {};
 	} catch {
 		data = {};
 	}
@@ -402,7 +450,12 @@ export async function garbage_collect_todos(todos_dir: string, settings: TodoSet
 async function read_lock_info(lock_path: string): Promise<LockInfo | null> {
 	try {
 		const raw = await fs.readFile(lock_path, "utf8");
-		return JSON.parse(raw) as LockInfo;
+		const parsed = JSON.parse(raw);
+		const validated_lock = lock_info_schema.safeParse(parsed);
+		if (!validated_lock.success) {
+			return null;
+		}
+		return validated_lock.data;
 	} catch {
 		return null;
 	}
