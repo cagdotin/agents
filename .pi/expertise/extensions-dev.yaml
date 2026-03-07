@@ -1,74 +1,72 @@
 domain: extensions-dev
-description: "Cross-extension conventions for docs-first changes, deterministic quality gates, and operator-facing Pi UX patterns"
-last_synced: "2026-03-07T12:08:43Z"
+description: "Cross-extension conventions for docs-first planning workflows, portable planning skills, and deterministic quality gates."
+last_synced: "2026-03-07T13:14:44Z"
 
 scope:
   paths:
     - AGENTS.md
-    - docs/
+    - docs/exec-plans/
     - docs/specs/
-    - extensions/
-    - extensions/damage-control/
+    - docs/resources/
+    - skills/plan/
     - scripts/validate-docs.ts
-    - vitest.config.ts
     - lefthook.yml
+    - vitest.config.ts
 
 overview: |
-  This repo optimizes for durable, agent-readable conventions: short entry guidance in AGENTS.md,
-  deeper policy in docs/, and mechanical checks (`bun run check`) to enforce critical rules.
-  Recent damage-control work established a "minimal persistent signal + drill-down panel" UX style:
-  keep always-visible status compact, move detail/history into an explicit interactive view.
+  This repo treats committed docs/code as long-term memory for humans and agents.
+  For medium+ work, default to two artifacts unless the user explicitly waives one:
+  - spec (`docs/specs/`) for design intent
+  - execution plan (`docs/exec-plans/`) for rollout state
+  Execution plans are living docs (decision/progress updates during work), then moved
+  from `active/` to `completed/` when done.
+  The canonical execution-plan standard is shipped with the planning skill at
+  `skills/plan/PLAN.md` (portable across repos). A root `PLANS.md` is not required.
 
 patterns:
-  - "Keep AGENTS.md concise; move durable policy and process details into docs/."
-  - "Treat docs/CONTRIBUTING-DOCS.md as canonical docs governance; delete duplicated policy text elsewhere."
-  - "Use docs/specs for planned or non-trivial extension/UX/process changes before implementation."
-  - "Every directory under extensions/ needs README.md (docs validation treats support dirs like __mocks__ as extension surface)."
-  - "Prefer deterministic Tier 1/Tier 2 tests; avoid live model/network/runtime dependencies in unit tests."
-  - "In Vitest, mock internal @mariozechner/* packages but keep real third-party libs where behavior fidelity matters."
-  - "For interactive features, provide both command and shortcut entrypoints, sharing one behavior path."
-  - "For safety/status UX, keep footer signal minimal and put verbose state/log inspection into a dedicated panel."
+  - "Capture external guidance in `docs/resources/` as structured notes (summary + source + repo relevance), not chat-only links."
+  - "For medium/large initiatives, create both spec + execution plan by default; skip one only with explicit user waiver."
+  - "Create spec first, then execution plan, and cross-link both artifacts."
+  - "Keep execution-plan lifecycle accurate: active while in progress, completed once exit criteria are met."
+  - "Treat plans as living artifacts: keep decision/progress/blocker sections current during execution, not only at the end."
+  - "If planning doctrine changes, update AGENTS + docs/exec-plans + docs/specs + `skills/plan/{SKILL.md,PLAN.md}` together."
+  - "Skills must be self-sustaining: if a skill depends on a standard/template, ship it in the skill directory."
+  - "Prefer mechanical enforcement (`bun run check`) over convention-memory for docs/skill invariants."
+  - "Every extension under `extensions/` needs a practical README; docs validation enforces baseline coverage."
 
 design_decisions:
-  - reason: "Repository files are the long-term memory"
-    detail: "Architecture, policy, and implementation intent must live in committed docs/code so future agents inherit decisions without chat archaeology."
-  - reason: "Agent-legible validation over terse failures"
-    detail: "Errors are expected to support autonomous correction loops by explaining what failed, why it matters, and how to fix it."
-  - reason: "Deterministic tests over live dependencies"
-    detail: "Fast, reproducible local/CI runs are prioritized over end-to-end realism in unit-level suites."
-  - reason: "Damage-control is default-on and conservative"
-    detail: "The extension targets YOLO workflows, so safeguards are baseline behavior and layered rule sources compose additively to avoid accidental weakening."
-  - reason: "Observability without extra persistence"
-    detail: "Damage-control runtime events stay in session custom entries (source of truth) instead of introducing a separate log file."
-  - reason: "Low-noise safety signal"
-    detail: "Footer state was reduced to an icon/color attention signal; users inspect details via panel only when needed."
+  - reason: "Specs and execution plans are separate on purpose"
+    detail: "Specs are relatively stable design contracts; execution plans are mutable operational logs. Separation preserves lifecycle clarity."
+  - reason: "Plan underuse was treated as a trigger/policy problem, not folder topology"
+    detail: "Adoption was improved via skill + AGENTS + docs policy updates; adding `docs/exec-plans/specs/` was explicitly rejected."
+  - reason: "Planning standard is skill-local, not repo-root"
+    detail: "User direction was to avoid root `PLANS.md`; `skills/plan/PLAN.md` is the canonical standard so the skill remains portable across repositories."
+  - reason: "Skill naming follows actual behavior"
+    detail: "`create-spec` was renamed to `plan` because it now produces spec and/or execution-plan artifacts; naming mismatch was causing discoverability/confusion."
+  - reason: "External guidance is adapted to be tool-agnostic"
+    detail: "Codex article guidance was adopted for process value, while removing product-specific wording to keep repo conventions reusable."
+  - reason: "Repository artifacts are the system of record"
+    detail: "Process decisions and external learnings must be committed in-repo so future agents avoid chat archaeology."
 
 gotchas:
-  - "Use StringEnum from pi-ai for tool action enums; Type.Union(Type.Literal(...)) has hit provider compatibility issues."
-  - "ctx.ui.custom() does not return until done() is called; missing/late done() can stall follow-up flows."
-  - "Shortcut registration alone does not close an already-open custom panel; the panel component must handle the same key input itself."
-  - "User expectation for inspect UIs is a proper bounded popup (like todo view), not a raw full-screen text overlay; otherwise readability can be poor."
-  - "Tool execute() arguments are positional; ctx is the last parameter."
-  - "Damage-control ask-rules must fail closed when UI is unavailable."
-  - "Docs validation currently flags missing README.md in support folders under extensions/ (e.g., extensions/__mocks__/)."
-  - "Expert domain routing ignores very short terms and enforces minimum-score matching; short aliases/weak keyword matches may not route."
-  - "Damage-control bash mutation detection uses regex heuristics with edge cases; add tests before assuming all mutating commands are classified correctly."
+  - "Path-targeted Biome checks on docs/skill markdown can fail with `No files were processed` due to ignore config; rely on repo check scripts for intended coverage."
+  - "Repo-wide `bun run check` can fail on unrelated baseline files (e.g., formatting drift in `skills-lock.json`); call out residual unrelated failures explicitly."
+  - "If a skill depends on companion docs (e.g., `skills/plan/PLAN.md`), keep validator rules in sync with skill renames/moves or docs checks will fail."
+  - "Use StringEnum for tool action enums; literal-union schemas have caused provider compatibility issues."
+  - "`ctx.ui.custom()` blocks follow-up flow until `done()` is called."
+  - "Vitest aliases Pi packages to local mocks; missing mock exports often surface as runtime `... is not a function` errors."
 
 references:
-  - "Global rules and workflow: AGENTS.md"
-  - "Canonical docs policy: docs/CONTRIBUTING-DOCS.md"
-  - "Architecture map: docs/ARCHITECTURE.md"
-  - "Quality posture and gate status: docs/QUALITY.md"
-  - "Damage-control UX spec: docs/specs/2026-03-07-damage-control-ux-panel.md"
-  - "Damage-control behavior and UX docs: extensions/damage-control/README.md"
-  - "Damage-control runtime wiring: extensions/damage-control/index.ts"
-  - "Damage-control panel implementation: extensions/damage-control/panel.ts"
-  - "Damage-control branch-log extraction: extensions/damage-control/logs.ts"
-  - "Vitest alias/mocking setup: vitest.config.ts"
-  - "Shared internal test doubles: extensions/__mocks__/README.md"
-  - "Pre-commit gate wiring: lefthook.yml"
+  - "Global workflow policy: AGENTS.md"
+  - "Execution-plan conventions/lifecycle: docs/exec-plans/README.md"
+  - "Execution-plan starter scaffold: docs/exec-plans/TEMPLATE.md"
+  - "Specs conventions: docs/specs/README.md"
+  - "Planning skill contract: skills/plan/SKILL.md"
+  - "Canonical execution-plan standard (portable): skills/plan/PLAN.md"
+  - "Resource capture policy: docs/resources/README.md"
+  - "Codex execution-plan source note: docs/resources/codex-exec-plans-openai.md"
 
 codebase_concerns:
-  - "Domain scope is still broad (docs governance + testing + extension API pitfalls + damage-control UX). If growth continues, split into narrower expertise domains."
-  - "Docs validator infers extension-ness by directory placement under extensions/, which causes surprising README failures for internal support folders."
-  - "Custom panel UX is easy to implement inconsistently; consider a shared popup/panel helper or a repo UX checklist so extensions don't reinvent unreadable overlays."
+  - "Spec+plan adoption for medium/large work is still partly convention-driven; if misses continue, consider stronger mechanical prompts/checks."
+  - "Recent rename (`create-spec` → `plan`) creates stale-reference risk across docs; lightweight linting for legacy skill name/path could prevent drift."
+  - "This domain still mixes planning-governance guidance with Pi runtime/testing gotchas; splitting into narrower expertise files may improve retrieval precision."
