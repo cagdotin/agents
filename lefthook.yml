@@ -1,4 +1,9 @@
 pre-commit:
+  parallel: true
   commands:
-    quality-gates:
-      run: bun run check
+    lint:
+      run: bun run check:biome
+    docs:
+      run: bun run check:docs
+    test:
+      run: bun run test
