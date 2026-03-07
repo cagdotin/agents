@@ -27,7 +27,32 @@ This scorecard tracks maintainability and readiness of this package for day-to-d
 | `extensions/tmux-notify` | 3 | Good | Useful and focused; now documented |
 | `extensions/tmux-pane-title` | 3 | Good | Useful and focused; now documented |
 | Skills (`skills/*`) | 3 | Good | Consistent SKILL format and clear purpose |
-| Mechanical validation | 3 | Good | `bun run check` now gates Biome + docs validation (`scripts/validate-docs.ts`) and is enforced locally via Lefthook pre-commit |
+| Mechanical validation | 4 | Excellent | `bun run check` gates Biome + docs validation + Vitest; Lefthook pre-commit runs all three in parallel |
+| Automated testing | 3 | Good | 246 unit tests across 11 files covering Tier 1 (pure logic) and Tier 2 (mocked Pi imports); no LLM calls in tests; Tier 3 (runtime integration) deferred |
+
+---
+
+## Testing Infrastructure
+
+Vitest is the test runner, invoked via `bun run test`. Tests live in `__tests__/` directories co-located with each extension. Shared mocks for `@mariozechner/*` peer dependencies live in `extensions/__mocks__/` and are resolved via Vitest aliases — no real Pi runtime or LLM calls are ever made.
+
+**Coverage baseline (2026-03-07):** 246 tests, 11 files, ~315ms.
+
+### Known Code Issues Found During Testing
+
+These were discovered while writing the initial test suite. They are documented here as they represent real behavioral quirks in the production code.
+
+1. **`damage-control/matcher.ts` — MUTATION_COMMAND_PATTERN regex false negatives.**
+   Commands like `chmod 755 script.sh` do NOT match the mutation pattern. The regex `(^|\s)(chmod\s+)(\s|$)` requires the greedy `\s+` to leave whitespace for the trailing `(\s|$)` group, which only works with 2+ spaces between the command and its argument. Affects all command patterns in the alternation (`chmod`, `chown`, `cp`, `mv`, `mkdir`, `touch`, `tee`, `truncate`). Only redirect operators (`>`, `>>`) and `install -` reliably match. Impact: some mutation commands against read-only/no-delete paths may pass through unchecked.
+
+2. **`expert/helpers.ts` — Domain alias matching silently ignores short aliases.**
+   `term_matches_prompt` rejects terms shorter than 3 characters. Aliases like `"db"` (2 chars) never match. This is intentional to avoid false positives but is not documented — users defining aliases should be aware of the minimum length.
+
+3. **`expert/helpers.ts` — Keyword-only matches fall below routing threshold.**
+   A single keyword match scores +4, but `MIN_DOMAIN_MATCH_SCORE` is 6. A keyword alone is never sufficient to route a prompt to a domain — it must combine with another signal (description word, scope path, etc.). This may surprise users who expect keywords to be first-class routing signals.
+
+4. **`expert/helpers.ts` — `scan_scope_paths` does not ignore top-level ignored directories.**
+   `is_ignored_dir` only applies to subdirectories encountered during recursive walk. If `"node_modules"` is passed directly as a scope path, its contents are returned. The ignore list is a convenience for walking parent directories, not a security boundary.
 
 ---
 
@@ -39,7 +64,7 @@ This scorecard tracks maintainability and readiness of this package for day-to-d
 
 ## P1
 
-- None currently.
+1. **Fix MUTATION_COMMAND_PATTERN regex** — the trailing `(\s|$)` group prevents single-space command matching. Consider removing it or restructuring the alternation. (See testing findings above.)
 
 ## P2
 
