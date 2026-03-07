@@ -1,6 +1,7 @@
 import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
 import { describe, expect, it } from "vitest";
 import { get_recent_damage_control_rows } from "../logs.js";
+import type { DamageControlPanelRow } from "../types.js";
 
 function make_context(entries: unknown[]): ExtensionContext {
 	return {
@@ -117,5 +118,49 @@ describe("get_recent_damage_control_rows", () => {
 		const rows = get_recent_damage_control_rows(make_context(entries), 10);
 		expect(rows).toHaveLength(1);
 		expect(rows[0]?.tool_name).toBe("edit");
+	});
+});
+
+describe("get_recent_damage_control_rows — truncation limits", () => {
+	function make_entry_with_lengths(reason_len: number, input_len: number) {
+		return make_log_entry({
+			timestamp: "2026-03-07T10:00:00.000Z",
+			action: "blocked",
+			tool_name: "bash",
+			reason: "R".repeat(reason_len),
+			rule_type: "bash_pattern",
+			rule_source: "bundled",
+			input_preview: "I".repeat(input_len),
+		});
+	}
+
+	it("preserves reason up to 500 chars without truncation", () => {
+		const entries = [make_entry_with_lengths(500, 10)];
+		const rows = get_recent_damage_control_rows(make_context(entries), 10);
+		expect(rows).toHaveLength(1);
+		expect(rows[0]?.reason).toBe("R".repeat(500));
+	});
+
+	it("truncates reason beyond 500 chars with ellipsis", () => {
+		const entries = [make_entry_with_lengths(600, 10)];
+		const rows = get_recent_damage_control_rows(make_context(entries), 10);
+		expect(rows).toHaveLength(1);
+		expect((rows[0] as DamageControlPanelRow).reason.length).toBeLessThanOrEqual(500);
+		expect((rows[0] as DamageControlPanelRow).reason).toContain("…");
+	});
+
+	it("preserves input_preview up to 500 chars without truncation", () => {
+		const entries = [make_entry_with_lengths(10, 500)];
+		const rows = get_recent_damage_control_rows(make_context(entries), 10);
+		expect(rows).toHaveLength(1);
+		expect(rows[0]?.input_preview).toBe("I".repeat(500));
+	});
+
+	it("truncates input_preview beyond 500 chars with ellipsis", () => {
+		const entries = [make_entry_with_lengths(10, 600)];
+		const rows = get_recent_damage_control_rows(make_context(entries), 10);
+		expect(rows).toHaveLength(1);
+		expect((rows[0] as DamageControlPanelRow).input_preview.length).toBeLessThanOrEqual(500);
+		expect((rows[0] as DamageControlPanelRow).input_preview).toContain("…");
 	});
 });

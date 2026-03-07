@@ -291,14 +291,14 @@ function unique_rule_source_kinds(values: RuleSourceKind[]): RuleSourceKind[] {
 
 function describe_tool_input(event: ToolCallEvent): string {
 	if (isToolCallEventType("bash", event)) {
-		return truncate_preview(event.input.command, 240);
+		return truncate_preview(event.input.command, 500);
 	}
 
 	if (isToolCallEventType("read", event) || isToolCallEventType("write", event) || isToolCallEventType("edit", event)) {
-		return truncate_preview(event.input.path, 240);
+		return truncate_preview(event.input.path, 500);
 	}
 
-	return truncate_preview(safe_json(event.input), 240);
+	return truncate_preview(safe_json(event.input), 500);
 }
 
 function safe_json(value: unknown): string {

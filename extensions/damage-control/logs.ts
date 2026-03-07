@@ -47,10 +47,10 @@ function to_panel_row(raw_entry: unknown): DamageControlPanelRow | undefined {
 		timestamp,
 		action,
 		tool_name: truncate_preview(tool_name, 80),
-		reason: truncate_preview(reason, 140),
+		reason: truncate_preview(reason, 500),
 		rule_type,
 		rule_source,
-		input_preview: truncate_preview(input_preview, 180),
+		input_preview: truncate_preview(input_preview, 500),
 	};
 }
 
