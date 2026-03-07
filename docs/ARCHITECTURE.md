@@ -1,134 +1,177 @@
 # ARCHITECTURE
 
-Status: active  
-Last updated: 2026-03-06
-
-## 1) Purpose
-
-This repository is a **Pi package** that centralizes reusable agent capabilities:
-
-- **Extensions** (TypeScript runtime integrations for Pi)
-- **Skills** (agent-invoked procedural playbooks)
-- **Themes** (Pi UI themes)
-- **Resource docs** (curated external references for agentic coding practices)
-
-`AGENTS.md` is intentionally short and acts as an entrypoint. This document is the deeper system map.
+Status: active
+Last updated: 2026-03-05
 
 ---
 
-## 2) Top-Level Domains
+## Bird's Eye
 
-## 2.1 Extensions (`extensions/`)
+This repository is a **Pi package** — a distribution unit that gives coding agents
+reusable capabilities. It solves one problem: keeping agent extensions, skills, themes,
+and the documentation that governs them versioned, discoverable, and mechanically
+validated in a single place.
 
-Pi runtime code that can register tools, commands, hooks, and TUI components.
+Pi discovers these resources through the `pi` manifest in `package.json`.
 
-Current extensions:
-- `answer/` — extract questions from assistant output and collect structured answers
-- `todos/` — file-based todo system (`.pi/todos`) + tool + `/todos` TUI command
-- `expert/` — domain expertise memory system (`.pi/expertise`) + tool + `/expert`
-- `tmux-notify/` — tmux window badge + sound when agent finishes long tasks
-- `tmux-pane-title/` — tmux pane title/status integration for multi-session awareness
+---
 
-Design intent:
-- Keep extension logic in-repo and versioned
-- Prefer explicit, inspectable workflows over hidden behavior
-- Use custom tools for repeatable capability surfaces
+## Codemap
 
-## 2.2 Skills (`skills/`)
+### `extensions/`
 
-Task-specific instruction bundles (`SKILL.md`) loaded on-demand by the agent.
+Pi runtime code: tools, commands, hooks, and TUI components loaded at startup.
+Each subdirectory is a self-contained extension with its own README.
 
-Current skills include:
-- `commit`
-- `create-spec`
-- `github`
-- `linear`
-- `pr-review`
-- `youtube-transcript`
+Key extensions to know by name:
 
-Design intent:
-- Progressive disclosure: short metadata always available, full instructions loaded only when needed
-- Keep workflows executable and copyable by agents
+- `todos` — File-based todo system. Full tool + command + TUI pattern.
+  **Gold-standard reference** for new extension development.
+- `expert` — Domain expertise memory (`.pi/expertise/` YAML files).
+  Reflection pipeline, context-budget-aware injection, slash command.
+- `answer` — LLM extraction of questions from assistant output,
+  structured answer collection. Model-selection pattern lives here.
+- `tmux-notify` and `tmux-pane-title` — Lightweight tmux integrations
+  (badge/sound, pane status). Minimal but documented.
 
-## 2.3 Themes (`pi-themes/`)
+### `skills/`
 
-Pi theme JSON files distributed with this package.
+Task-specific instruction bundles. Each skill is a directory with a `SKILL.md`
+loaded on demand by the agent when the task matches. Skills are declarative
+playbooks, not runtime code.
 
-## 2.4 Documentation (`docs/`)
+### `pi-themes/`
 
-- `ARCHITECTURE.md` — repository map and boundaries
+Theme JSON files distributed with this package. Pure data, no logic.
+
+### `docs/`
+
+System-of-record knowledge base for humans and agents.
+
+- `ARCHITECTURE.md` — this file (repository map and invariants)
 - `QUALITY.md` — quality scorecard and prioritized gaps
-- `exec-plans/` — active/completed execution plans and tech debt tracker
-- `references/` — in-repo quick references (e.g., Pi API reference)
-- `resources/` — external videos/articles/resources captured with structured frontmatter
+- `CONTRIBUTING-DOCS.md` — rules for documentation contributions
+- `exec-plans/` — active/completed execution plans + `tech-debt-tracker.md`
+- `specs/` — implementation specs for planned or complex work
+- `references/` — internal quick references (e.g., Pi API reference)
+- `resources/` — curated external resources with structured frontmatter
 
-Design intent:
-- Treat repository docs as system-of-record context for both humans and agents
-- Prefer discoverable markdown artifacts over chat-only decisions
+### `scripts/`
 
----
+Validation and automation scripts invoked by `bun run` commands.
+`validate-docs.ts` checks frontmatter and README presence.
 
-## 3) Runtime Data Boundaries
+### `.pi/`
 
-These are generated/used at runtime and are intentionally separated from source code:
+Runtime state — **not source code**. Generated and managed by extensions:
 
-- `.pi/todos/` — todo markdown files managed by `extensions/todos`
-- `.pi/expertise/` — expertise domain YAML files managed by `extensions/expert`
-
-Repository source defines behavior; runtime state lives under `.pi/`.
-
----
-
-## 4) Packaging and Loading
-
-`package.json` declares this repository as a Pi package via the `pi` manifest:
-
-- skills: `./skills`
-- extensions: `./extensions`
-- themes: `./pi-themes/`
-
-Pi discovers and loads these resources from this package when installed globally or per-project.
+- `.pi/todos/` — todo markdown files (managed by `extensions/todos`)
+- `.pi/expertise/` — expertise YAML files (managed by `extensions/expert`)
 
 ---
 
-## 5) Architectural Principles for This Repo
+## Boundaries
 
-1. **AGENTS.md is a map, not an encyclopedia**
-   - Keep global instructions short.
-   - Put detailed guidance in targeted docs and skill files.
+### Source vs. Runtime
 
-2. **Progressive disclosure**
-   - Start from architecture/quality docs.
-   - Drill into extension READMEs, then source files.
+Repository source (`extensions/`, `skills/`, `docs/`) defines behavior.
+Runtime state (`.pi/`) is generated, ephemeral, and gitignored.
+Extensions must never write into source directories at runtime.
 
-3. **Mechanizable conventions over tribal knowledge**
-   - Capture workflows in skills and extension tools.
-   - Keep docs structured and frontmatter-driven where possible.
+### Extensions vs. Skills
 
-4. **Single package-manager policy (Bun)**
-   - Use Bun for dependency management and script execution.
-   - Avoid mixed npm/yarn/pnpm command usage in repo docs/workflows.
+Extensions are **runtime code** — they register tools, hooks, and UI components
+that execute during the agent session. Skills are **static instructions** — markdown
+playbooks loaded into agent context on demand. An extension can invoke a skill's
+content, but a skill cannot execute extension code.
 
-5. **Agent legibility first**
-   - Important decisions should be represented in repo files.
-   - Avoid relying on ephemeral chat context.
+### Docs vs. Code
+
+`docs/` is the system of record for decisions, architecture, and quality posture.
+It is not auto-generated from code. Code is the source of truth for behavior;
+docs are the source of truth for *why* and *where*.
 
 ---
 
-## 6) Implementation Patterns to Reuse
+## Invariants
 
-- Full tool + command + TUI pattern: `extensions/todos/`
-- LLM extraction and model-selection pattern: `extensions/answer/extraction.ts`
-- Domain memory + reflection pipeline pattern: `extensions/expert/`
+These are intentional constraints. If you find yourself violating one, stop and
+reconsider — or update this section with the reasoning for the change.
 
-When adding new extensions, prefer matching these patterns unless there is a strong reason to diverge.
+1. **AGENTS.md is a map, not an encyclopedia.**
+   It stays under ~50 lines of real content. Detailed guidance lives in `docs/`
+   and extension READMEs. (See: [[harness-engineering-openai]])
 
-## 7) Quality Gates Contract
+2. **No cross-extension runtime dependencies.**
+   Extensions do not import from each other. Shared patterns are duplicated or
+   extracted to a shared utility only when three or more extensions need them.
 
-Local quality checks are centralized in Bun scripts and reused by hooks/CI:
+3. **Single package manager: Bun.**
+   All scripts, install commands, and doc examples use `bun` / `bun run` / `bunx`.
+   No npm, yarn, or pnpm.
 
-- `bun run check:biome` → Biome repository checks
-- `bun run check:docs` → `scripts/validate-docs.ts` frontmatter/README validation
-- `bun run check` → aggregate contract used by Lefthook pre-commit
+4. **Extensions require no build step.**
+   Pi loads TypeScript directly. There is no compile/bundle phase.
+   If an extension needs a dependency, it goes in the package-level `package.json`.
 
-`lefthook.yml` intentionally invokes only `bun run check` so validation logic stays in one place.
+5. **Every extension directory has a README.**
+   Including small/simple ones. Behavior, requirements, and usage must be
+   discoverable without reading the source.
+
+6. **Expertise files are working memory, not source of truth.**
+   `.pi/expertise/` YAML is a mental model — a cache of hard-won understanding.
+   The code is always authoritative. Expertise can be stale; code cannot.
+
+7. **Docs stay honest about what's not there.**
+   Quality gaps are tracked in `QUALITY.md`, not hidden. Planned work lives in
+   `exec-plans/` or `specs/`, not in aspirational doc prose.
+
+---
+
+## Cross-Cutting Concerns
+
+### Agent Legibility
+
+All important decisions must be represented in repo files. If it's not in the repo,
+it doesn't exist from the agent's perspective. Avoid relying on chat history,
+external docs, or tribal knowledge.
+
+### Progressive Disclosure
+
+Navigation follows a drill-down pattern:
+`AGENTS.md` → `docs/ARCHITECTURE.md` → domain docs → extension READMEs → source.
+Each layer should be self-contained enough to stop reading when you have what you need.
+
+### Mechanical Validation
+
+Conventions are enforced by tooling, not discipline:
+- `bun run check:biome` — code style (Biome)
+- `bun run check:docs` — frontmatter and README validation
+- `bun run check` — aggregate gate used by Lefthook pre-commit
+
+### Naming Conventions
+
+- Files and directories: `kebab-case`
+- Functions and variables: `snake_case`
+- Types and classes: `CamelCase`
+
+These are enforced project-wide, including in docs examples.
+
+### Extension Patterns
+
+When building new extensions, match the patterns in `todos` unless there is a strong
+reason to diverge. Key patterns: tool + command + TUI surface, compact collapsed
+rendering, separate agent-facing vs. human-facing output, `StringEnum` for action
+parameters.
+
+---
+
+## Packaging
+
+`package.json` declares this repo as a Pi package via its `pi` manifest field:
+
+- `skills` → `./skills`
+- `extensions` → `./extensions`
+- `themes` → `./pi-themes/`
+
+Pi discovers and loads these when the package is installed globally or per-project.
