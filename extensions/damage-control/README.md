@@ -32,7 +32,15 @@ Path patterns support plain paths and simple globs (`*`, `**`, `?`).
 
 ## Observability
 
-The extension writes a status summary in the footer and appends session log entries under custom type `damage-control-log` whenever a violation is blocked or confirmation is used. This keeps a lightweight audit trail in session history without adding a separate log file.
+The footer shows a compact shield icon (`⛨`) under status key `damage-control`:
+
+- green: healthy (no unread events)
+- amber: unread policy activity
+- red: unread blocking incident
+
+The extension appends session log entries under custom type `damage-control-log` whenever a violation is blocked or confirmation is used.
+
+Use `/damage-control` (alias: `/dc`) to open the runtime panel, or press `Ctrl+Alt+D` to toggle it. The panel shows active rule counts, loaded rule sources, and recent branch-local policy events.
 
 ## Usage Notes
 

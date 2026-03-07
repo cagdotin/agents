@@ -85,3 +85,22 @@ export interface DamageControlLogEntry {
 	rule_source: RuleSourceKind;
 	input_preview: string;
 }
+
+export interface DamageControlUiState {
+	unread_count: number;
+	panel_open: boolean;
+	last_opened_at: string | null;
+	incident_active: boolean;
+}
+
+export type DamageControlFooterState = "healthy" | "notify" | "incident";
+
+export interface DamageControlPanelRow {
+	timestamp: string;
+	action: "blocked" | "blocked_by_user" | "confirmed_by_user" | "allowed";
+	tool_name: string;
+	reason: string;
+	rule_type: ViolationType;
+	rule_source: RuleSourceKind;
+	input_preview: string;
+}

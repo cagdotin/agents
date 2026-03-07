@@ -1,69 +1,74 @@
 domain: extensions-dev
-description: "Conventions for building Pi extensions, keeping docs as source-of-truth, and maintaining test/quality gates"
-last_synced: "2026-03-07T12:05:23Z"
+description: "Cross-extension conventions for docs-first changes, deterministic quality gates, and operator-facing Pi UX patterns"
+last_synced: "2026-03-07T12:08:43Z"
 
 scope:
   paths:
     - AGENTS.md
-    - extensions/
     - docs/
+    - docs/specs/
+    - extensions/
+    - extensions/damage-control/
     - scripts/validate-docs.ts
     - vitest.config.ts
     - lefthook.yml
 
 overview: |
-  This repo favors progressive-disclosure guidance (short AGENTS.md, durable policy in docs/)
-  plus mechanical quality gates. Recent work established a Vitest baseline with deterministic,
-  programmatic tests only (no live LLM/network usage), and integrated tests into local pre-commit flow.
+  This repo optimizes for durable, agent-readable conventions: short entry guidance in AGENTS.md,
+  deeper policy in docs/, and mechanical checks (`bun run check`) to enforce critical rules.
+  Recent damage-control work established a "minimal persistent signal + drill-down panel" UX style:
+  keep always-visible status compact, move detail/history into an explicit interactive view.
 
 patterns:
-  - "Keep AGENTS.md as a concise entrypoint and global guardrails; move detailed policy to docs/."
-  - "Treat docs/CONTRIBUTING-DOCS.md as canonical docs governance; remove duplicate policy text when this doc subsumes it."
-  - "Use docs/specs for planned or non-trivial extension/process changes before implementation."
-  - "Every directory under extensions/ must include a README.md (docs validator treats it as extension-facing surface, including support dirs like __mocks__)."
-  - "For extension tests, prioritize Tier 1/Tier 2 deterministic logic tests; defer runtime-coupled integration paths explicitly."
-  - "Mock internal @mariozechner/* deps in Vitest, but use real installed third-party deps (e.g., TypeBox/YAML) to keep behavior realistic."
-  - "Keep quality checks runnable as one command (bun run check) and pre-commit enforced via Lefthook."
-  - "Run pre-commit checks as parallel Lefthook commands (lint/docs/tests) for faster feedback while preserving full gate coverage."
+  - "Keep AGENTS.md concise; move durable policy and process details into docs/."
+  - "Treat docs/CONTRIBUTING-DOCS.md as canonical docs governance; delete duplicated policy text elsewhere."
+  - "Use docs/specs for planned or non-trivial extension/UX/process changes before implementation."
+  - "Every directory under extensions/ needs README.md (docs validation treats support dirs like __mocks__ as extension surface)."
+  - "Prefer deterministic Tier 1/Tier 2 tests; avoid live model/network/runtime dependencies in unit tests."
+  - "In Vitest, mock internal @mariozechner/* packages but keep real third-party libs where behavior fidelity matters."
+  - "For interactive features, provide both command and shortcut entrypoints, sharing one behavior path."
+  - "For safety/status UX, keep footer signal minimal and put verbose state/log inspection into a dedicated panel."
 
 design_decisions:
-  - reason: "Repository docs are the system of record"
-    detail: "Architecture, quality posture, API references, and specs must live in committed files (not chat-only decisions), so future agents inherit context."
-  - reason: "Agent-legible validation over terse lint output"
-    detail: "Failures should explain what is wrong, why it matters, and how to fix it, enabling autonomous correction loops."
-  - reason: "Deterministic tests over live model/runtime dependencies"
-    detail: "Unit tests intentionally avoid LLM/network/runtime invocation so CI/local runs stay fast, stable, and reproducible."
-  - reason: "Guard against accidental live calls in tests"
-    detail: "The shared pi-ai test mock throws by default on complete(), making unintended model invocation fail fast."
-  - reason: "Damage-control is default-on"
-    detail: "The package assumes fast/YOLO workflows, so safety policy is baseline behavior rather than opt-in."
-  - reason: "Layered safety rules merge conservatively"
-    detail: "Bundled/global/project rules compose additively in v1 to avoid accidental weakening of inherited safeguards."
+  - reason: "Repository files are the long-term memory"
+    detail: "Architecture, policy, and implementation intent must live in committed docs/code so future agents inherit decisions without chat archaeology."
+  - reason: "Agent-legible validation over terse failures"
+    detail: "Errors are expected to support autonomous correction loops by explaining what failed, why it matters, and how to fix it."
+  - reason: "Deterministic tests over live dependencies"
+    detail: "Fast, reproducible local/CI runs are prioritized over end-to-end realism in unit-level suites."
+  - reason: "Damage-control is default-on and conservative"
+    detail: "The extension targets YOLO workflows, so safeguards are baseline behavior and layered rule sources compose additively to avoid accidental weakening."
+  - reason: "Observability without extra persistence"
+    detail: "Damage-control runtime events stay in session custom entries (source of truth) instead of introducing a separate log file."
+  - reason: "Low-noise safety signal"
+    detail: "Footer state was reduced to an icon/color attention signal; users inspect details via panel only when needed."
 
 gotchas:
-  - "Use StringEnum from pi-ai for tool action enums; Type.Union/Type.Literal has caused provider compatibility failures."
-  - "ctx.ui.custom() does not return until done() is called; incorrect done() timing can deadlock follow-up flows."
-  - "Shortcut-based panel toggles need in-component key handling while custom UI is active; registering a shortcut alone does not auto-close an open custom panel."
+  - "Use StringEnum from pi-ai for tool action enums; Type.Union(Type.Literal(...)) has hit provider compatibility issues."
+  - "ctx.ui.custom() does not return until done() is called; missing/late done() can stall follow-up flows."
+  - "Shortcut registration alone does not close an already-open custom panel; the panel component must handle the same key input itself."
+  - "User expectation for inspect UIs is a proper bounded popup (like todo view), not a raw full-screen text overlay; otherwise readability can be poor."
   - "Tool execute() arguments are positional; ctx is the last parameter."
-  - "sendMessage(..., { triggerTurn: true }) intentionally re-enters the agent turn loop."
-  - "setEditorText only pre-fills input; it does not submit."
   - "Damage-control ask-rules must fail closed when UI is unavailable."
-  - "Docs validation currently treats support folders under extensions/ as extension dirs; missing README.md in folders like extensions/__mocks__/ will fail bun run check."
-  - "Expert domain routing ignores very short terms and enforces a minimum score; short aliases or keyword-only weak matches may not route."
-  - "Damage-control mutation detection regex has edge cases (e.g., some standalone chmod forms), so do not assume all mutating shell commands are classified correctly without tests."
+  - "Docs validation currently flags missing README.md in support folders under extensions/ (e.g., extensions/__mocks__/)."
+  - "Expert domain routing ignores very short terms and enforces minimum-score matching; short aliases/weak keyword matches may not route."
+  - "Damage-control bash mutation detection uses regex heuristics with edge cases; add tests before assuming all mutating commands are classified correctly."
 
 references:
-  - "Repo entry + Golden Rules: AGENTS.md"
+  - "Global rules and workflow: AGENTS.md"
   - "Canonical docs policy: docs/CONTRIBUTING-DOCS.md"
   - "Architecture map: docs/ARCHITECTURE.md"
-  - "Quality posture + notable testing findings: docs/QUALITY.md"
-  - "Vitest rollout spec: docs/specs/2026-03-07-vitest-testing-infrastructure.md"
-  - "Pi API quick reference (repo-focused): docs/references/pi-api-reference.md"
+  - "Quality posture and gate status: docs/QUALITY.md"
+  - "Damage-control UX spec: docs/specs/2026-03-07-damage-control-ux-panel.md"
+  - "Damage-control behavior and UX docs: extensions/damage-control/README.md"
+  - "Damage-control runtime wiring: extensions/damage-control/index.ts"
+  - "Damage-control panel implementation: extensions/damage-control/panel.ts"
+  - "Damage-control branch-log extraction: extensions/damage-control/logs.ts"
   - "Vitest alias/mocking setup: vitest.config.ts"
-  - "Shared test doubles documentation: extensions/__mocks__/README.md"
-  - "Pre-commit quality gate config: lefthook.yml"
-  - "Gold-standard extension structure: extensions/todos/"
+  - "Shared internal test doubles: extensions/__mocks__/README.md"
+  - "Pre-commit gate wiring: lefthook.yml"
 
 codebase_concerns:
-  - "This domain still mixes docs governance, extension API pitfalls, damage-control policy, and testing infrastructure. If it grows further, split into narrower domains (e.g., docs-governance, extension-testing, damage-control)."
-  - "Docs validation infers extension-ness from directory placement under extensions/ rather than explicit metadata/allowlists, which creates surprise failures for internal support folders."
+  - "Domain scope is still broad (docs governance + testing + extension API pitfalls + damage-control UX). If growth continues, split into narrower expertise domains."
+  - "Docs validator infers extension-ness by directory placement under extensions/, which causes surprising README failures for internal support folders."
+  - "Custom panel UX is easy to implement inconsistently; consider a shared popup/panel helper or a repo UX checklist so extensions don't reinvent unreadable overlays."
