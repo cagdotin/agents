@@ -1,0 +1,182 @@
+version: 1
+
+bash_tool_patterns:
+  - id: rm-recursive-force
+    pattern: '\brm\s+(-[^\s]*)*[rRf]'
+    reason: rm with recursive/force flags
+    action: block
+
+  - id: git-reset-hard
+    pattern: '\bgit\s+reset\s+--hard\b'
+    reason: git reset --hard discards uncommitted changes
+    action: block
+
+  - id: git-clean-force
+    pattern: '\bgit\s+clean\s+(-[^\s]*)*[fd]'
+    reason: git clean with force/directory flags removes files permanently
+    action: block
+
+  - id: git-push-force
+    pattern: '\bgit\s+push\s+.*--force(?!-with-lease)'
+    reason: force push without lease can destroy remote history
+    action: block
+
+  - id: git-push-delete
+    pattern: '\bgit\s+push\s+\S+\s+--delete\b'
+    reason: deletes remote branch
+    action: ask
+
+  - id: git-restore-all
+    pattern: '\bgit\s+(checkout\s+--\s*\.|restore\s+\.)'
+    reason: discards all unstaged changes in working tree
+    action: ask
+
+  - id: filesystem-format
+    pattern: '\bmkfs\.'
+    reason: filesystem formatting command
+    action: block
+
+  - id: dd-device-write
+    pattern: '\bdd\s+.*of=/dev/'
+    reason: dd writing to block device is destructive
+    action: block
+
+  - id: aws-delete-stack
+    pattern: '\baws\s+cloudformation\s+delete-stack\b'
+    reason: deletes cloudformation stack and managed resources
+    action: block
+
+  - id: aws-delete-db
+    pattern: '\baws\s+rds\s+delete-db-instance\b'
+    reason: deletes RDS database instance
+    action: block
+
+  - id: aws-delete-table
+    pattern: '\baws\s+dynamodb\s+delete-table\b'
+    reason: deletes dynamodb table
+    action: block
+
+  - id: gcloud-project-delete
+    pattern: '\bgcloud\s+projects\s+delete\b'
+    reason: deletes entire GCP project
+    action: block
+
+  - id: gcloud-cluster-delete
+    pattern: '\bgcloud\s+container\s+clusters\s+delete\b'
+    reason: deletes GKE cluster
+    action: block
+
+  - id: gcloud-storage-rm-recursive
+    pattern: '\bgcloud\s+storage\s+rm\s+.*-r'
+    reason: recursive object deletion in cloud storage
+    action: block
+
+  - id: firebase-project-delete
+    pattern: '\bfirebase\s+projects:delete\b'
+    reason: deletes firebase project
+    action: block
+
+  - id: vercel-remove
+    pattern: '\bvercel\s+(remove|rm)\b'
+    reason: removes vercel deployment/project resources
+    action: ask
+
+  - id: netlify-site-delete
+    pattern: '\bnetlify\s+sites:delete\b'
+    reason: deletes netlify site
+    action: block
+
+  - id: wrangler-delete
+    pattern: '\bwrangler\s+(delete|d1\s+delete|r2\s+bucket\s+delete)\b'
+    reason: destructive cloudflare resource deletion
+    action: block
+
+  - id: sql-drop-table
+    pattern: '\bDROP\s+TABLE\b'
+    reason: SQL DROP TABLE
+    action: block
+
+  - id: sql-drop-database
+    pattern: '\bDROP\s+DATABASE\b'
+    reason: SQL DROP DATABASE
+    action: block
+
+  - id: sql-delete-no-where
+    pattern: '\bDELETE\s+FROM\s+\w+\s*;'
+    reason: SQL DELETE without WHERE clause
+    action: block
+
+  - id: sql-delete-specific-id
+    pattern: '\bDELETE\s+FROM\s+\w+\s+WHERE\b.*\bid\s*='
+    reason: SQL DELETE with WHERE id clause
+    action: ask
+
+zero_access_paths:
+  - .env
+  - .env.local
+  - .env.development
+  - .env.production
+  - .env.staging
+  - .env.test
+  - .env.*.local
+  - '*.env'
+  - ~/.ssh/
+  - ~/.gnupg/
+  - ~/.aws/
+  - ~/.config/gcloud/
+  - ~/.kube/
+  - ~/.docker/
+  - '*.pem'
+  - '*.key'
+  - '*.p12'
+  - '*.pfx'
+  - '*.tfstate'
+  - .terraform/
+  - .git-credentials
+  - ~/.git-credentials
+  - '*serviceAccount*.json'
+  - '*-credentials.json'
+  - secrets.yaml
+  - '*-secret.yaml'
+
+read_only_paths:
+  - /etc/
+  - /usr/
+  - /bin/
+  - /sbin/
+  - /boot/
+  - /root/
+  - ~/.bash_history
+  - ~/.zsh_history
+  - package-lock.json
+  - yarn.lock
+  - pnpm-lock.yaml
+  - bun.lockb
+  - Cargo.lock
+  - go.sum
+  - '*.lock'
+  - dist/
+  - build/
+  - .next/
+  - .nuxt/
+  - node_modules/
+  - __pycache__/
+  - .venv/
+  - venv/
+
+no_delete_paths:
+  - .git/
+  - .gitignore
+  - .gitattributes
+  - .github/
+  - README.md
+  - README.*
+  - LICENSE
+  - LICENSE.*
+  - CONTRIBUTING.md
+  - CHANGELOG.md
+  - SECURITY.md
+  - Dockerfile
+  - Dockerfile.*
+  - docker-compose.yml
+  - .dockerignore

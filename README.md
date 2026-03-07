@@ -15,6 +15,7 @@ agents/
 │   └── resources/       # External resource captures (articles/videos)
 ├── extensions/          # Pi extensions
 │   ├── answer/
+│   ├── damage-control/
 │   ├── expert/
 │   ├── todos/
 │   ├── tmux-notify/

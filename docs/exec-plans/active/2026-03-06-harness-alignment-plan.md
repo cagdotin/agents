@@ -180,6 +180,7 @@ Scope:
 
 Implemented seed:
 - Added [[docs/specs/2026-03-06-r9-expert-extension-hardening]] as a concrete spec artifact for upcoming expert-extension hardening work.
+- Added [[docs/specs/2026-03-07-damage-control-extension]] to drive default-on safety guardrails work.
 
 ---
 

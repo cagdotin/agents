@@ -23,6 +23,7 @@ This scorecard tracks maintainability and readiness of this package for day-to-d
 | `extensions/answer` | 3 | Good | Solid README and clear flow; low active maintenance load |
 | `extensions/todos` | 3 | Good | Strong implementation and TUI; docs were stale and are now refreshed |
 | `extensions/expert` | 4 | Excellent | Matching now uses aliases/keywords/pattern hints, injection is context-budget-aware, and `/expert log` + `/expert init` close the main UX gaps |
+| `extensions/damage-control` | 3 | Good | Default-on guardrails for YOLO mode with layered rules (bundled + global + nearest project); keep tuning false-positive/false-negative balance |
 | `extensions/tmux-notify` | 3 | Good | Useful and focused; now documented |
 | `extensions/tmux-pane-title` | 3 | Good | Useful and focused; now documented |
 | Skills (`skills/*`) | 3 | Good | Consistent SKILL format and clear purpose |
