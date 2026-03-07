@@ -65,6 +65,8 @@ bookmarks, and memory. Resources are written for both humans and coding agents.
   invariants, boundaries. The structural blueprint for our own architecture doc.
 - [[harness-engineering-openai]] — OpenAI's agent-first engineering playbook (map-not-manual,
   progressive disclosure, mechanical enforcement, entropy management).
+- [[codex-exec-plans-openai]] — OpenAI Cookbook guidance on execution plans as living
+  rollout artifacts (scope, milestones, progress, decision logging).
 - [[pi-vs-claude-code-indydevdan]] — Harness customization tiers and practical extension strategy.
 
 ### Informative

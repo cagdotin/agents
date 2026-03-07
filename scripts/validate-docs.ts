@@ -20,6 +20,9 @@ const RESOURCE_REQUIRED_FIELDS = [
 ];
 
 const SKILL_REQUIRED_FIELDS = ["name", "description"];
+const SKILL_REQUIRED_SUPPORT_FILES: Record<string, string[]> = {
+	plan: ["PLAN.md"],
+};
 
 const MIN_EXTENSION_README_WORDS = 80;
 const MIN_EXTENSION_README_HEADINGS = 3;
@@ -68,7 +71,7 @@ async function validate_resource_frontmatter(repo_root: string, errors: Validati
 				errors,
 				file_path,
 				"missing frontmatter block",
-				"add YAML frontmatter between leading --- markers",
+				"Resources require YAML frontmatter between --- markers so agents can discover and filter them. Copy the structure from docs/resources/TEMPLATE.md.",
 			);
 			continue;
 		}
@@ -81,17 +84,29 @@ async function validate_resource_frontmatter(repo_root: string, errors: Validati
 					errors,
 					file_path,
 					`missing required frontmatter field: ${field_name}`,
-					`add a non-empty '${field_name}' value in frontmatter`,
+					`Add '${field_name}' to the YAML frontmatter. This field is required for resource indexing and agent discoverability. See docs/resources/TEMPLATE.md for the full schema.`,
 				);
 			}
 		}
 
 		if (has_value(fields.url) && !/^https?:\/\/\S+/u.test(normalize_value(fields.url))) {
-			push_error(repo_root, errors, file_path, "invalid url field", "set 'url' to a full http(s) URL");
+			push_error(
+				repo_root,
+				errors,
+				file_path,
+				"invalid url field",
+				"Set 'url' to a full http(s) URL so agents can trace back to the original source. Example: url: https://example.com/article",
+			);
 		}
 
 		if (has_value(fields.date_captured) && !/^\d{4}-\d{2}-\d{2}$/u.test(normalize_value(fields.date_captured))) {
-			push_error(repo_root, errors, file_path, "invalid date_captured format", "use YYYY-MM-DD for date_captured");
+			push_error(
+				repo_root,
+				errors,
+				file_path,
+				"invalid date_captured format",
+				"Use YYYY-MM-DD format for date_captured (e.g. 2026-03-06). This enables staleness checks and chronological sorting.",
+			);
 		}
 	}
 }
@@ -112,7 +127,13 @@ async function validate_skill_frontmatter(repo_root: string, errors: ValidationE
 		try {
 			file_content = await readFile(file_path, "utf8");
 		} catch {
-			push_error(repo_root, errors, file_path, "missing SKILL.md", "add SKILL.md with required frontmatter fields");
+			push_error(
+				repo_root,
+				errors,
+				file_path,
+				"missing SKILL.md",
+				"Every skill directory needs a SKILL.md with frontmatter (name, description). Pi uses this to register the skill and show it in available_skills. See any existing skill for the format.",
+			);
 			continue;
 		}
 
@@ -123,7 +144,7 @@ async function validate_skill_frontmatter(repo_root: string, errors: ValidationE
 				errors,
 				file_path,
 				"missing frontmatter block",
-				"add YAML frontmatter between leading --- markers",
+				"Skills require YAML frontmatter between --- markers for Pi to register them. At minimum: name and description fields.",
 			);
 			continue;
 		}
@@ -136,7 +157,7 @@ async function validate_skill_frontmatter(repo_root: string, errors: ValidationE
 					errors,
 					file_path,
 					`missing required frontmatter field: ${field_name}`,
-					`add a non-empty '${field_name}' value in frontmatter`,
+					`Add '${field_name}' to the SKILL.md frontmatter. Pi needs this to register and match the skill to user requests.`,
 				);
 			}
 		}
@@ -149,7 +170,23 @@ async function validate_skill_frontmatter(repo_root: string, errors: ValidationE
 					errors,
 					file_path,
 					`frontmatter name '${normalized_name}' does not match directory name '${expected_name}'`,
-					"align SKILL frontmatter name with the skill directory name",
+					`The SKILL.md 'name' field must match the directory name '${expected_name}'. Pi uses the directory name for routing; a mismatch causes silent registration failures.`,
+				);
+			}
+		}
+
+		const required_support_files = SKILL_REQUIRED_SUPPORT_FILES[expected_name] ?? [];
+		for (const support_filename of required_support_files) {
+			const support_file_path = path.join(skills_dir, expected_name, support_filename);
+			try {
+				await readFile(support_file_path, "utf8");
+			} catch {
+				push_error(
+					repo_root,
+					errors,
+					support_file_path,
+					`missing required support file for skill '${expected_name}': ${support_filename}`,
+					`This skill depends on '${support_filename}' for portable, self-contained guidance. Add the file in skills/${expected_name}/ so the skill works consistently across repositories.`,
 				);
 			}
 		}
@@ -175,7 +212,7 @@ async function validate_extension_readmes(repo_root: string, errors: ValidationE
 				errors,
 				readme_path,
 				"missing extension README.md",
-				"add README.md documenting behavior, usage, and requirements",
+				"Every extension must have a README.md — agents and humans use it for orientation before reading source. Document: what it does, how it's triggered, any setup/requirements. See extensions/todos/README.md as a reference.",
 			);
 			continue;
 		}
@@ -190,7 +227,7 @@ async function validate_extension_readmes(repo_root: string, errors: ValidationE
 				errors,
 				readme_path,
 				`README is too short (${words.length} words; minimum ${MIN_EXTENSION_README_WORDS})`,
-				"expand README with concrete behavior, triggers, and setup/troubleshooting notes",
+				"Extension READMEs need enough detail for an agent to understand behavior without reading source. Add sections for behavior, usage, and requirements. See extensions/todos/README.md as a reference.",
 			);
 		}
 
@@ -200,7 +237,7 @@ async function validate_extension_readmes(repo_root: string, errors: ValidationE
 				errors,
 				readme_path,
 				`README has insufficient structure (${headings.length} headings; minimum ${MIN_EXTENSION_README_HEADINGS})`,
-				"add markdown sections (e.g. Behavior, Usage, Requirements) to keep docs scannable",
+				"Use markdown headings to make the README scannable (e.g. ## Behavior, ## Usage, ## Requirements). Flat prose is harder for agents to navigate.",
 			);
 		}
 	}

@@ -68,7 +68,7 @@ These were discovered while writing the initial test suite. They are documented 
 
 ## P2
 
-1. Add `docs/specs/` usage for larger planned extensions (subagent/widget/team patterns).
+1. Enforce habitual use of `docs/specs/` + `docs/exec-plans/` for all medium/large initiatives (the `plan` skill now supports both; adoption still needs consistency).
 2. Introduce component-level quality trend tracking over time (monthly snapshots).
 
 ---

@@ -7,7 +7,7 @@ Created: 2026-03-06
 ## Context
 
 This plan operationalizes recommendation R7 from
-[[docs/exec-plans/active/2026-03-06-harness-alignment-plan]] by introducing
+[[docs/exec-plans/completed/2026-03-06-harness-alignment-plan]] by introducing
 **Lefthook-enforced pre-commit gates**.
 
 Primary references:

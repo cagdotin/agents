@@ -8,10 +8,22 @@ This repository defines global commands, skills, extensions, and themes for codi
 - Current quality status and prioritized gaps: `docs/QUALITY.md`
 - Documentation contribution rules: `docs/CONTRIBUTING-DOCS.md`
 - Active execution plans and debt tracker: `docs/exec-plans/README.md`
+- Planning skill standard: `skills/plan/PLAN.md`
 - Implementation specs for planned/complex work: `docs/specs/`
 - Pi extension API quick reference (repo-focused): `docs/references/pi-api-reference.md`
 - External resources index and capture workflow: `docs/resources/README.md`
 - Extension implementation reference (gold standard): `extensions/todos/`
+
+## Golden Rules
+
+1. **Reuse before inventing** — check `extensions/todos/` and existing patterns before creating new ones.
+2. **Validate at boundaries** — use StringEnum, typed schemas, and frontmatter checks at entry points.
+3. **Shared utilities over hand-rolled helpers** — extract common logic; don't duplicate across extensions.
+4. **Every extension gets a README** — behavior, triggers, setup. No undocumented extensions.
+5. **Repo is the system of record** — if it's not committed, it doesn't exist for agents. No chat-only decisions.
+6. **Mechanical enforcement over convention memory** — if a rule matters, encode it in `bun run check`.
+7. **Agent-legible error messages** — validation failures must say what's wrong, why it matters, and how to fix it.
+8. **Medium+ work requires planning artifacts** — create both a spec (`docs/specs/`) and an execution plan (`docs/exec-plans/active/`) unless the user explicitly waives it.
 
 ## Coding Styles
 

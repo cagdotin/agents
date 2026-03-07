@@ -58,7 +58,7 @@ Primary files/modules affected:
 Secondary touchpoints:
 
 - `docs/QUALITY.md` (after implementation)
-- `docs/exec-plans/active/2026-03-06-harness-alignment-plan.md` (status updates)
+- `docs/exec-plans/completed/2026-03-06-harness-alignment-plan.md` (status updates)
 
 Current flow impacted:
 

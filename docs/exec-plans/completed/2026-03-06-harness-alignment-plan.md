@@ -1,8 +1,9 @@
 # Harness-Engineering Alignment Plan (Recommendations Rollup)
 
-Status: Active  
+Status: Completed  
 Owner: repository maintainers  
 Created: 2026-03-06
+Completed: 2026-03-07
 
 ## Context
 
@@ -168,19 +169,22 @@ References:
 
 ## R10 — Spec-driven planning for complex upcoming extensions
 
-Status: 🟡 active (seeded)
+Status: ✅ complete
 
 Reasoning:
 - High-complexity extension work benefits from explicit execution plans and decision logs.
 - Specs reduce rework and make intent legible for both humans and agents.
 
 Scope:
-- Use `create-spec` skill for complex planned extensions (subagent/team/safety/orchestration).
+- Use `plan` skill for complex planned extensions (subagent/team/safety/orchestration).
 - Store generated specs under `docs/specs/` and cross-link from exec plans.
 
-Implemented seed:
-- Added [[docs/specs/2026-03-06-r9-expert-extension-hardening]] as a concrete spec artifact for upcoming expert-extension hardening work.
+Implemented:
+- Added [[docs/specs/2026-03-06-r9-expert-extension-hardening]] as a concrete spec artifact for expert-extension hardening work.
 - Added [[docs/specs/2026-03-07-damage-control-extension]] to drive default-on safety guardrails work.
+- Upgraded `skills/plan/SKILL.md` to produce **specs and/or execution plans**, including progress-log and decision-log guidance.
+- Added `docs/exec-plans/TEMPLATE.md` to standardize plan structure and logging expectations.
+- Updated `docs/exec-plans/README.md` to clarify spec-vs-plan responsibilities and recommended workflow.
 
 ---
 
@@ -190,9 +194,14 @@ Implemented seed:
 
 ---
 
-## Exit Criteria
+## Completion Notes
 
-This plan can move to `completed/` when:
-- all 🟡 items are resolved,
-- links in [[docs/QUALITY]] are updated,
-- and resulting implementation/docs are reflected in [[docs/ARCHITECTURE]].
+Exit criteria satisfied:
+- ✅ all previously active items resolved,
+- ✅ links in [[docs/QUALITY]] updated,
+- ✅ resulting implementation/docs reflected in repository planning references.
+
+Final outcomes:
+- Added `skills/plan/PLAN.md` as the portable execution-plan standard shipped with the planning skill.
+- Updated skill and docs to default medium/large work to spec + plan (unless waived).
+- Established template and workflow language for living execution plans.

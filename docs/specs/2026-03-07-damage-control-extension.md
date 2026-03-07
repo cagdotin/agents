@@ -69,7 +69,7 @@ Integration points:
 Related docs to update after implementation:
 - `docs/ARCHITECTURE.md` (extension list)
 - `docs/QUALITY.md` (scorecard/gap updates)
-- `docs/exec-plans/active/2026-03-06-harness-alignment-plan.md` (R10 progress linkage)
+- `docs/exec-plans/completed/2026-03-06-harness-alignment-plan.md` (R10 progress linkage)
 
 ## 4. Domain Model
 
