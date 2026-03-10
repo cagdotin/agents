@@ -813,6 +813,8 @@ export function build_plain_text_summary(stats: SessionStats): string {
 		}
 	}
 
+	append_plain_text_timeline(lines, "Read", "reads", details.read_timeline_events);
+
 	if (details.edit_files.length > 0) {
 		lines.push(`Files edited (${details.edit_files.length}):`);
 		for (const f of [...details.edit_files].sort()) {
@@ -820,12 +822,16 @@ export function build_plain_text_summary(stats: SessionStats): string {
 		}
 	}
 
+	append_plain_text_timeline(lines, "Edit", "edits", details.edit_timeline_events);
+
 	if (details.write_files.length > 0) {
 		lines.push(`Files written (${details.write_files.length}):`);
 		for (const f of [...details.write_files].sort()) {
 			lines.push(`  ${f}`);
 		}
 	}
+
+	append_plain_text_timeline(lines, "Write", "writes", details.write_timeline_events);
 
 	const unique = get_unique_models_used(stats);
 	if (unique.length > 0) {
@@ -838,4 +844,28 @@ export function build_plain_text_summary(stats: SessionStats): string {
 	}
 
 	return lines.join("\n");
+}
+
+const PLAIN_TEXT_TIMELINE_MAX_DISPLAY = 20;
+
+function append_plain_text_timeline(lines: string[], label: string, noun: string, events: FileTimelineEvent[]): void {
+	if (events.length === 0) return;
+	const ops = events.filter((e) => e.kind === "file-op");
+	if (ops.length === 0) return;
+
+	lines.push(`${label} timeline (${ops.length} ${noun}):`);
+	let shown = 0;
+	for (const event of events) {
+		if (shown >= PLAIN_TEXT_TIMELINE_MAX_DISPLAY) break;
+		if (event.kind === "user-marker") {
+			lines.push(`  ● user message #${event.user_message_index}`);
+		} else {
+			const order = `${event.op_order}`.padStart(2, "0");
+			lines.push(`  ${order} ${event.path}${event.is_repeat ? " ↺" : ""}`);
+		}
+		shown += 1;
+	}
+	if (events.length > PLAIN_TEXT_TIMELINE_MAX_DISPLAY) {
+		lines.push(`  ... (+${events.length - PLAIN_TEXT_TIMELINE_MAX_DISPLAY} more)`);
+	}
 }
