@@ -48,6 +48,9 @@ Open the stats panel with:
 | `esc`, `q`, `h`, `←` | Back to list view |
 | `g` / `G` | Jump to top / bottom |
 | `r` | Refresh stats |
+| `t` | Toggle file detail mode (Categories ↔ Timeline) |
+| `1` | Switch to Categories mode |
+| `2` | Switch to Timeline mode |
 
 ## Footer
 
@@ -118,9 +121,9 @@ Press `enter` on a tool to see its details. Full-width display — no truncation
 | Tool | Detail content |
 |---|---|
 | Bash | CLI program frequency bar chart |
-| Read | Files grouped by category (◇ Docs, ◆ Skills, △ Tests, ○ Code) |
-| Edit | Unique file list, sorted alphabetically |
-| Write | Unique file list, sorted alphabetically |
+| Read | Files grouped by category **or** chronological timeline (toggle with `t`) |
+| Edit | Files grouped by category **or** chronological timeline (toggle with `t`) |
+| Write | Files grouped by category **or** chronological timeline (toggle with `t`) |
 | expertise | Actions with their domains |
 | todo | Actions with counts |
 
@@ -131,6 +134,31 @@ Files read are automatically categorized:
 - **◆ Skills**: `skills/` prefix, `SKILL.md`
 - **△ Tests**: `__tests__/`, `.test.ts`, `.spec.ts`
 - **○ Code**: everything else
+
+### File Timeline Mode (Read / Edit / Write)
+
+Press `t` (or `2`) in the Read, Edit, or Write detail view to switch to Timeline mode. This shows every file operation in chronological order with:
+
+- **Timestamps**: local `HH:mm:ss` for each event
+- **Order index**: sequential read number across the session
+- **Category icons**: same `◇◆△○` markers as Categories mode
+- **User message markers**: `● user message` lines show where user prompts occurred
+- **Repeat indicator**: `↺` marks files that were read more than once
+
+This lets you answer questions like "After the user's second message, which files did the agent read/edit/write first?" without leaving the panel. Read, Edit, and Write all share the same timeline infrastructure — the mode toggle (`t`, `1`, `2`) works identically for all three tools.
+
+```
+16:09:01  ● user message
+
+16:09:03  01 ◇ docs/ARCHITECTURE.md
+16:09:05  02 ◆ skills/plan/SKILL.md
+16:09:07  03 ○ extensions/session-stats/tracker.ts
+
+16:10:10  ● user message
+
+16:10:11  04 ◇ docs/QUALITY.md
+16:10:12  05 ◇ docs/QUALITY.md  ↺
+```
 
 ## Non-UI Mode
 
