@@ -1,7 +1,7 @@
 # Tech Debt Tracker
 
 Status: active  
-Last updated: 2026-03-07
+Last updated: 2026-03-10
 
 This file tracks known debt surfaced during architecture/quality review.
 
@@ -20,29 +20,7 @@ Related:
 
 ## P1 Debt
 
-## 1) Expert domain matching precision
-
-Impact:
-- Potentially wrong/missing expertise injection.
-
-Planned remediation:
-- Implement R9 matching improvements.
-
-## 2) Expertise context budget safeguards
-
-Impact:
-- Potential context overuse and degraded generation quality.
-
-Planned remediation:
-- Implement R9 budget checks before injection.
-
-## 3) Expert command UX gaps
-
-Impact:
-- More operator friction than necessary for reflection workflows.
-
-Planned remediation:
-- Implement R9 UX sub-items.
+- None currently. (Expert R9 items — matching precision, context budget safeguards, command UX gaps — were resolved as of 2026-03-07; expert is now rated 4/4 in QUALITY.md.)
 
 ---
 

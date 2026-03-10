@@ -1,6 +1,6 @@
 # Session Stats Phase 2: Tool Details & Two-Column Panel
 
-Status: Active
+Status: Completed
 Owner: agent
 Created: 2026-03-07
 Spec: [[docs/specs/2026-03-07-session-stats-phase2-tool-details.md]]

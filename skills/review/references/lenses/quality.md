@@ -6,6 +6,7 @@
 - Dead code, stale branches, or temporary code that became permanent
 - Error messages, logs, and comments that are noisy, vague, or misleading
 - Missing or outdated docs for user-facing or maintenance-critical changes
+- Implementation changes that outgrow the documented scope without updating surrounding docs or plans
 - Accessibility issues when UI behavior, markup, or interactions change
 
 ## Questions to ask
@@ -22,6 +23,7 @@
 - Misleading names that no longer match the behavior
 - Debug logging that adds noise without diagnostic value
 - Comments that restate the code while hiding missing explanation elsewhere
+- Behavior that quietly expands beyond the agreed or documented change boundary
 - UI changes missing labels, focus handling, contrast, or keyboard support
 
 ## Context to gather

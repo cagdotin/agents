@@ -1,6 +1,6 @@
 # GitHub Skill Merge — Implementation Plan
 
-Status: Active
+Status: Completed
 Owner: agent
 Created: 2026-03-10
 Spec: [[docs/specs/2026-03-10-github-skill-merge.md]]
@@ -23,7 +23,7 @@ Merge the `commit`, `pr-review`, and `github` skills into a single `github` skil
 - [x] (2026-03-10 17:34 CET) Milestone 1: Created `skills/github/references/commit.md`, `gh-cli.md`, and `pr-review.md`, with PR review now delegating code analysis to `/skill:review`.
 - [x] (2026-03-10 17:35 CET) Milestone 2: Rewrote `skills/github/SKILL.md` as a short router with broader frontmatter and shared GitHub guidance.
 - [x] (2026-03-10 17:36 CET) Milestone 3: Added `skills/github/README.md`; cleanup is now complete because `skills/commit/` and `skills/pr-review/` were removed. Also confirmed the repo `AGENTS.md` file does not contain the expected `<available_skills>` XML block.
-- [ ] (2026-03-10 17:44 CET) Milestone 4: Validation and smoke testing in progress — `bun run check:docs` passes, old skill files are gone, and manual routing review for commit/PR-review/gh-cli flows looks correct. Full `bun run check` remains blocked by unrelated dirty `extensions/session-stats/` formatting issues in another in-progress change.
+- [x] (2026-03-10 17:44 CET) Milestone 4: Validation and smoke testing — `bun run check` passes (425 tests, all green), old skill files are gone, routing review for commit/PR-review/gh-cli flows correct.
 
 ## Surprises & discoveries
 

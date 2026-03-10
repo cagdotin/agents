@@ -1,7 +1,7 @@
 # ARCHITECTURE
 
 Status: active
-Last updated: 2026-03-05
+Last updated: 2026-03-10
 
 ---
 
@@ -29,6 +29,10 @@ Key extensions to know by name:
   **Gold-standard reference** for new extension development.
 - `expert` — Domain expertise memory (`.pi/expertise/` YAML files).
   Reflection pipeline, context-budget-aware injection, slash command.
+- `damage-control` — Default-on safety guardrails for YOLO mode. Layered
+  rule engine (bundled + global + project), policy panel, and session logging.
+- `session-stats` — In-session observability panel. Tool call bar charts,
+  per-tool detail drill-downs, file timeline mode, model history.
 - `answer` — LLM extraction of questions from assistant output,
   structured answer collection. Model-selection pattern lives here.
 - `tmux-notify` and `tmux-pane-title` — Lightweight tmux integrations

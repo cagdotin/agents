@@ -1,6 +1,6 @@
 domain: extensions-dev
-description: "Cross-extension conventions for docs-first delivery and schema-first boundary validation: TypeBox/StringEnum for tool params, Zod for runtime parsing."
-last_synced: "2026-03-07T16:07:00Z"
+description: "Cross-extension conventions for docs-first delivery, schema-first boundary validation, and skill architecture: TypeBox/StringEnum for tool params, Zod for runtime parsing."
+last_synced: "2026-03-10T17:46:00Z"
 
 scope:
   paths:
@@ -10,6 +10,8 @@ scope:
     - docs/specs/
     - docs/resources/
     - skills/plan/
+    - skills/review/
+    - skills/github/
     - scripts/validate-docs.ts
     - scripts/__tests__/validate-docs.test.ts
     - extensions/answer/
@@ -25,63 +27,60 @@ overview: |
   - spec (`docs/specs/`) for design intent
   - execution plan (`docs/exec-plans/`) for rollout state
 
-  Validation doctrine is explicit and now documented in canonical repo guidance:
+  Validation doctrine:
   - TypeBox + `StringEnum` for Pi tool parameter contracts
   - Zod for runtime boundary parsing (YAML/JSON/frontmatter/LLM output)
 
-  Key lesson from this rollout: schema-first must be applied consistently across similar boundaries
-  (not just one function) to avoid mixed validation styles and follow-up rework.
+  Skills are repo-agnostic instruction bundles — they must work on any repository/project, not just this one.
 
 patterns:
-  - "For medium/large initiatives, create both spec + execution plan by default; skip one only with explicit user waiver."
-  - "Create spec first, then execution plan, and cross-link both artifacts."
-  - "Treat execution plans as living docs; keep progress/decision/discovery sections current and move plans from `active/` to `completed/` when done."
-  - "When plans move lifecycle state, update `docs/exec-plans/README.md` index links in the same change."
   - "Use schema-first boundary validation: define one Zod contract per external payload and parse once; avoid split manual-vs-schema paths."
-  - "When migrating a module to schema-first, migrate sibling boundaries in that module together (e.g., resource + skill frontmatter) to prevent doctrine drift."
+  - "When migrating a module to schema-first, migrate sibling boundaries in that module together to prevent doctrine drift."
   - "Keep tool registration schemas TypeBox-compatible (`StringEnum` for enums); apply Zod inside runtime parsing paths."
   - "Keep validation diagnostics agent-legible: map Zod issues to stable, actionable messages/hints instead of exposing raw parser errors."
   - "For persisted user-editable or legacy data, preserve compatibility by normalizing field-by-field instead of hard-failing whole payloads."
-  - "When doctrine changes, update canonical surfaces together (`AGENTS.md`, `docs/ARCHITECTURE.md`, relevant specs/plans/skills/tests)."
-  - "Prefer mechanical enforcement (`bun run check`) over convention-memory."
+  - "Use a short router `SKILL.md` plus focused `references/` files when a skill spans multiple related workflows. This keeps the auto-load description compact while preserving detailed guidance on demand."
 
 design_decisions:
+  - reason: "Skills must be repo-agnostic — no tooling assumptions"
+    detail: "Never embed project-specific tooling, paths, validation commands, or package manager invocations (bun/npm/etc.) into a skill or its lens/reference files. The skill defines general methodology; repo-specific behavior belongs to the invoking context or the repo's own CI/hooks."
+  - reason: "Review skill owns judgment, not mechanical validation"
+    detail: "Linting/type-checking/formatting/repo-specific rules belong to CI/hooks/pre-commit. The review skill focuses on non-automatable concerns (correctness gaps, security risks, architectural drift, missing edge cases, misleading docs/tests). Passing automated checks is never proof a change is good."
+  - reason: "Core skills are composed, not embedded"
+    detail: "`skills/review/` is the reusable analysis primitive. The merged `skills/github/` router handles commit workflow, GitHub CLI tasks, and PR-review ceremony, while its PR-review reference delegates substantive code analysis to `/skill:review`."
+  - reason: "Related workflows consolidate into one router skill when prompt footprint matters"
+    detail: "`commit`, `pr-review`, and `github` were merged into one `github` skill because they share context and otherwise consume three separate auto-load descriptions. Use the broader, ecosystem-specific name (`github`, not `git`) when most workflows are tied to one toolchain."
   - reason: "Specs and execution plans are intentionally separate"
     detail: "Specs are relatively stable design contracts; execution plans are mutable operational logs. Separation keeps lifecycle and ownership clear."
   - reason: "Planning standard is skill-local, not repo-root"
     detail: "Canonical plan structure lives in `skills/plan/PLAN.md` so planning behavior stays portable across repositories."
-  - reason: "Hybrid validation over full schema unification"
+  - reason: "Hybrid validation: TypeBox for tool registration, Zod for runtime boundaries"
     detail: "Pi tool registration expects TypeBox `TSchema`; using Zod at runtime boundaries improves safety without risking tool interface compatibility."
-  - reason: "Docs frontmatter validation uses typed Zod contracts for both resources and skills"
-    detail: "Contract-first parsing reduces ad-hoc logic drift; README length/heading checks remain manual because they are policy heuristics, not data contracts."
   - reason: "Do not emit raw Zod errors to users/agents"
     detail: "Curated error/hint mapping keeps diagnostics stable, actionable, and testable across refactors."
-  - reason: "Compatibility-preserving hardening over breakage"
-    detail: "Boundary strictness increased while retaining tolerant behavior for existing user-managed files and legacy formats."
 
 gotchas:
   - "Path-targeted Biome checks can report `No files were processed` due ignore config; rely on repo scripts (`bun run check`) for intended coverage."
   - "Repo-wide `bun run check` may fail on unrelated dirty/baseline files; explicitly separate unrelated failures from your change."
-  - "Docs validation now uses real YAML parsing + Zod contracts for resource/skill frontmatter; syntax-invalid frontmatter fails `bun run check:docs`."
+  - "Docs validation enforces SKILL.md frontmatter (name must match directory) but does NOT enforce skill README existence — that's only enforced for extensions."
   - "In resource frontmatter validation, semantically-empty required values (e.g., `tags: []`) are intentionally reported as 'missing required frontmatter field'."
-  - "Manual settings files with wrong scalar types are tolerated field-by-field and defaulted; this can look like settings were silently reset."
   - "Legacy todo JSON-frontmatter migration sanitizes/coerces mixed primitive types instead of strict rejection; odd legacy values may survive as normalized strings."
   - "Vitest aliases Pi packages to local mocks; missing mock exports often surface as runtime `... is not a function` errors."
+  - "Implementation plans may reference repo-local validation (e.g., `bun run check:docs`) for verifying the work in *this* repo — but that must never leak into a skill's own behavior/instructions."
+  - "Damage-Control blocks `rm -rf`; destructive cleanup steps in plans may need a manual/user-performed delete even when the design is otherwise complete."
+  - "When generating artifacts (skill taxonomy, lens structure, etc.), trust the initial design instinct. The agent makes better taxonomy decisions during generation than during second-guessing review — avoid reopening decisions that were already correct."
 
 references:
   - "Global workflow + validation policy: AGENTS.md"
   - "Repository architecture/invariants: docs/ARCHITECTURE.md"
   - "Execution-plan conventions/lifecycle: docs/exec-plans/README.md"
   - "Canonical execution-plan standard: skills/plan/PLAN.md"
-  - "Docs validator boundary contracts: scripts/validate-docs.ts"
-  - "Docs validator regression coverage: scripts/__tests__/validate-docs.test.ts"
-  - "Expert settings/reflection tolerance patterns: extensions/expert/storage.ts"
-  - "Todos settings + legacy frontmatter tolerance: extensions/todos/storage.ts"
+  - "Review skill spec: docs/specs/2026-03-10-review-skill.md"
+  - "GitHub skill merge spec: docs/specs/2026-03-10-github-skill-merge.md"
   - "Hybrid validation spec: docs/specs/2026-03-07-zod-hybrid-validation-integration.md"
-  - "Hybrid validation rollout record: docs/exec-plans/completed/2026-03-07-zod-hybrid-validation-integration.md"
 
 codebase_concerns:
   - "This domain still mixes planning-governance and runtime-validation/testing conventions; split into narrower expertise domains if retrieval quality drops."
   - "Agent-friendly Zod issue mapping is repeated across modules/scripts; consider a shared formatter/helper to reduce drift in wording/hints."
   - "Boundary coverage still depends on manual sweeps (grep for YAML.parse/JSON.parse); add a lightweight lint/checklist guard so missed parsers are caught automatically."
-  - "Cross-cutting doctrine spans multiple canonical docs; drift risk remains unless consistency checks are automated."
+  - "Skill README enforcement gap: extensions require READMEs via validate-docs.ts but skills do not — this asymmetry should either be documented as intentional or fixed."

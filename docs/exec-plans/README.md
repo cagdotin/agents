@@ -40,11 +40,14 @@ Use `skills/plan` for both artifact types.
 
 ## Current active plans
 
-- [[docs/exec-plans/active/2026-03-07-session-stats-extension]]
-- [[docs/exec-plans/active/2026-03-07-session-stats-phase2-tool-details]]
+- [[docs/exec-plans/active/2026-03-07-session-stats-extension]] — session stats panel (pending live verification)
 
 ## Recently completed
 
+- [[docs/exec-plans/completed/2026-03-10-review-skill]] — standalone review skill with lens-based methodology
+- [[docs/exec-plans/completed/2026-03-10-github-skill-merge]] — merge commit + pr-review + github into one skill
+- [[docs/exec-plans/completed/2026-03-10-session-stats-read-timeline-mode]] — file operation timeline mode for session-stats
+- [[docs/exec-plans/completed/2026-03-07-session-stats-phase2-tool-details]] — tool detail drill-downs for session-stats
 - [[docs/exec-plans/completed/2026-03-07-zod-hybrid-validation-integration]]
 - [[docs/exec-plans/completed/2026-03-06-harness-alignment-plan]]
 - [[docs/exec-plans/completed/2026-03-06-pre-commit-quality-gates-lefthook]]

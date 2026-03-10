@@ -17,6 +17,7 @@ agents/
 │   ├── answer/
 │   ├── damage-control/
 │   ├── expert/
+│   ├── session-stats/
 │   ├── todos/
 │   ├── tmux-notify/
 │   └── tmux-pane-title/

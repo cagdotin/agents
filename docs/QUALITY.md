@@ -1,7 +1,7 @@
 # QUALITY
 
 Status: active  
-Last updated: 2026-03-07
+Last updated: 2026-03-10
 
 This scorecard tracks maintainability and readiness of this package for day-to-day agent use.
 
@@ -24,11 +24,12 @@ This scorecard tracks maintainability and readiness of this package for day-to-d
 | `extensions/todos` | 3 | Good | Strong implementation and TUI; docs were stale and are now refreshed |
 | `extensions/expert` | 4 | Excellent | Matching now uses aliases/keywords/pattern hints, injection is context-budget-aware, and `/expert log` + `/expert init` close the main UX gaps |
 | `extensions/damage-control` | 3 | Good | Default-on guardrails for YOLO mode with layered rules (bundled + global + nearest project); keep tuning false-positive/false-negative balance |
+| `extensions/session-stats` | 3 | Good | In-session observability panel with tool call charts, detail drill-downs, file timeline mode, and model history; 97 unit tests |
 | `extensions/tmux-notify` | 3 | Good | Useful and focused; now documented |
 | `extensions/tmux-pane-title` | 3 | Good | Useful and focused; now documented |
 | Skills (`skills/*`) | 3 | Good | Consistent SKILL format and clear purpose |
 | Mechanical validation | 4 | Excellent | `bun run check` gates Biome + docs validation + Vitest; Lefthook pre-commit runs all three in parallel |
-| Automated testing | 3 | Good | 246 unit tests across 11 files covering Tier 1 (pure logic) and Tier 2 (mocked Pi imports); no LLM calls in tests; Tier 3 (runtime integration) deferred |
+| Automated testing | 3 | Good | 425 unit tests across 15 files covering Tier 1 (pure logic) and Tier 2 (mocked Pi imports); no LLM calls in tests; Tier 3 (runtime integration) deferred |
 
 ---
 
@@ -36,7 +37,7 @@ This scorecard tracks maintainability and readiness of this package for day-to-d
 
 Vitest is the test runner, invoked via `bun run test`. Tests live in `__tests__/` directories co-located with each extension. Shared mocks for `@mariozechner/*` peer dependencies live in `extensions/__mocks__/` and are resolved via Vitest aliases — no real Pi runtime or LLM calls are ever made.
 
-**Coverage baseline (2026-03-07):** 246 tests, 11 files, ~315ms.
+**Coverage baseline (2026-03-10):** 425 tests, 15 files, ~1s.
 
 ### Known Code Issues Found During Testing
 
