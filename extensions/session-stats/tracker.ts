@@ -1,4 +1,11 @@
-import type { FileCategory, ModelUsageEntry, SessionStats, ToolDetails, ToolTally } from "./types.js";
+import type {
+	FileCategory,
+	FileTimelineEvent,
+	ModelUsageEntry,
+	SessionStats,
+	ToolDetails,
+	ToolTally,
+} from "./types.js";
 
 export function create_stats(): SessionStats {
 	return {
@@ -26,6 +33,9 @@ function create_tool_details(): ToolDetails {
 		write_files: [],
 		expertise_actions: new Map(),
 		todo_actions: new Map(),
+		read_timeline_events: [],
+		edit_timeline_events: [],
+		write_timeline_events: [],
 	};
 }
 
@@ -55,6 +65,12 @@ export function reconstruct_stats(
 	}
 
 	let last_was_user = false;
+	let current_user_message_index = 0;
+
+	// Per-tool timeline tracking state
+	const read_timeline = create_timeline_tracker(stats.tool_details.read_timeline_events);
+	const edit_timeline = create_timeline_tracker(stats.tool_details.edit_timeline_events);
+	const write_timeline = create_timeline_tracker(stats.tool_details.write_timeline_events);
 
 	for (const entry of branch_entries) {
 		if (entry.type === "message") {
@@ -82,6 +98,17 @@ export function reconstruct_stats(
 						for (const block of content) {
 							if (block.type === "toolCall" && block.name && block.arguments) {
 								extract_tool_call_detail(stats.tool_details, block.name, block.arguments as Record<string, string>);
+
+								const name_lower = block.name.toLowerCase();
+								const path = (block.arguments as Record<string, string>).path;
+
+								if (name_lower === "read" && typeof path === "string") {
+									emit_file_timeline_event(read_timeline, path, entry.timestamp, current_user_message_index);
+								} else if (name_lower === "edit" && typeof path === "string") {
+									emit_file_timeline_event(edit_timeline, path, entry.timestamp, current_user_message_index);
+								} else if (name_lower === "write" && typeof path === "string") {
+									emit_file_timeline_event(write_timeline, path, entry.timestamp, current_user_message_index);
+								}
 							}
 						}
 					}
@@ -90,6 +117,15 @@ export function reconstruct_stats(
 				case "user": {
 					stats.user_prompt_count += 1;
 					last_was_user = true;
+					current_user_message_index += 1;
+					const user_marker = {
+						kind: "user-marker" as const,
+						timestamp: entry.timestamp,
+						user_message_index: current_user_message_index,
+					};
+					read_timeline.events.push(user_marker);
+					edit_timeline.events.push({ ...user_marker });
+					write_timeline.events.push({ ...user_marker });
 					break;
 				}
 				case "bashExecution": {
@@ -198,6 +234,38 @@ export function get_unique_models_used(stats: SessionStats): ModelUsageEntry[] {
 		}
 	}
 	return unique;
+}
+
+// ── file timeline helpers ────────────────────────────────────
+
+interface TimelineTracker {
+	events: FileTimelineEvent[];
+	order_counter: number;
+	seen_paths: Set<string>;
+}
+
+function create_timeline_tracker(events: FileTimelineEvent[]): TimelineTracker {
+	return { events, order_counter: 0, seen_paths: new Set() };
+}
+
+function emit_file_timeline_event(
+	tracker: TimelineTracker,
+	path: string,
+	timestamp: string,
+	user_message_index: number,
+): void {
+	tracker.order_counter += 1;
+	const is_repeat = tracker.seen_paths.has(path);
+	tracker.seen_paths.add(path);
+	tracker.events.push({
+		kind: "file-op",
+		timestamp,
+		op_order: tracker.order_counter,
+		path,
+		category: categorize_file(path),
+		user_message_index,
+		is_repeat,
+	});
 }
 
 // ── tool detail extraction ──────────────────────────────────

@@ -24,10 +24,33 @@ export interface ToolDetails {
 	expertise_actions: Map<string, string[]>;
 	/** todo: action → count */
 	todo_actions: Map<string, number>;
+	/** Chronological read events interleaved with user-message markers. */
+	read_timeline_events: FileTimelineEvent[];
+	/** Chronological edit events interleaved with user-message markers. */
+	edit_timeline_events: FileTimelineEvent[];
+	/** Chronological write events interleaved with user-message markers. */
+	write_timeline_events: FileTimelineEvent[];
 }
 
 /** File category for read files. */
 export type FileCategory = "docs" | "skills" | "tests" | "code";
+
+/** A single event in a file-operation timeline — either a user-message boundary or a file op. */
+export type FileTimelineEvent =
+	| {
+			kind: "user-marker";
+			timestamp: string;
+			user_message_index: number;
+	  }
+	| {
+			kind: "file-op";
+			timestamp: string;
+			op_order: number;
+			path: string;
+			category: FileCategory;
+			user_message_index: number;
+			is_repeat: boolean;
+	  };
 
 export interface SessionStats {
 	session_started_at: string | null;
