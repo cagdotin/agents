@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { build_plain_text_summary } from "../panel.js";
 import {
 	categorize_file,
 	extract_bash_programs,
@@ -73,6 +74,9 @@ function create_empty_tool_details(): ToolDetails {
 		write_files: [],
 		expertise_actions: new Map(),
 		todo_actions: new Map(),
+		read_timeline_events: [],
+		edit_timeline_events: [],
+		write_timeline_events: [],
 	};
 }
 
@@ -669,5 +673,551 @@ describe("reconstruct_stats with tool call arguments", () => {
 		const stats = reconstruct_stats(entries);
 		expect(stats.tool_details.bash_programs.size).toBe(0);
 		expect(stats.turn_count).toBe(1);
+	});
+});
+
+// ── Phase 3: Read timeline events ───────────────────────────
+
+describe("read_timeline_events", () => {
+	it("emits user markers and read events in branch order", () => {
+		const entries = [
+			user_entry("2026-03-10T10:00:00Z"),
+			assistant_with_tool_calls([{ name: "Read", arguments: { path: "docs/README.md" } }], "2026-03-10T10:00:05Z"),
+			tool_result_entry("Read", false, "2026-03-10T10:00:06Z"),
+			user_entry("2026-03-10T10:01:00Z"),
+			assistant_with_tool_calls([{ name: "Read", arguments: { path: "src/index.ts" } }], "2026-03-10T10:01:05Z"),
+			tool_result_entry("Read", false, "2026-03-10T10:01:06Z"),
+		];
+		const stats = reconstruct_stats(entries);
+		const events = stats.tool_details.read_timeline_events;
+
+		expect(events).toHaveLength(4);
+		expect(events[0]).toEqual({
+			kind: "user-marker",
+			timestamp: "2026-03-10T10:00:00Z",
+			user_message_index: 1,
+		});
+		expect(events[1]).toMatchObject({
+			kind: "file-op",
+			op_order: 1,
+			path: "docs/README.md",
+			category: "docs",
+			user_message_index: 1,
+		});
+		expect(events[2]).toEqual({
+			kind: "user-marker",
+			timestamp: "2026-03-10T10:01:00Z",
+			user_message_index: 2,
+		});
+		expect(events[3]).toMatchObject({
+			kind: "file-op",
+			op_order: 2,
+			path: "src/index.ts",
+			category: "code",
+			user_message_index: 2,
+		});
+	});
+
+	it("assigns op_order sequentially across all reads", () => {
+		const entries = [
+			user_entry("2026-03-10T10:00:00Z"),
+			assistant_with_tool_calls(
+				[
+					{ name: "Read", arguments: { path: "a.ts" } },
+					{ name: "Read", arguments: { path: "b.ts" } },
+					{ name: "Read", arguments: { path: "c.ts" } },
+				],
+				"2026-03-10T10:00:05Z",
+			),
+			tool_result_entry("Read"),
+			tool_result_entry("Read"),
+			tool_result_entry("Read"),
+		];
+		const stats = reconstruct_stats(entries);
+		const reads = stats.tool_details.read_timeline_events.filter((e) => e.kind === "file-op");
+
+		expect(reads).toHaveLength(3);
+		expect(reads[0].op_order).toBe(1);
+		expect(reads[1].op_order).toBe(2);
+		expect(reads[2].op_order).toBe(3);
+	});
+
+	it("marks repeat reads with is_repeat", () => {
+		const entries = [
+			user_entry("2026-03-10T10:00:00Z"),
+			assistant_with_tool_calls([{ name: "Read", arguments: { path: "src/index.ts" } }], "2026-03-10T10:00:05Z"),
+			tool_result_entry("Read"),
+			user_entry("2026-03-10T10:01:00Z"),
+			assistant_with_tool_calls([{ name: "Read", arguments: { path: "src/index.ts" } }], "2026-03-10T10:01:05Z"),
+			tool_result_entry("Read"),
+		];
+		const stats = reconstruct_stats(entries);
+		const reads = stats.tool_details.read_timeline_events.filter((e) => e.kind === "file-op");
+
+		expect(reads[0].is_repeat).toBe(false);
+		expect(reads[1].is_repeat).toBe(true);
+	});
+
+	it("assigns user_message_index 0 for reads before any user message", () => {
+		// This can happen if assistant messages appear before the first user message
+		// (e.g. system-injected tool calls)
+		const entries = [
+			assistant_with_tool_calls([{ name: "Read", arguments: { path: "config.json" } }], "2026-03-10T10:00:00Z"),
+			tool_result_entry("Read"),
+			user_entry("2026-03-10T10:01:00Z"),
+			assistant_with_tool_calls([{ name: "Read", arguments: { path: "src/app.ts" } }], "2026-03-10T10:01:05Z"),
+			tool_result_entry("Read"),
+		];
+		const stats = reconstruct_stats(entries);
+		const reads = stats.tool_details.read_timeline_events.filter((e) => e.kind === "file-op");
+
+		expect(reads[0].user_message_index).toBe(0);
+		expect(reads[1].user_message_index).toBe(1);
+	});
+
+	it("assigns correct categories to timeline read events", () => {
+		const entries = [
+			user_entry("2026-03-10T10:00:00Z"),
+			assistant_with_tool_calls(
+				[
+					{ name: "Read", arguments: { path: "docs/ARCHITECTURE.md" } },
+					{ name: "Read", arguments: { path: "skills/plan/SKILL.md" } },
+					{ name: "Read", arguments: { path: "extensions/foo/__tests__/bar.test.ts" } },
+					{ name: "Read", arguments: { path: "extensions/foo/index.ts" } },
+				],
+				"2026-03-10T10:00:05Z",
+			),
+			tool_result_entry("Read"),
+			tool_result_entry("Read"),
+			tool_result_entry("Read"),
+			tool_result_entry("Read"),
+		];
+		const stats = reconstruct_stats(entries);
+		const reads = stats.tool_details.read_timeline_events.filter((e) => e.kind === "file-op");
+
+		expect(reads[0].category).toBe("docs");
+		expect(reads[1].category).toBe("skills");
+		expect(reads[2].category).toBe("tests");
+		expect(reads[3].category).toBe("code");
+	});
+
+	it("preserves existing read_files unique list alongside timeline events", () => {
+		const entries = [
+			user_entry("2026-03-10T10:00:00Z"),
+			assistant_with_tool_calls(
+				[
+					{ name: "Read", arguments: { path: "a.ts" } },
+					{ name: "Read", arguments: { path: "b.ts" } },
+				],
+				"2026-03-10T10:00:05Z",
+			),
+			tool_result_entry("Read"),
+			tool_result_entry("Read"),
+			user_entry("2026-03-10T10:01:00Z"),
+			assistant_with_tool_calls([{ name: "Read", arguments: { path: "a.ts" } }], "2026-03-10T10:01:05Z"),
+			tool_result_entry("Read"),
+		];
+		const stats = reconstruct_stats(entries);
+
+		// Unique list unchanged
+		expect(stats.tool_details.read_files).toEqual(["a.ts", "b.ts"]);
+		// Timeline has all 3 reads + 2 user markers
+		expect(stats.tool_details.read_timeline_events).toHaveLength(5);
+		const reads = stats.tool_details.read_timeline_events.filter((e) => e.kind === "file-op");
+		expect(reads).toHaveLength(3);
+	});
+
+	it("handles session with no read calls — empty timeline", () => {
+		const entries = [
+			user_entry("2026-03-10T10:00:00Z"),
+			assistant_with_tool_calls([{ name: "Bash", arguments: { command: "ls" } }], "2026-03-10T10:00:05Z"),
+			tool_result_entry("Bash"),
+		];
+		const stats = reconstruct_stats(entries);
+		const events = stats.tool_details.read_timeline_events;
+
+		// Only user marker, no read events
+		expect(events).toHaveLength(1);
+		expect(events[0].kind).toBe("user-marker");
+	});
+
+	it("handles multiple reads in a multi-turn agent loop", () => {
+		const entries = [
+			user_entry("2026-03-10T10:00:00Z"),
+			assistant_with_tool_calls([{ name: "Read", arguments: { path: "docs/README.md" } }], "2026-03-10T10:00:05Z"),
+			tool_result_entry("Read"),
+			assistant_with_tool_calls(
+				[
+					{ name: "Read", arguments: { path: "src/a.ts" } },
+					{ name: "Read", arguments: { path: "src/b.ts" } },
+				],
+				"2026-03-10T10:00:10Z",
+			),
+			tool_result_entry("Read"),
+			tool_result_entry("Read"),
+			user_entry("2026-03-10T10:01:00Z"),
+			assistant_with_tool_calls([{ name: "Read", arguments: { path: "src/c.ts" } }], "2026-03-10T10:01:05Z"),
+			tool_result_entry("Read"),
+		];
+		const stats = reconstruct_stats(entries);
+		const events = stats.tool_details.read_timeline_events;
+
+		// user1, read1, read2, read3, user2, read4
+		expect(events).toHaveLength(6);
+		expect(events[0].kind).toBe("user-marker");
+		expect(events[1]).toMatchObject({ kind: "file-op", op_order: 1, path: "docs/README.md" });
+		expect(events[2]).toMatchObject({ kind: "file-op", op_order: 2, path: "src/a.ts" });
+		expect(events[3]).toMatchObject({ kind: "file-op", op_order: 3, path: "src/b.ts" });
+		expect(events[4].kind).toBe("user-marker");
+		expect(events[5]).toMatchObject({ kind: "file-op", op_order: 4, path: "src/c.ts" });
+	});
+});
+
+// ── Edit timeline events ────────────────────────────────────
+
+describe("edit_timeline_events", () => {
+	it("emits user markers and edit events in branch order", () => {
+		const entries = [
+			user_entry("2026-03-10T10:00:00Z"),
+			assistant_with_tool_calls(
+				[{ name: "Edit", arguments: { path: "src/index.ts", oldText: "a", newText: "b" } }],
+				"2026-03-10T10:00:05Z",
+			),
+			tool_result_entry("Edit", false, "2026-03-10T10:00:06Z"),
+			user_entry("2026-03-10T10:01:00Z"),
+			assistant_with_tool_calls(
+				[{ name: "Edit", arguments: { path: "src/utils.ts", oldText: "x", newText: "y" } }],
+				"2026-03-10T10:01:05Z",
+			),
+			tool_result_entry("Edit", false, "2026-03-10T10:01:06Z"),
+		];
+		const stats = reconstruct_stats(entries);
+		const events = stats.tool_details.edit_timeline_events;
+
+		expect(events).toHaveLength(4);
+		expect(events[0]).toEqual({
+			kind: "user-marker",
+			timestamp: "2026-03-10T10:00:00Z",
+			user_message_index: 1,
+		});
+		expect(events[1]).toMatchObject({
+			kind: "file-op",
+			op_order: 1,
+			path: "src/index.ts",
+			category: "code",
+			user_message_index: 1,
+			is_repeat: false,
+		});
+		expect(events[2]).toEqual({
+			kind: "user-marker",
+			timestamp: "2026-03-10T10:01:00Z",
+			user_message_index: 2,
+		});
+		expect(events[3]).toMatchObject({
+			kind: "file-op",
+			op_order: 2,
+			path: "src/utils.ts",
+			category: "code",
+			user_message_index: 2,
+		});
+	});
+
+	it("marks repeat edits with is_repeat", () => {
+		const entries = [
+			user_entry("2026-03-10T10:00:00Z"),
+			assistant_with_tool_calls(
+				[{ name: "Edit", arguments: { path: "src/index.ts", oldText: "a", newText: "b" } }],
+				"2026-03-10T10:00:05Z",
+			),
+			tool_result_entry("Edit"),
+			assistant_with_tool_calls(
+				[{ name: "Edit", arguments: { path: "src/index.ts", oldText: "b", newText: "c" } }],
+				"2026-03-10T10:00:10Z",
+			),
+			tool_result_entry("Edit"),
+		];
+		const stats = reconstruct_stats(entries);
+		const edits = stats.tool_details.edit_timeline_events.filter((e) => e.kind === "file-op");
+
+		expect(edits).toHaveLength(2);
+		expect(edits[0].is_repeat).toBe(false);
+		expect(edits[1].is_repeat).toBe(true);
+	});
+
+	it("has independent op_order from read timeline", () => {
+		const entries = [
+			user_entry("2026-03-10T10:00:00Z"),
+			assistant_with_tool_calls(
+				[
+					{ name: "Read", arguments: { path: "src/a.ts" } },
+					{ name: "Edit", arguments: { path: "src/a.ts", oldText: "x", newText: "y" } },
+					{ name: "Read", arguments: { path: "src/b.ts" } },
+					{ name: "Edit", arguments: { path: "src/b.ts", oldText: "p", newText: "q" } },
+				],
+				"2026-03-10T10:00:05Z",
+			),
+			tool_result_entry("Read"),
+			tool_result_entry("Edit"),
+			tool_result_entry("Read"),
+			tool_result_entry("Edit"),
+		];
+		const stats = reconstruct_stats(entries);
+
+		const reads = stats.tool_details.read_timeline_events.filter((e) => e.kind === "file-op");
+		const edits = stats.tool_details.edit_timeline_events.filter((e) => e.kind === "file-op");
+
+		// Read and edit have independent ordering
+		expect(reads[0].op_order).toBe(1);
+		expect(reads[1].op_order).toBe(2);
+		expect(edits[0].op_order).toBe(1);
+		expect(edits[1].op_order).toBe(2);
+	});
+
+	it("preserves existing edit_files unique list alongside timeline events", () => {
+		const entries = [
+			user_entry("2026-03-10T10:00:00Z"),
+			assistant_with_tool_calls(
+				[
+					{ name: "Edit", arguments: { path: "a.ts", oldText: "1", newText: "2" } },
+					{ name: "Edit", arguments: { path: "b.ts", oldText: "3", newText: "4" } },
+				],
+				"2026-03-10T10:00:05Z",
+			),
+			tool_result_entry("Edit"),
+			tool_result_entry("Edit"),
+			user_entry("2026-03-10T10:01:00Z"),
+			assistant_with_tool_calls(
+				[{ name: "Edit", arguments: { path: "a.ts", oldText: "2", newText: "5" } }],
+				"2026-03-10T10:01:05Z",
+			),
+			tool_result_entry("Edit"),
+		];
+		const stats = reconstruct_stats(entries);
+
+		// Unique list unchanged
+		expect(stats.tool_details.edit_files).toEqual(["a.ts", "b.ts"]);
+		// Timeline has all 3 edits + 2 user markers
+		expect(stats.tool_details.edit_timeline_events).toHaveLength(5);
+		const edits = stats.tool_details.edit_timeline_events.filter((e) => e.kind === "file-op");
+		expect(edits).toHaveLength(3);
+	});
+
+	it("all timelines get user markers even when only one tool is used", () => {
+		const entries = [
+			user_entry("2026-03-10T10:00:00Z"),
+			assistant_with_tool_calls([{ name: "Read", arguments: { path: "docs/README.md" } }], "2026-03-10T10:00:05Z"),
+			tool_result_entry("Read"),
+		];
+		const stats = reconstruct_stats(entries);
+
+		expect(stats.tool_details.read_timeline_events).toHaveLength(2);
+		expect(stats.tool_details.edit_timeline_events).toHaveLength(1);
+		expect(stats.tool_details.edit_timeline_events[0].kind).toBe("user-marker");
+		expect(stats.tool_details.write_timeline_events).toHaveLength(1);
+		expect(stats.tool_details.write_timeline_events[0].kind).toBe("user-marker");
+	});
+});
+
+// ── Write timeline events ───────────────────────────────────
+
+describe("write_timeline_events", () => {
+	it("emits user markers and write events in branch order", () => {
+		const entries = [
+			user_entry("2026-03-10T10:00:00Z"),
+			assistant_with_tool_calls(
+				[{ name: "Write", arguments: { path: "src/new-file.ts", content: "hello" } }],
+				"2026-03-10T10:00:05Z",
+			),
+			tool_result_entry("Write", false, "2026-03-10T10:00:06Z"),
+			user_entry("2026-03-10T10:01:00Z"),
+			assistant_with_tool_calls(
+				[{ name: "Write", arguments: { path: "docs/README.md", content: "# hi" } }],
+				"2026-03-10T10:01:05Z",
+			),
+			tool_result_entry("Write", false, "2026-03-10T10:01:06Z"),
+		];
+		const stats = reconstruct_stats(entries);
+		const events = stats.tool_details.write_timeline_events;
+
+		expect(events).toHaveLength(4);
+		expect(events[0].kind).toBe("user-marker");
+		expect(events[1]).toMatchObject({ kind: "file-op", op_order: 1, path: "src/new-file.ts", category: "code" });
+		expect(events[2].kind).toBe("user-marker");
+		expect(events[3]).toMatchObject({ kind: "file-op", op_order: 2, path: "docs/README.md", category: "docs" });
+	});
+
+	it("marks repeat writes with is_repeat", () => {
+		const entries = [
+			user_entry("2026-03-10T10:00:00Z"),
+			assistant_with_tool_calls(
+				[{ name: "Write", arguments: { path: "config.json", content: "{}" } }],
+				"2026-03-10T10:00:05Z",
+			),
+			tool_result_entry("Write"),
+			assistant_with_tool_calls(
+				[{ name: "Write", arguments: { path: "config.json", content: '{"v":2}' } }],
+				"2026-03-10T10:00:10Z",
+			),
+			tool_result_entry("Write"),
+		];
+		const stats = reconstruct_stats(entries);
+		const writes = stats.tool_details.write_timeline_events.filter((e) => e.kind === "file-op");
+
+		expect(writes[0].is_repeat).toBe(false);
+		expect(writes[1].is_repeat).toBe(true);
+	});
+
+	it("has independent op_order from read and edit timelines", () => {
+		const entries = [
+			user_entry("2026-03-10T10:00:00Z"),
+			assistant_with_tool_calls(
+				[
+					{ name: "Read", arguments: { path: "src/a.ts" } },
+					{ name: "Edit", arguments: { path: "src/a.ts", oldText: "x", newText: "y" } },
+					{ name: "Write", arguments: { path: "src/b.ts", content: "new" } },
+					{ name: "Write", arguments: { path: "src/c.ts", content: "new2" } },
+				],
+				"2026-03-10T10:00:05Z",
+			),
+			tool_result_entry("Read"),
+			tool_result_entry("Edit"),
+			tool_result_entry("Write"),
+			tool_result_entry("Write"),
+		];
+		const stats = reconstruct_stats(entries);
+
+		const reads = stats.tool_details.read_timeline_events.filter((e) => e.kind === "file-op");
+		const edits = stats.tool_details.edit_timeline_events.filter((e) => e.kind === "file-op");
+		const writes = stats.tool_details.write_timeline_events.filter((e) => e.kind === "file-op");
+
+		expect(reads[0].op_order).toBe(1);
+		expect(edits[0].op_order).toBe(1);
+		expect(writes[0].op_order).toBe(1);
+		expect(writes[1].op_order).toBe(2);
+	});
+
+	it("preserves existing write_files unique list alongside timeline events", () => {
+		const entries = [
+			user_entry("2026-03-10T10:00:00Z"),
+			assistant_with_tool_calls(
+				[
+					{ name: "Write", arguments: { path: "a.ts", content: "1" } },
+					{ name: "Write", arguments: { path: "b.ts", content: "2" } },
+				],
+				"2026-03-10T10:00:05Z",
+			),
+			tool_result_entry("Write"),
+			tool_result_entry("Write"),
+			user_entry("2026-03-10T10:01:00Z"),
+			assistant_with_tool_calls([{ name: "Write", arguments: { path: "a.ts", content: "3" } }], "2026-03-10T10:01:05Z"),
+			tool_result_entry("Write"),
+		];
+		const stats = reconstruct_stats(entries);
+
+		expect(stats.tool_details.write_files).toEqual(["a.ts", "b.ts"]);
+		expect(stats.tool_details.write_timeline_events).toHaveLength(5);
+		const writes = stats.tool_details.write_timeline_events.filter((e) => e.kind === "file-op");
+		expect(writes).toHaveLength(3);
+	});
+});
+
+// ── build_plain_text_summary with timeline data ─────────────
+
+describe("build_plain_text_summary timeline output", () => {
+	it("includes user markers and file ops in read timeline", () => {
+		const entries = [
+			user_entry("2026-03-10T10:00:00Z"),
+			assistant_with_tool_calls([{ name: "Read", arguments: { path: "docs/README.md" } }], "2026-03-10T10:00:05Z"),
+			tool_result_entry("Read"),
+			user_entry("2026-03-10T10:01:00Z"),
+			assistant_with_tool_calls([{ name: "Read", arguments: { path: "src/index.ts" } }], "2026-03-10T10:01:05Z"),
+			tool_result_entry("Read"),
+		];
+		const stats = reconstruct_stats(entries);
+		const output = build_plain_text_summary(stats);
+
+		expect(output).toContain("Read timeline (2 reads):");
+		expect(output).toContain("● user message #1");
+		expect(output).toContain("01 docs/README.md");
+		expect(output).toContain("● user message #2");
+		expect(output).toContain("02 src/index.ts");
+	});
+
+	it("includes edit and write timelines", () => {
+		const entries = [
+			user_entry("2026-03-10T10:00:00Z"),
+			assistant_with_tool_calls(
+				[
+					{ name: "Edit", arguments: { path: "src/a.ts", oldText: "x", newText: "y" } },
+					{ name: "Write", arguments: { path: "src/b.ts", content: "new" } },
+				],
+				"2026-03-10T10:00:05Z",
+			),
+			tool_result_entry("Edit"),
+			tool_result_entry("Write"),
+		];
+		const stats = reconstruct_stats(entries);
+		const output = build_plain_text_summary(stats);
+
+		expect(output).toContain("Edit timeline (1 edits):");
+		expect(output).toContain("01 src/a.ts");
+		expect(output).toContain("Write timeline (1 writes):");
+		expect(output).toContain("01 src/b.ts");
+	});
+
+	it("shows repeat marker in plain text timeline", () => {
+		const entries = [
+			user_entry("2026-03-10T10:00:00Z"),
+			assistant_with_tool_calls([{ name: "Read", arguments: { path: "src/index.ts" } }], "2026-03-10T10:00:05Z"),
+			tool_result_entry("Read"),
+			user_entry("2026-03-10T10:01:00Z"),
+			assistant_with_tool_calls([{ name: "Read", arguments: { path: "src/index.ts" } }], "2026-03-10T10:01:05Z"),
+			tool_result_entry("Read"),
+		];
+		const stats = reconstruct_stats(entries);
+		const output = build_plain_text_summary(stats);
+
+		expect(output).toContain("02 src/index.ts ↺");
+	});
+
+	it("truncates timeline at 20 events and shows overflow", () => {
+		const tool_calls = [];
+		const results = [];
+		for (let i = 0; i < 25; i++) {
+			tool_calls.push({ name: "Read", arguments: { path: `file-${i}.ts` } });
+			results.push(tool_result_entry("Read"));
+		}
+		const entries = [
+			user_entry("2026-03-10T10:00:00Z"),
+			assistant_with_tool_calls(tool_calls, "2026-03-10T10:00:05Z"),
+			...results,
+		];
+		const stats = reconstruct_stats(entries);
+		const output = build_plain_text_summary(stats);
+
+		expect(output).toContain("Read timeline (25 reads):");
+		// 1 user marker + 25 file ops = 26 events total, cap at 20 shown
+		expect(output).toContain("... (+6 more)");
+		// Extract just the timeline section to check truncation
+		const timeline_start = output.indexOf("Read timeline");
+		const timeline_section = output.slice(timeline_start);
+		// file-18 is the 19th file op (user marker + 19 ops = 20 shown items)
+		expect(timeline_section).toContain("file-18.ts");
+		// file-19 should NOT appear in the timeline (beyond the 20-item cap)
+		expect(timeline_section).not.toContain("file-19.ts");
+	});
+
+	it("omits timeline section when no file ops exist", () => {
+		const entries = [
+			user_entry("2026-03-10T10:00:00Z"),
+			assistant_with_tool_calls([{ name: "Bash", arguments: { command: "ls" } }], "2026-03-10T10:00:05Z"),
+			tool_result_entry("Bash"),
+		];
+		const stats = reconstruct_stats(entries);
+		const output = build_plain_text_summary(stats);
+
+		expect(output).not.toContain("Read timeline");
+		expect(output).not.toContain("Edit timeline");
+		expect(output).not.toContain("Write timeline");
 	});
 });
