@@ -1,59 +1,26 @@
 ---
 name: github
-description: "Interact with GitHub using the `gh` CLI. Use `gh issue`, `gh pr`, `gh run`, and `gh api` for issues, PRs, CI runs, and advanced queries."
+description: "Git and GitHub workflows: conventional commits, PR review, CI status, issues, and gh CLI. Load when committing code, creating or reviewing pull requests, checking CI, or interacting with GitHub."
 ---
 
-# GitHub Skill
+# GitHub
 
-Use the `gh` CLI to interact with GitHub. Always specify `--repo owner/repo` when not in a git directory, or use URLs directly.
+Use this skill for git and GitHub workflows.
 
-## Pull Requests
+## Shared guidance
 
-Check CI status on a PR:
-```bash
-gh pr checks 55 --repo owner/repo
-```
+- When running `gh` outside the target repository, always pass `--repo owner/repo`.
+- Prefer URLs as inputs when the user already gave one (PR, issue, run, repository).
+- Keep GitHub ceremony here and delegate deep code-analysis work to more focused skills when available.
 
-List recent workflow runs:
-```bash
-gh run list --repo owner/repo --limit 10
-```
+## Routing
 
-View a run and see which steps failed:
-```bash
-gh run view <run-id> --repo owner/repo
-```
+- **Committing code** → read `references/commit.md`
+- **Reviewing a pull request** → read `references/pr-review.md`
+- **Using the `gh` CLI for issues, PRs, CI, or API calls** → read `references/gh-cli.md`
 
-View logs for failed steps only:
-```bash
-gh run view <run-id> --repo owner/repo --log-failed
-```
+## Notes
 
-## Creating Pull Requests
-
-Always create PRs as **draft**. Before creating, scan the repo for a PR template (e.g. `.github/pull_request_template.md` or `.github/PULL_REQUEST_TEMPLATE/`) and use it to structure the PR description.
-
-```bash
-# Check for a PR template
-find .github -iname '*pull_request_template*' 2>/dev/null
-
-# Create a draft PR using the template
-gh pr create --draft --title "..." --body "..."
-```
-
-## API for Advanced Queries
-
-The `gh api` command is useful for accessing data not available through other subcommands.
-
-Get PR with specific fields:
-```bash
-gh api repos/owner/repo/pulls/55 --jq '.title, .state, .user.login'
-```
-
-## JSON Output
-
-Most commands support `--json` for structured output.  You can use `--jq` to filter:
-
-```bash
-gh issue list --repo owner/repo --json number,title --jq '.[] | "\(.number): \(.title)"'
-```
+- For PR reviews, use `/skill:review` for the actual code analysis and keep this skill focused on GitHub-specific workflow.
+- When creating pull requests, create them as drafts unless the user explicitly asks otherwise.
+- If the task mixes categories, load every relevant reference file instead of improvising from memory.

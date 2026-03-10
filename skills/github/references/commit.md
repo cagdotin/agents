@@ -1,7 +1,4 @@
----
-name: commit
-description: "Read this skill before making git commits"
----
+# Commit Workflow
 
 Create a git commit for the current changes using a concise Conventional Commits-style subject.
 
@@ -33,4 +30,3 @@ Create a git commit for the current changes using a concise Conventional Commits
 4. If there are ambiguous extra files, ask the user for clarification before committing.
 5. Stage only the intended files (all changes if no files specified).
 6. Run `git commit -m "<subject>"` (and `-m "<body>"` if needed).
-
