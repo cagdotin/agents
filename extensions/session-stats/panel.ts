@@ -13,9 +13,17 @@ import {
 	get_unique_models_used,
 	group_files_by_category,
 } from "./tracker.js";
-import type { FileCategory, SessionStats, ToolDetails, ToolTally } from "./types.js";
+import type { FileCategory, FileTimelineEvent, SessionStats, ToolDetails, ToolTally } from "./types.js";
 
 type PanelView = "list" | "detail";
+type FileDetailMode = "categories" | "timeline";
+
+const CATEGORY_ICONS: Record<FileCategory, string> = {
+	docs: "◇",
+	skills: "◆",
+	tests: "△",
+	code: "○",
+};
 
 interface ShowSessionStatsPanelOptions {
 	get_stats: () => SessionStats;
@@ -60,6 +68,7 @@ export class SessionStatsPanel {
 	private detail_scroll_offset = 0;
 	private detail_lines: string[] = [];
 	private detail_view_height = 0;
+	private file_detail_mode: FileDetailMode = "categories";
 
 	constructor(tui: TUI, theme: Theme, options: ShowSessionStatsPanelOptions, done: () => void) {
 		this.tui = tui;
@@ -161,6 +170,31 @@ export class SessionStatsPanel {
 		if (matchesKey(key_data, "r")) {
 			this.refresh();
 			return;
+		}
+		// File detail mode switching (t = toggle, 1 = categories, 2 = timeline)
+		if (this.has_timeline_mode()) {
+			if (matchesKey(key_data, "t")) {
+				this.file_detail_mode = this.file_detail_mode === "categories" ? "timeline" : "categories";
+				this.detail_scroll_offset = 0;
+				this.tui.requestRender();
+				return;
+			}
+			if (matchesKey(key_data, "1")) {
+				if (this.file_detail_mode !== "categories") {
+					this.file_detail_mode = "categories";
+					this.detail_scroll_offset = 0;
+					this.tui.requestRender();
+				}
+				return;
+			}
+			if (matchesKey(key_data, "2")) {
+				if (this.file_detail_mode !== "timeline") {
+					this.file_detail_mode = "timeline";
+					this.detail_scroll_offset = 0;
+					this.tui.requestRender();
+				}
+				return;
+			}
 		}
 		if (matchesKey(key_data, "j") || matchesKey(key_data, "down")) {
 			this.scroll_detail(1);
@@ -383,6 +417,9 @@ export class SessionStatsPanel {
 		if (this.detail_lines.length > 5) {
 			hints.push(`${t.fg("accent", "j/k")} scroll`);
 		}
+		if (this.has_timeline_mode()) {
+			hints.push(`${t.fg("accent", "t")} mode`);
+		}
 		if (this.detail_lines.length > this.detail_view_height && this.detail_view_height > 0) {
 			const start = this.detail_scroll_offset + 1;
 			const end = Math.min(this.detail_lines.length, this.detail_scroll_offset + this.detail_view_height);
@@ -421,11 +458,11 @@ export class SessionStatsPanel {
 			case "bash":
 				return this.detail_bash(details, iw);
 			case "read":
-				return this.detail_read(details, iw);
+				return this.detail_file_tool("Files Read", details.read_files, details.read_timeline_events, iw);
 			case "edit":
-				return this.detail_file_list("Files Edited", details.edit_files, iw);
+				return this.detail_file_tool("Files Edited", details.edit_files, details.edit_timeline_events, iw);
 			case "write":
-				return this.detail_file_list("Files Written", details.write_files, iw);
+				return this.detail_file_tool("Files Written", details.write_files, details.write_timeline_events, iw);
 			case "expertise":
 				return this.detail_expertise(details, iw);
 			case "todo":
@@ -465,38 +502,60 @@ export class SessionStatsPanel {
 		return lines;
 	}
 
-	private detail_read(details: ToolDetails, iw: number): string[] {
+	/**
+	 * Shared detail renderer for file-operation tools (Read, Edit, Write).
+	 * Shows a mode switch between categories (grouped unique files) and timeline.
+	 */
+	private detail_file_tool(
+		title: string,
+		unique_files: string[],
+		timeline_events: FileTimelineEvent[],
+		iw: number,
+	): string[] {
 		const t = this.theme;
 		const lines: string[] = [];
-		const total = details.read_files.length;
 
+		// ── mode switch indicator ────────────────────────────
 		lines.push("");
-		lines.push(`  ${t.fg("muted", "Files Read")} ${t.fg("dim", `(${total})`)}`);
+		const cat_label =
+			this.file_detail_mode === "categories" ? t.fg("accent", t.bold("Categories")) : t.fg("dim", "Categories");
+		const tl_label =
+			this.file_detail_mode === "timeline" ? t.fg("accent", t.bold("Timeline")) : t.fg("dim", "Timeline");
+		lines.push(`  ${t.fg("muted", "Mode:")} ${cat_label}  ${tl_label}  ${t.fg("dim", "(t toggle · 1/2)")}`);
 		lines.push("");
 
-		if (total === 0) {
-			lines.push(`  ${t.fg("dim", "No files read.")}`);
+		if (unique_files.length === 0 && timeline_events.length === 0) {
+			lines.push(`  ${t.fg("dim", "None.")}`);
 			return lines;
 		}
 
-		const grouped = group_files_by_category(details.read_files);
+		if (this.file_detail_mode === "timeline") {
+			return [...lines, ...this.render_file_timeline(title, timeline_events, iw)];
+		}
+
+		return [...lines, ...this.render_file_categories(title, unique_files, iw)];
+	}
+
+	private render_file_categories(title: string, files: string[], iw: number): string[] {
+		const t = this.theme;
+		const lines: string[] = [];
+		const total = files.length;
+
+		lines.push(`  ${t.fg("muted", title)} ${t.fg("dim", `(${total})`)}`);
+		lines.push("");
+
+		const grouped = group_files_by_category(files);
 		const category_order: FileCategory[] = ["docs", "skills", "tests", "code"];
-		const category_icons: Record<FileCategory, string> = {
-			docs: "◇",
-			skills: "◆",
-			tests: "△",
-			code: "○",
-		};
 
 		for (const cat of category_order) {
-			const files = grouped.get(cat);
-			if (!files || files.length === 0) continue;
+			const cat_files = grouped.get(cat);
+			if (!cat_files || cat_files.length === 0) continue;
 
-			const icon = t.fg("dim", category_icons[cat]);
+			const icon = t.fg("dim", CATEGORY_ICONS[cat]);
 			const label = t.fg("muted", cat.charAt(0).toUpperCase() + cat.slice(1));
-			lines.push(`  ${icon} ${label} ${t.fg("dim", `(${files.length})`)}`);
+			lines.push(`  ${icon} ${label} ${t.fg("dim", `(${cat_files.length})`)}`);
 
-			for (const file of files) {
+			for (const file of cat_files) {
 				const display_path = truncateToWidth(file, iw - 8);
 				lines.push(`    ${t.fg("dim", "│")} ${display_path}`);
 			}
@@ -506,26 +565,47 @@ export class SessionStatsPanel {
 		return lines;
 	}
 
-	private detail_file_list(title: string, files: string[], iw: number): string[] {
+	private render_file_timeline(title: string, events: FileTimelineEvent[], iw: number): string[] {
 		const t = this.theme;
 		const lines: string[] = [];
-		const total = files.length;
+		const op_count = events.filter((e) => e.kind === "file-op").length;
 
-		lines.push("");
-		lines.push(`  ${t.fg("muted", title)} ${t.fg("dim", `(${total})`)}`);
+		lines.push(`  ${t.fg("muted", title)} ${t.fg("dim", `(${op_count})`)}`);
 		lines.push("");
 
-		if (total === 0) {
-			lines.push(`  ${t.fg("dim", "None.")}`);
+		if (events.length === 0) {
+			lines.push(`  ${t.fg("dim", "No events yet.")}`);
 			return lines;
 		}
 
-		const sorted = [...files].sort();
-		for (const file of sorted) {
-			lines.push(`    ${truncateToWidth(file, iw - 4)}`);
+		// Compute max order digits for padding
+		const max_order = events.reduce((max, e) => (e.kind === "file-op" && e.op_order > max ? e.op_order : max), 0);
+		const order_width = Math.max(2, `${max_order}`.length);
+		// Max path width: iw - indent(4) - time(8+2) - order(order_width+1) - icon(2) - repeat(3) - padding
+		const max_path_width = Math.max(20, iw - 4 - 10 - order_width - 1 - 2 - 3 - 2);
+
+		for (const event of events) {
+			if (event.kind === "user-marker") {
+				const time_str = format_timestamp_local(event.timestamp);
+				lines.push("");
+				lines.push(`  ${t.fg("dim", time_str)}  ${t.fg("muted", "●")} ${t.fg("muted", "user message")}`);
+				lines.push("");
+			} else {
+				const time_str = format_timestamp_local(event.timestamp);
+				const order_str = `${event.op_order}`.padStart(order_width, "0");
+				const icon = CATEGORY_ICONS[event.category] || "·";
+				const repeat_marker = event.is_repeat ? ` ${t.fg("dim", "↺")}` : "";
+				const display_path = truncateToWidth(event.path, max_path_width);
+				lines.push(
+					`  ${t.fg("dim", time_str)}  ${t.fg("accent", order_str)} ${t.fg("dim", icon)} ${display_path}${repeat_marker}`,
+				);
+			}
 		}
 
+		// ── legend ───────────────────────────────────────────
 		lines.push("");
+		lines.push(`  ${t.fg("dim", "◇ docs  ◆ skills  △ tests  ○ code  ↺ repeat")}`);
+
 		return lines;
 	}
 
@@ -582,6 +662,18 @@ export class SessionStatsPanel {
 
 	// ── Helpers ──────────────────────────────────────────────
 
+	/** Tools that support the categories/timeline mode toggle. */
+	private has_timeline_mode(): boolean {
+		const name = this.get_selected_tool_name();
+		return name === "read" || name === "edit" || name === "write";
+	}
+
+	private get_selected_tool_name(): string | null {
+		const sorted_tallies = get_sorted_tool_tallies(this.stats);
+		if (sorted_tallies.length === 0) return null;
+		return sorted_tallies[this.selected_tool_index][0].toLowerCase();
+	}
+
 	private section_header(label: string, right_text: string, iw: number): string {
 		const t = this.theme;
 		const left = `${t.fg("dim", "──")} ${t.fg("muted", label)} `;
@@ -630,6 +722,7 @@ export class SessionStatsPanel {
 	private open_detail_view(): void {
 		this.view = "detail";
 		this.detail_scroll_offset = 0;
+		this.file_detail_mode = "categories";
 		this.tui.requestRender();
 	}
 
@@ -659,6 +752,19 @@ export class SessionStatsPanel {
 }
 
 // ── layout helpers ──────────────────────────────────────────
+
+function format_timestamp_local(timestamp: string): string {
+	try {
+		const date = new Date(timestamp);
+		if (Number.isNaN(date.getTime())) return "--:--:--";
+		const h = `${date.getHours()}`.padStart(2, "0");
+		const m = `${date.getMinutes()}`.padStart(2, "0");
+		const s = `${date.getSeconds()}`.padStart(2, "0");
+		return `${h}:${m}:${s}`;
+	} catch {
+		return "--:--:--";
+	}
+}
 
 function pad_to_width(value: string, width: number): string {
 	const vis = visibleWidth(value);
