@@ -72,6 +72,8 @@ bookmarks, and memory. Resources are written for both humans and coding agents.
 ### Informative
 
 - [[context-engineering-dex]] — Context-budget discipline, compaction, and RPI workflow.
+- [[deep-modules-ai-ready-codebase]] — Deep modules for AI-ready codebases: simple interfaces,
+  graybox internals, progressive disclosure. Reinforces module boundary enforcement.
 
 ### Experimental
 
