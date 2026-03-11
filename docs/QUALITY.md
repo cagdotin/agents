@@ -28,7 +28,7 @@ This scorecard tracks maintainability and readiness of this package for day-to-d
 | `extensions/tmux` | 3 | Good | Unified tmux integration (notify + pane title); documented |
 | Skills (`skills/*`) | 3 | Good | Consistent SKILL format and clear purpose |
 | Mechanical validation | 4 | Excellent | `bun run check` gates Biome + docs validation + Vitest; Lefthook pre-commit runs all three in parallel |
-| Automated testing | 3 | Good | 425 unit tests across 15 files covering Tier 1 (pure logic) and Tier 2 (mocked Pi imports); no LLM calls in tests; Tier 3 (runtime integration) deferred |
+| Automated testing | 3 | Good | 447 unit tests across 16 files covering Tier 1 (pure logic) and Tier 2 (mocked Pi imports); no LLM calls in tests; Tier 3 (runtime integration) deferred |
 
 ---
 
@@ -36,7 +36,7 @@ This scorecard tracks maintainability and readiness of this package for day-to-d
 
 Vitest is the test runner, invoked via `bun run test`. Tests live in `__tests__/` directories co-located with each extension. Shared mocks for `@mariozechner/*` peer dependencies live in `extensions/__mocks__/` and are resolved via Vitest aliases — no real Pi runtime or LLM calls are ever made.
 
-**Coverage baseline (2026-03-10):** 425 tests, 15 files, ~1s.
+**Coverage baseline (2026-03-11):** 447 tests, 16 files, ~1s.
 
 ### Known Code Issues Found During Testing
 

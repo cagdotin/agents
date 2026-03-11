@@ -40,11 +40,12 @@ Use `skills/plan` for both artifact types.
 
 ## Current active plans
 
-- [[docs/exec-plans/active/2026-03-10-docs-audit-script]] — automated docs freshness audit (`bun run audit`)
 - [[docs/exec-plans/active/2026-03-07-session-stats-extension]] — session stats panel (pending live verification)
 
 ## Recently completed
 
+- [[docs/exec-plans/completed/2026-03-11-tmux-extension-merge]] — consolidate tmux-notify + tmux-pane-title into single extension
+- [[docs/exec-plans/completed/2026-03-10-docs-audit-script]] — automated docs freshness audit (`bun run audit`)
 - [[docs/exec-plans/completed/2026-03-10-review-skill]] — standalone review skill with lens-based methodology
 - [[docs/exec-plans/completed/2026-03-10-github-skill-merge]] — merge commit + pr-review + github into one skill
 - [[docs/exec-plans/completed/2026-03-10-session-stats-read-timeline-mode]] — file operation timeline mode for session-stats

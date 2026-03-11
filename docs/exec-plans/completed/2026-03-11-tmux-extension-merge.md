@@ -1,6 +1,6 @@
 # Tmux Extension Merge — Execution Plan
 
-Status: Active
+Status: Completed
 Owner: agent
 Created: 2026-03-11
 Spec: [[docs/specs/2026-03-11-tmux-extension-merge.md]]
