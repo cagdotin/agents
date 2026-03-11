@@ -12,6 +12,7 @@ import {
 	group_files_by_category,
 	reconstruct_stats,
 	split_command_quote_aware,
+	to_relative_path,
 } from "../tracker.js";
 import type { ToolDetails } from "../types.js";
 
@@ -466,6 +467,32 @@ describe("extract_bash_programs", () => {
 	});
 });
 
+describe("to_relative_path", () => {
+	it("returns relative paths unchanged", () => {
+		expect(to_relative_path("src/index.ts")).toBe("src/index.ts");
+		expect(to_relative_path("docs/README.md")).toBe("docs/README.md");
+		expect(to_relative_path("package.json")).toBe("package.json");
+	});
+
+	it("converts absolute paths under cwd to relative", () => {
+		const cwd = process.cwd();
+		expect(to_relative_path(`${cwd}/src/index.ts`)).toBe("src/index.ts");
+		expect(to_relative_path(`${cwd}/docs/README.md`)).toBe("docs/README.md");
+	});
+
+	it("converts absolute paths outside cwd to relative with ../", () => {
+		const result = to_relative_path("/tmp/some-other-project/file.ts");
+		expect(result).toContain("..");
+		expect(result).not.toBe("/tmp/some-other-project/file.ts");
+	});
+
+	it("handles cwd itself", () => {
+		const cwd = process.cwd();
+		// relative("foo", "foo") returns "" — we fall back to original
+		expect(to_relative_path(cwd)).toBe(cwd);
+	});
+});
+
 describe("categorize_file", () => {
 	it("categorizes docs/ prefix as docs", () => {
 		expect(categorize_file("docs/ARCHITECTURE.md")).toBe("docs");
@@ -588,6 +615,35 @@ describe("extract_tool_call_detail", () => {
 		expect(details.todo_actions.get("list")).toBe(1);
 	});
 
+	it("normalizes absolute paths to relative for Read", () => {
+		const details = create_empty_tool_details();
+		const cwd = process.cwd();
+		extract_tool_call_detail(details, "Read", { path: `${cwd}/src/index.ts` });
+		expect(details.read_files).toEqual(["src/index.ts"]);
+	});
+
+	it("normalizes absolute paths to relative for Edit", () => {
+		const details = create_empty_tool_details();
+		const cwd = process.cwd();
+		extract_tool_call_detail(details, "Edit", { path: `${cwd}/src/index.ts` });
+		expect(details.edit_files).toEqual(["src/index.ts"]);
+	});
+
+	it("normalizes absolute paths to relative for Write", () => {
+		const details = create_empty_tool_details();
+		const cwd = process.cwd();
+		extract_tool_call_detail(details, "Write", { path: `${cwd}/src/new-file.ts` });
+		expect(details.write_files).toEqual(["src/new-file.ts"]);
+	});
+
+	it("deduplicates absolute and relative paths referring to the same file", () => {
+		const details = create_empty_tool_details();
+		const cwd = process.cwd();
+		extract_tool_call_detail(details, "Read", { path: "src/index.ts" });
+		extract_tool_call_detail(details, "Read", { path: `${cwd}/src/index.ts` });
+		expect(details.read_files).toEqual(["src/index.ts"]);
+	});
+
 	it("handles case-insensitive tool names", () => {
 		const details = create_empty_tool_details();
 		extract_tool_call_detail(details, "bash", { command: "ls" });
@@ -602,6 +658,40 @@ describe("extract_tool_call_detail", () => {
 		extract_tool_call_detail(details, "Read", {} as Record<string, string>);
 		expect(details.bash_programs.size).toBe(0);
 		expect(details.read_files).toEqual([]);
+	});
+});
+
+describe("absolute path normalization in reconstruct_stats", () => {
+	it("normalizes absolute paths to relative in file lists and timeline events", () => {
+		const cwd = process.cwd();
+		const entries = [
+			user_entry("2026-03-10T10:00:00Z"),
+			assistant_with_tool_calls(
+				[
+					{ name: "Read", arguments: { path: `${cwd}/docs/README.md` } },
+					{ name: "Edit", arguments: { path: `${cwd}/src/index.ts`, oldText: "a", newText: "b" } },
+					{ name: "Write", arguments: { path: `${cwd}/src/new-file.ts`, content: "hello" } },
+				],
+				"2026-03-10T10:00:05Z",
+			),
+			tool_result_entry("Read"),
+			tool_result_entry("Edit"),
+			tool_result_entry("Write"),
+		];
+		const stats = reconstruct_stats(entries);
+
+		// Unique file lists should have relative paths
+		expect(stats.tool_details.read_files).toEqual(["docs/README.md"]);
+		expect(stats.tool_details.edit_files).toEqual(["src/index.ts"]);
+		expect(stats.tool_details.write_files).toEqual(["src/new-file.ts"]);
+
+		// Timeline events should have relative paths
+		const read_ops = stats.tool_details.read_timeline_events.filter((e) => e.kind === "file-op");
+		expect(read_ops[0].path).toBe("docs/README.md");
+		const edit_ops = stats.tool_details.edit_timeline_events.filter((e) => e.kind === "file-op");
+		expect(edit_ops[0].path).toBe("src/index.ts");
+		const write_ops = stats.tool_details.write_timeline_events.filter((e) => e.kind === "file-op");
+		expect(write_ops[0].path).toBe("src/new-file.ts");
 	});
 });
 

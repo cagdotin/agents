@@ -1,3 +1,4 @@
+import { isAbsolute, relative } from "node:path";
 import type {
 	FileCategory,
 	FileTimelineEvent,
@@ -250,10 +251,11 @@ function create_timeline_tracker(events: FileTimelineEvent[]): TimelineTracker {
 
 function emit_file_timeline_event(
 	tracker: TimelineTracker,
-	path: string,
+	raw_path: string,
 	timestamp: string,
 	user_message_index: number,
 ): void {
+	const path = to_relative_path(raw_path);
 	tracker.order_counter += 1;
 	const is_repeat = tracker.seen_paths.has(path);
 	tracker.seen_paths.add(path);
@@ -266,6 +268,18 @@ function emit_file_timeline_event(
 		user_message_index,
 		is_repeat,
 	});
+}
+
+// ── path normalization ───────────────────────────────────────
+
+/**
+ * Convert an absolute file path to a path relative to cwd (the project root).
+ * If the path is already relative, it is returned unchanged.
+ * Falls back to the original path if relativization produces an empty string.
+ */
+export function to_relative_path(file_path: string): string {
+	if (!isAbsolute(file_path)) return file_path;
+	return relative(process.cwd(), file_path) || file_path;
 }
 
 // ── tool detail extraction ──────────────────────────────────
@@ -509,22 +523,22 @@ export function extract_tool_call_detail(details: ToolDetails, tool_name: string
 			break;
 		}
 		case "read": {
-			const path = args.path;
-			if (typeof path === "string" && !details.read_files.includes(path)) {
+			const path = typeof args.path === "string" ? to_relative_path(args.path) : undefined;
+			if (path && !details.read_files.includes(path)) {
 				details.read_files.push(path);
 			}
 			break;
 		}
 		case "edit": {
-			const path = args.path;
-			if (typeof path === "string" && !details.edit_files.includes(path)) {
+			const path = typeof args.path === "string" ? to_relative_path(args.path) : undefined;
+			if (path && !details.edit_files.includes(path)) {
 				details.edit_files.push(path);
 			}
 			break;
 		}
 		case "write": {
-			const path = args.path;
-			if (typeof path === "string" && !details.write_files.includes(path)) {
+			const path = typeof args.path === "string" ? to_relative_path(args.path) : undefined;
+			if (path && !details.write_files.includes(path)) {
 				details.write_files.push(path);
 			}
 			break;
