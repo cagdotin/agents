@@ -8,11 +8,8 @@ Last updated: 2026-03-11
 ## Bird's eye
 
 This repository is a **Pi package**: a versioned bundle of extensions, skills,
-themes, and docs for coding agents.
-
-Its job is to keep those pieces discoverable, reusable, and mechanically
-validated in one place. Pi discovers them through the `pi` manifest in
-`package.json`.
+themes, and docs for coding agents. Pi discovers them through the `pi` manifest
+in `package.json`.
 
 ---
 
@@ -101,6 +98,7 @@ Navigation should drill down cleanly:
 Conventions are enforced by tooling:
 - `bun run check:biome`
 - `bun run check:docs`
+- `bun run check:boundaries`
 - `bun run check`
 
 ### Testing
