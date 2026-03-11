@@ -5,5 +5,7 @@ pre-commit:
       run: bun run check:biome
     docs:
       run: bun run check:docs
+    boundaries:
+      run: bun run check:boundaries
     test:
       run: bun run test

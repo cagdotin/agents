@@ -1,9 +1,10 @@
 {
 	"name": "@cagdotin/agents",
 	"scripts": {
-		"check": "bun run check:biome && bun run check:docs && bun run test",
+		"check": "bun run check:biome && bun run check:docs && bun run check:boundaries && bun run test",
 		"check:biome": "biome check .",
 		"check:docs": "bun run scripts/validate-docs.ts",
+		"check:boundaries": "bun run scripts/validate-boundaries.ts",
 		"test": "vitest run",
 		"test:watch": "vitest",
 		"test:coverage": "vitest run --coverage",
