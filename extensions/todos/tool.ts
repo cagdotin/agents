@@ -1,4 +1,3 @@
-import { existsSync } from "node:fs";
 import type { Theme } from "@mariozechner/pi-coding-agent";
 import { Text } from "@mariozechner/pi-tui";
 import {
@@ -17,15 +16,17 @@ import {
 } from "./helpers.js";
 import {
 	append_todo_body,
+	build_todo_path,
 	claim_todo_assignment,
 	delete_todo,
 	ensure_todo_exists,
 	ensure_todos_dir,
+	find_todo_path_by_id,
 	generate_todo_id,
-	get_todo_path,
 	get_todos_dir,
 	list_todos,
 	release_todo_assignment,
+	rename_todo_if_needed,
 	with_todo_lock,
 	write_todo_file,
 } from "./storage.js";
@@ -90,7 +91,13 @@ export function create_todo_tool(todos_dir_label: string) {
 					}
 					const normalized_id = validated.id;
 					const display_id = format_todo_id(normalized_id);
-					const file_path = get_todo_path(todos_dir, normalized_id);
+					const file_path = await find_todo_path_by_id(todos_dir, normalized_id);
+					if (!file_path) {
+						return {
+							content: [{ type: "text", text: `Todo ${display_id} not found` }],
+							details: { action: "get", error: "not found" },
+						};
+					}
 					const todo = await ensure_todo_exists(file_path, normalized_id);
 					if (!todo) {
 						return {
@@ -113,7 +120,7 @@ export function create_todo_tool(todos_dir_label: string) {
 					}
 					await ensure_todos_dir(todos_dir);
 					const id = await generate_todo_id(todos_dir);
-					const file_path = get_todo_path(todos_dir, id);
+					const file_path = build_todo_path(todos_dir, params.title);
 					const todo: TodoRecord = {
 						id,
 						title: params.title,
@@ -157,15 +164,15 @@ export function create_todo_tool(todos_dir_label: string) {
 					}
 					const normalized_id = validated.id;
 					const display_id = format_todo_id(normalized_id);
-					const file_path = get_todo_path(todos_dir, normalized_id);
-					if (!existsSync(file_path)) {
+					let file_path = await find_todo_path_by_id(todos_dir, normalized_id);
+					if (!file_path) {
 						return {
 							content: [{ type: "text", text: `Todo ${display_id} not found` }],
 							details: { action: "update", error: "not found" },
 						};
 					}
 					const result = await with_todo_lock(todos_dir, normalized_id, ctx, async () => {
-						const existing = await ensure_todo_exists(file_path, normalized_id);
+						const existing = await ensure_todo_exists(file_path!, normalized_id);
 						if (!existing) return { error: `Todo ${display_id} not found` } as const;
 
 						existing.id = normalized_id;
@@ -176,7 +183,13 @@ export function create_todo_tool(todos_dir_label: string) {
 						if (!existing.created_at) existing.created_at = new Date().toISOString();
 						clear_assignment_if_closed(existing);
 
-						await write_todo_file(file_path, existing);
+						await write_todo_file(file_path!, existing);
+
+						// Rename file if title changed
+						if (params.title !== undefined) {
+							file_path = await rename_todo_if_needed(todos_dir, file_path!, existing.title);
+						}
+
 						return existing;
 					});
 
@@ -210,20 +223,20 @@ export function create_todo_tool(todos_dir_label: string) {
 					}
 					const normalized_id = validated.id;
 					const display_id = format_todo_id(normalized_id);
-					const file_path = get_todo_path(todos_dir, normalized_id);
-					if (!existsSync(file_path)) {
+					const file_path = await find_todo_path_by_id(todos_dir, normalized_id);
+					if (!file_path) {
 						return {
 							content: [{ type: "text", text: `Todo ${display_id} not found` }],
 							details: { action: "append", error: "not found" },
 						};
 					}
 					const result = await with_todo_lock(todos_dir, normalized_id, ctx, async () => {
-						const existing = await ensure_todo_exists(file_path, normalized_id);
+						const existing = await ensure_todo_exists(file_path!, normalized_id);
 						if (!existing) return { error: `Todo ${display_id} not found` } as const;
 						if (!params.body || !params.body.trim()) {
 							return existing;
 						}
-						const updated = await append_todo_body(file_path, existing, params.body);
+						const updated = await append_todo_body(file_path!, existing, params.body);
 						return updated;
 					});
 

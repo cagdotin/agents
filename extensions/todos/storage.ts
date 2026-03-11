@@ -4,7 +4,14 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
 import { z } from "zod";
-import { DEFAULT_TODO_SETTINGS, LOCK_TTL_MS, TODO_DIR_NAME, TODO_PATH_ENV, TODO_SETTINGS_NAME } from "./constants.js";
+import {
+	DEFAULT_TODO_SETTINGS,
+	LOCK_TTL_MS,
+	TODO_DIR_NAME,
+	TODO_ID_PATTERN,
+	TODO_PATH_ENV,
+	TODO_SETTINGS_NAME,
+} from "./constants.js";
 import {
 	clear_assignment_if_closed,
 	display_todo_id,
@@ -34,8 +41,131 @@ export function get_todos_dir_label(cwd: string): string {
 	return TODO_DIR_NAME;
 }
 
+/** @deprecated Use find_todo_path_by_id() for lookups or build_todo_path() for new files. */
 export function get_todo_path(todos_dir: string, id: string): string {
 	return path.join(todos_dir, `${id}.md`);
+}
+
+// ---------------------------------------------------------------------------
+// Title-based filename helpers
+// ---------------------------------------------------------------------------
+
+export function title_to_slug(title: string): string {
+	const slug = title
+		.toLowerCase()
+		.replace(/[^a-z0-9\s-]/g, "")
+		.replace(/\s+/g, "-")
+		.replace(/-+/g, "-")
+		.replace(/^-|-$/g, "")
+		.slice(0, 80);
+	return slug || "untitled";
+}
+
+export function build_todo_path(todos_dir: string, title: string): string {
+	const base_slug = title_to_slug(title);
+	let slug = base_slug;
+	let counter = 2;
+	while (existsSync(path.join(todos_dir, `${slug}.md`))) {
+		slug = `${base_slug}-${counter}`;
+		counter += 1;
+	}
+	return path.join(todos_dir, `${slug}.md`);
+}
+
+export async function find_todo_path_by_id(todos_dir: string, id: string): Promise<string | null> {
+	let entries: string[];
+	try {
+		entries = await fs.readdir(todos_dir);
+	} catch {
+		return null;
+	}
+	for (const entry of entries) {
+		if (!entry.endsWith(".md")) continue;
+		const file_path = path.join(todos_dir, entry);
+		try {
+			const content = await fs.readFile(file_path, "utf8");
+			const { front_matter } = split_front_matter(content);
+			const parsed = parse_frontmatter(front_matter, "");
+			if (parsed.id === id) return file_path;
+		} catch {
+			// ignore unreadable file
+		}
+	}
+	return null;
+}
+
+export function find_todo_path_by_id_sync(todos_dir: string, id: string): string | null {
+	let entries: string[];
+	try {
+		entries = readdirSync(todos_dir);
+	} catch {
+		return null;
+	}
+	for (const entry of entries) {
+		if (!entry.endsWith(".md")) continue;
+		const file_path = path.join(todos_dir, entry);
+		try {
+			const content = readFileSync(file_path, "utf8");
+			const { front_matter } = split_front_matter(content);
+			const parsed = parse_frontmatter(front_matter, "");
+			if (parsed.id === id) return file_path;
+		} catch {
+			// ignore unreadable file
+		}
+	}
+	return null;
+}
+
+export async function rename_todo_if_needed(
+	todos_dir: string,
+	current_path: string,
+	new_title: string,
+): Promise<string> {
+	const new_slug = title_to_slug(new_title);
+	const current_filename = path.basename(current_path, ".md");
+	if (current_filename === new_slug) return current_path;
+
+	let target_slug = new_slug;
+	let counter = 2;
+	while (true) {
+		const target_path = path.join(todos_dir, `${target_slug}.md`);
+		if (!existsSync(target_path) || target_path === current_path) {
+			await fs.rename(current_path, target_path);
+			return target_path;
+		}
+		target_slug = `${new_slug}-${counter}`;
+		counter += 1;
+	}
+}
+
+export async function migrate_todo_filenames(todos_dir: string): Promise<void> {
+	let entries: string[];
+	try {
+		entries = await fs.readdir(todos_dir);
+	} catch {
+		return;
+	}
+
+	for (const entry of entries) {
+		if (!entry.endsWith(".md")) continue;
+		const current_slug = entry.slice(0, -3);
+		// Only migrate files that look like old hex-id filenames
+		if (!TODO_ID_PATTERN.test(current_slug)) continue;
+		const file_path = path.join(todos_dir, entry);
+		try {
+			const content = await fs.readFile(file_path, "utf8");
+			const { front_matter } = split_front_matter(content);
+			const parsed = parse_frontmatter(front_matter, current_slug);
+			if (parsed.title) {
+				const expected_slug = title_to_slug(parsed.title);
+				if (current_slug !== expected_slug) {
+					await rename_todo_if_needed(todos_dir, file_path, parsed.title);
+				}
+			}
+		} catch {
+			// ignore unreadable file
+		}
+	}
 }
 
 export function get_lock_path(todos_dir: string, id: string): string {
@@ -398,10 +528,11 @@ export async function write_todo_file(file_path: string, todo: TodoRecord) {
 }
 
 export async function generate_todo_id(todos_dir: string): Promise<string> {
+	const existing = await list_todos(todos_dir);
+	const existing_ids = new Set(existing.map((t) => t.id));
 	for (let attempt = 0; attempt < 10; attempt += 1) {
 		const id = crypto.randomBytes(4).toString("hex");
-		const todo_path = get_todo_path(todos_dir, id);
-		if (!existsSync(todo_path)) return id;
+		if (!existing_ids.has(id)) return id;
 	}
 	throw new Error("Failed to generate unique todo id");
 }
@@ -462,12 +593,12 @@ export async function garbage_collect_todos(todos_dir: string, settings: TodoSet
 		entries
 			.filter((entry) => entry.endsWith(".md"))
 			.map(async (entry) => {
-				const id = entry.slice(0, -3);
+				const filename_fallback = entry.slice(0, -3);
 				const file_path = path.join(todos_dir, entry);
 				try {
 					const content = await fs.readFile(file_path, "utf8");
 					const { front_matter } = split_front_matter(content);
-					const parsed = parse_frontmatter(front_matter, id);
+					const parsed = parse_frontmatter(front_matter, filename_fallback);
 					if (!is_todo_closed(parsed.status)) return;
 					const created_at = Date.parse(parsed.created_at);
 					if (!Number.isFinite(created_at)) return;
@@ -581,14 +712,14 @@ export async function list_todos(todos_dir: string): Promise<TodoFrontMatter[]> 
 	const todos: TodoFrontMatter[] = [];
 	for (const entry of entries) {
 		if (!entry.endsWith(".md")) continue;
-		const id = entry.slice(0, -3);
+		const filename_fallback = entry.slice(0, -3);
 		const file_path = path.join(todos_dir, entry);
 		try {
 			const content = await fs.readFile(file_path, "utf8");
 			const { front_matter } = split_front_matter(content);
-			const parsed = parse_frontmatter(front_matter, id);
+			const parsed = parse_frontmatter(front_matter, filename_fallback);
 			todos.push({
-				id,
+				id: parsed.id,
 				title: parsed.title,
 				tags: parsed.tags ?? [],
 				status: parsed.status,
@@ -614,14 +745,14 @@ export function list_todos_sync(todos_dir: string): TodoFrontMatter[] {
 	const todos: TodoFrontMatter[] = [];
 	for (const entry of entries) {
 		if (!entry.endsWith(".md")) continue;
-		const id = entry.slice(0, -3);
+		const filename_fallback = entry.slice(0, -3);
 		const file_path = path.join(todos_dir, entry);
 		try {
 			const content = readFileSync(file_path, "utf8");
 			const { front_matter } = split_front_matter(content);
-			const parsed = parse_frontmatter(front_matter, id);
+			const parsed = parse_frontmatter(front_matter, filename_fallback);
 			todos.push({
-				id,
+				id: parsed.id,
 				title: parsed.title,
 				tags: parsed.tags ?? [],
 				status: parsed.status,
@@ -649,8 +780,8 @@ export async function update_todo_status(
 	const validated = validate_todo_id(id);
 	if ("error" in validated) return { error: validated.error };
 	const normalized_id = validated.id;
-	const file_path = get_todo_path(todos_dir, normalized_id);
-	if (!existsSync(file_path)) {
+	const file_path = await find_todo_path_by_id(todos_dir, normalized_id);
+	if (!file_path) {
 		return { error: `Todo ${display_todo_id(id)} not found` };
 	}
 
@@ -675,8 +806,8 @@ export async function claim_todo_assignment(
 	const validated = validate_todo_id(id);
 	if ("error" in validated) return { error: validated.error };
 	const normalized_id = validated.id;
-	const file_path = get_todo_path(todos_dir, normalized_id);
-	if (!existsSync(file_path)) {
+	const file_path = await find_todo_path_by_id(todos_dir, normalized_id);
+	if (!file_path) {
 		return { error: `Todo ${display_todo_id(id)} not found` };
 	}
 	const session_id = ctx.sessionManager.getSessionId();
@@ -711,8 +842,8 @@ export async function release_todo_assignment(
 	const validated = validate_todo_id(id);
 	if ("error" in validated) return { error: validated.error };
 	const normalized_id = validated.id;
-	const file_path = get_todo_path(todos_dir, normalized_id);
-	if (!existsSync(file_path)) {
+	const file_path = await find_todo_path_by_id(todos_dir, normalized_id);
+	if (!file_path) {
 		return { error: `Todo ${display_todo_id(id)} not found` };
 	}
 	const session_id = ctx.sessionManager.getSessionId();
@@ -742,8 +873,8 @@ export async function delete_todo(
 	const validated = validate_todo_id(id);
 	if ("error" in validated) return { error: validated.error };
 	const normalized_id = validated.id;
-	const file_path = get_todo_path(todos_dir, normalized_id);
-	if (!existsSync(file_path)) {
+	const file_path = await find_todo_path_by_id(todos_dir, normalized_id);
+	if (!file_path) {
 		return { error: `Todo ${display_todo_id(id)} not found` };
 	}
 

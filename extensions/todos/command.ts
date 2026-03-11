@@ -10,7 +10,8 @@ import { build_refine_prompt, filter_todos, format_todo_id } from "./helpers.js"
 import {
 	delete_todo,
 	ensure_todo_exists,
-	get_todo_path,
+	find_todo_path_by_id,
+	find_todo_path_by_id_sync,
 	get_todos_dir,
 	list_todos,
 	list_todos_sync,
@@ -86,7 +87,11 @@ export function create_todos_command() {
 				};
 
 				const copy_todo_path_to_clipboard = (todo_id: string) => {
-					const file_path = get_todo_path(todos_dir, todo_id);
+					const file_path = find_todo_path_by_id_sync(todos_dir, todo_id);
+					if (!file_path) {
+						ctx.ui.notify(`Todo ${format_todo_id(todo_id)} not found`, "error");
+						return;
+					}
 					const absolute_path = path.resolve(file_path);
 					try {
 						copyToClipboard(absolute_path);
@@ -111,7 +116,11 @@ export function create_todos_command() {
 				};
 
 				const resolve_todo_record = async (todo: TodoFrontMatter): Promise<TodoRecord | null> => {
-					const file_path = get_todo_path(todos_dir, todo.id);
+					const file_path = await find_todo_path_by_id(todos_dir, todo.id);
+					if (!file_path) {
+						ctx.ui.notify(`Todo ${format_todo_id(todo.id)} not found`, "error");
+						return null;
+					}
 					const record = await ensure_todo_exists(file_path, todo.id);
 					if (!record) {
 						ctx.ui.notify(`Todo ${format_todo_id(todo.id)} not found`, "error");
