@@ -99,8 +99,7 @@ Implemented:
 - Rewrote [[extensions/todos/README]].
 - Updated [[extensions/expert/README]].
 - Added:
-  - [[extensions/tmux-notify/README]]
-  - [[extensions/tmux-pane-title/README]]
+  - [[extensions/tmux/README]]
 
 ---
 

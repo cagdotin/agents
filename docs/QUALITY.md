@@ -25,8 +25,7 @@ This scorecard tracks maintainability and readiness of this package for day-to-d
 | `extensions/expert` | 4 | Excellent | Matching now uses aliases/keywords/pattern hints, injection is context-budget-aware, and `/expert log` + `/expert init` close the main UX gaps |
 | `extensions/damage-control` | 3 | Good | Default-on guardrails for YOLO mode with layered rules (bundled + global + nearest project); keep tuning false-positive/false-negative balance |
 | `extensions/session-stats` | 3 | Good | In-session observability panel with tool call charts, detail drill-downs, file timeline mode, and model history; 97 unit tests |
-| `extensions/tmux-notify` | 3 | Good | Useful and focused; now documented |
-| `extensions/tmux-pane-title` | 3 | Good | Useful and focused; now documented |
+| `extensions/tmux` | 3 | Good | Unified tmux integration (notify + pane title); documented |
 | Skills (`skills/*`) | 3 | Good | Consistent SKILL format and clear purpose |
 | Mechanical validation | 4 | Excellent | `bun run check` gates Biome + docs validation + Vitest; Lefthook pre-commit runs all three in parallel |
 | Automated testing | 3 | Good | 425 unit tests across 15 files covering Tier 1 (pure logic) and Tier 2 (mocked Pi imports); no LLM calls in tests; Tier 3 (runtime integration) deferred |

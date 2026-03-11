@@ -19,8 +19,7 @@ agents/
 │   ├── expert/
 │   ├── session-stats/
 │   ├── todos/
-│   ├── tmux-notify/
-│   └── tmux-pane-title/
+│   └── tmux/
 ├── skills/              # Agent skills (SKILL.md based)
 └── pi-themes/           # Pi theme JSON files
 ```

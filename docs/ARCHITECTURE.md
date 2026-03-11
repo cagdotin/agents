@@ -35,8 +35,9 @@ Key extensions to know by name:
   per-tool detail drill-downs, file timeline mode, model history.
 - `answer` — LLM extraction of questions from assistant output,
   structured answer collection. Model-selection pattern lives here.
-- `tmux-notify` and `tmux-pane-title` — Lightweight tmux integrations
-  (badge/sound, pane status). Minimal but documented.
+- `tmux` — Unified tmux integration: notification badges + sound on agent
+  completion, and pane title showing project/model/session status. Sub-modules
+  in `notify.ts` and `pane-title.ts` with shared helpers in `shared.ts`.
 
 ### `skills/`
 
