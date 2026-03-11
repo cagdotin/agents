@@ -108,6 +108,13 @@ This checks:
 This runs as part of `bun run check` and is enforced by the Lefthook pre-commit hook.
 If you add a new doc category that should be validated, update the script.
 
+For deeper freshness and consistency checks, run `bun run audit` (runs
+`scripts/audit-docs.ts`). This is an on-demand health check — separate from
+`bun run check` — that catches documentation drift: extensions missing from
+the codemap or scorecard, completed plans stuck in `active/`, stale test count
+baselines, and outdated `Last updated` timestamps. Errors exit 1 (provably
+wrong); advisories exit 0 (need human judgment).
+
 ---
 
 ## Removing Documentation

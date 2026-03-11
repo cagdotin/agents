@@ -10,7 +10,8 @@
 		"hooks:install": "lefthook install",
 		"prepare": "lefthook install",
 		"fix": "biome check --write .",
-		"format": "biome format --write ."
+		"format": "biome format --write .",
+		"audit": "bun run scripts/audit-docs.ts"
 	},
 	"version": "1.0.0",
 	"description": "Shared skills, extensions, themes, and docs for coding agents of cagin",

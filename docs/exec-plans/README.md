@@ -40,6 +40,7 @@ Use `skills/plan` for both artifact types.
 
 ## Current active plans
 
+- [[docs/exec-plans/active/2026-03-10-docs-audit-script]] — automated docs freshness audit (`bun run audit`)
 - [[docs/exec-plans/active/2026-03-07-session-stats-extension]] — session stats panel (pending live verification)
 
 ## Recently completed
