@@ -67,6 +67,8 @@ bookmarks, and memory. Resources are written for both humans and coding agents.
   progressive disclosure, mechanical enforcement, entropy management).
 - [[codex-exec-plans-openai]] — OpenAI Cookbook guidance on execution plans as living
   rollout artifacts (scope, milestones, progress, decision logging).
+- [[unix-philosophy-raymond]] — Eric Raymond's 17 Unix design rules. Basis for the
+  design-principles audit lens.
 - [[pi-vs-claude-code-indydevdan]] — Harness customization tiers and practical extension strategy.
 
 ### Informative

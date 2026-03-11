@@ -1,85 +1,43 @@
 ---
 name: audit
-description: Run a documentation freshness audit on this repository. Use when asked to check if docs are up to date, do a health check, audit the repo, or when starting a maintenance session.
+description: Audit this repository for documentation freshness and code design quality. Produces a structured report. Use when asked to audit, health check, review code quality, check design health, or do a maintenance pass.
 ---
 
 # Audit
 
-Run a documentation and structural freshness audit on this repository.
+Audit the repository across documentation and code quality concerns.
+Output is a **report** — present findings to the user. Do not commit, refactor, or fix unless explicitly told to.
 
 ## When to use
 
-- The user asks to "audit", "health check", or "check if docs are up to date"
+- The user asks to "audit", "health check", "check docs", or "review code quality"
 - Starting a maintenance or housekeeping session
-- After a batch of work that touched multiple extensions, skills, or exec plans
-- Periodically, as a librarian pass
+- After a batch of work that touched multiple extensions, skills, or docs
+- Before or after a significant refactor to assess where things stand
+- Periodically, as a design and documentation hygiene check
 
-## Step 1: Run the automated audit
+## Workflow
 
-```bash
-bun run audit
-```
+1. **Determine the audit scope.** Use explicit user input first. If ambiguous, default to both lenses repo-wide. The user may ask for just one lens or just one extension — respect that.
+2. **Load the relevant lenses.** Default to all lenses unless the user asks for a narrower audit.
+3. **Gather context before judging.** Read source files, docs, tests, and READMEs as needed. For docs-freshness, run `bun run audit` first.
+4. **Focus on judgment, not mechanics.** Don't flag style issues that Biome catches. Don't report on principles that don't apply to the scope.
+5. **Produce the report using `references/report-format.md`.** Group findings by lens. Omit empty lenses.
 
-This runs `scripts/audit-docs.ts` and reports two severity levels:
+## Available lenses
 
-- **Errors (exit 1)** — provably wrong, fix immediately:
-  - Extension missing from ARCHITECTURE.md, README.md, or QUALITY.md scorecard
-  - Completed exec plan still in `active/`
-  - Phantom or missing entries in the exec-plans/README index
+| Lens | Use when auditing for | Reference |
+|---|---|---|
+| Docs Freshness | stale docs, missing entries, structural drift, metadata honesty | `references/lenses/docs-freshness.md` |
+| Design Principles | modularity, separation, clarity, composition, and other Unix philosophy principles | `references/lenses/design-principles.md` |
 
-- **Advisories (exit 0)** — need human judgment, flag to the user:
-  - Test count in QUALITY.md doesn't match actual vitest output
-  - `Last updated` date >7 days behind git history
-  - Active plan with all milestones checked off
+The design-principles lens is based on Eric Raymond's Unix philosophy. Full source: `docs/resources/unix-philosophy-raymond.md`.
 
-Fix all errors. Present advisories to the user for a decision — do not silently act on them.
+## Audit notes
 
-## Step 2: Fix errors from the automated audit
-
-For each error, apply the fix described in the hint. Common patterns:
-
-| Error | Fix |
-|---|---|
-| Extension missing from docs | Add it to ARCHITECTURE.md codemap, README.md structure, and QUALITY.md scorecard |
-| Completed plan in `active/` | Move file to `completed/`, update exec-plans/README.md index |
-| Phantom index entry | Remove the stale wikilink from exec-plans/README.md |
-| Plan missing from index | Add a wikilink to the correct section of exec-plans/README.md |
-
-After fixing, re-run `bun run audit` to confirm clean output.
-
-## Step 3: Triage advisories with the user
-
-Present each advisory and ask what to do. Typical actions:
-
-- **Test count drift** → update the coverage baseline in QUALITY.md
-- **Last-updated date drift** → update the `Last updated:` header in the affected file
-- **All milestones complete** → ask the user if the plan is truly done; if yes, mark `Status: Completed` and move to `completed/`
-
-## Step 4: Manual review (judgment-based)
-
-The automated audit catches structural drift. These checks require reading comprehension and are not automated:
-
-1. **Scorecard ratings** — are the scores in QUALITY.md still accurate given recent changes?
-2. **Tech debt tracker** — are any P1/P2 items resolved but still listed?
-3. **Extension README accuracy** — do the behavior descriptions still match the code?
-4. **ARCHITECTURE.md boundaries/invariants** — has anything shifted that the codemap doesn't reflect?
-5. **Spec/plan cross-references** — do specs and plans still link to each other correctly?
-
-Skim these quickly. Only flag things that are clearly wrong — don't rewrite docs for style during an audit.
-
-## Step 5: Commit
-
-If changes were made, commit with:
-
-```
-docs: audit and update stale docs
-```
-
-Use a single commit for all audit fixes unless changes are large enough to warrant separation.
-
-## What NOT to do during an audit
-
-- Don't refactor code — this is a docs-only pass
-- Don't update scorecard ratings without the user's input
-- Don't chase advisories into rabbit holes — flag them and move on
-- Don't fill your own context with a long remediation task list — fix what's broken, flag what's ambiguous, and stop
+- State the scope and lenses before presenting findings.
+- Prefer concrete findings over generic advice.
+- Distinguish clearly between errors (provably wrong), concerns (design smell), and notes (minor).
+- When a finding depends on missing context, say what would need to be checked.
+- If no issues are found for a lens, omit that lens from the report.
+- Do not commit or push — this skill produces a report, not a commit.
