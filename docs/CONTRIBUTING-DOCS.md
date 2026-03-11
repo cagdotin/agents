@@ -30,7 +30,8 @@ principles. If it intentionally diverges, document the reasoning.
 | File / Directory | Purpose | Stability |
 |------------------|---------|-----------|
 | `ARCHITECTURE.md` | Codemap, boundaries, invariants | High — update a few times a year |
-| `QUALITY.md` | Quality scorecard and prioritized gaps | Medium — update when scores change |
+| `QUALITY.md` | Quality scorecard and prioritized gaps; judgment, not raw counters | Medium — update when scores or gaps change |
+| `TESTING.md` | Testing conventions, tiered approach, mock strategy | Medium — update when conventions change |
 | `CONTRIBUTING-DOCS.md` | This file — rules for docs work | High |
 | `exec-plans/` | Active/completed execution plans + debt tracker | Medium — plans are living documents |
 | `specs/` | Implementation specs for planned/complex work | Medium — created per feature, archived after |
@@ -80,9 +81,13 @@ If you need to update ARCHITECTURE.md, ask: "Will this still be true in 6 months
 Don't write aspirational documentation. If something doesn't exist yet, don't
 describe it as if it does. Instead:
 
-- Track quality gaps in `QUALITY.md`
+- Track quality gaps and judgment calls in `QUALITY.md`
 - Track planned work in `exec-plans/` or `specs/`
 - Use `.pi/todos/` for actionable items
+
+`QUALITY.md` should capture evaluation and non-obvious gaps, not raw metrics that
+anyone can regenerate from tooling output (for example test counts, coverage
+baselines, or similar counters).
 
 ### 6. Every Resource Gets Frontmatter
 
@@ -108,12 +113,16 @@ This checks:
 This runs as part of `bun run check` and is enforced by the Lefthook pre-commit hook.
 If you add a new doc category that should be validated, update the script.
 
+Module boundary invariants (e.g., no cross-extension imports) are checked by
+`bun run check:boundaries` (runs `scripts/validate-boundaries.ts`), also part
+of the pre-commit gate.
+
 For deeper freshness and consistency checks, run `bun run audit` (runs
 `scripts/audit-docs.ts`). This is an on-demand health check — separate from
 `bun run check` — that catches documentation drift: extensions missing from
-the codemap or scorecard, completed plans stuck in `active/`, stale test count
-baselines, and outdated `Last updated` timestamps. Errors exit 1 (provably
-wrong); advisories exit 0 (need human judgment).
+the codemap or scorecard, completed plans stuck in `active/`, and outdated
+`Last updated` timestamps. Errors exit 1 (provably wrong); advisories exit 0
+(need human judgment).
 
 ---
 

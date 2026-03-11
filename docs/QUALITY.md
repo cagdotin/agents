@@ -1,7 +1,7 @@
 # QUALITY
 
-Status: active  
-Last updated: 2026-03-10
+Status: active
+Last updated: 2026-03-11
 
 This scorecard tracks maintainability and readiness of this package for day-to-day agent use.
 
@@ -24,35 +24,49 @@ This scorecard tracks maintainability and readiness of this package for day-to-d
 | `extensions/todos` | 3 | Good | Strong implementation and TUI; docs were stale and are now refreshed |
 | `extensions/expert` | 4 | Excellent | Matching now uses aliases/keywords/pattern hints, injection is context-budget-aware, and `/expert log` + `/expert init` close the main UX gaps |
 | `extensions/damage-control` | 3 | Good | Default-on guardrails for YOLO mode with layered rules (bundled + global + nearest project); keep tuning false-positive/false-negative balance |
-| `extensions/session-stats` | 3 | Good | In-session observability panel with tool call charts, detail drill-downs, file timeline mode, and model history; 97 unit tests |
+| `extensions/session-stats` | 3 | Good | In-session observability panel with tool call charts, detail drill-downs, file timeline mode, and model history |
 | `extensions/tmux` | 3 | Good | Unified tmux integration (notify + pane title); documented |
 | Skills (`skills/*`) | 3 | Good | Consistent SKILL format and clear purpose |
-| Mechanical validation | 4 | Excellent | `bun run check` gates Biome + docs validation + Vitest; Lefthook pre-commit runs all three in parallel |
-| Automated testing | 3 | Good | 447 unit tests across 16 files covering Tier 1 (pure logic) and Tier 2 (mocked Pi imports); no LLM calls in tests; Tier 3 (runtime integration) deferred |
+| Mechanical validation | 4 | Excellent | `bun run check` gates Biome + docs + boundary invariants + Vitest; Lefthook pre-commit runs all four in parallel |
+| Automated testing | 3 | Good | Tier 1 and Tier 2 are in use with shared mocks; Tier 3 runtime-heavy testing is still deferred |
 
 ---
 
-## Testing Infrastructure
+## Testing posture
 
-Vitest is the test runner, invoked via `bun run test`. Tests live in `__tests__/` directories co-located with each extension. Shared mocks for `@mariozechner/*` peer dependencies live in `extensions/__mocks__/` and are resolved via Vitest aliases — no real Pi runtime or LLM calls are ever made.
+For test conventions, mock strategy, and boundaries, see `docs/TESTING.md`.
 
-**Coverage baseline (2026-03-11):** 447 tests, 16 files, ~1s.
+Current posture:
+- Tier 1 and Tier 2 coverage exists across multiple extensions and scripts.
+- Tier 3 code is still mostly untested because it is tightly coupled to the Pi runtime.
+- The best next candidates for more coverage are `expert/tool.ts`, `todos/tool.ts`, and `session-stats/panel.ts`, where logic could be extracted or tested with shared mocks.
+- If deeper runtime testing becomes important, we need a Pi test harness or a mock session/context factory.
 
-### Known Code Issues Found During Testing
+### Known code issues found during testing
 
-These were discovered while writing the initial test suite. They are documented here as they represent real behavioral quirks in the production code.
+These were discovered while writing tests and are worth keeping visible because they
+represent real behavioral quirks in production code.
 
 1. **`damage-control/matcher.ts` — MUTATION_COMMAND_PATTERN regex false negatives.**
-   Commands like `chmod 755 script.sh` do NOT match the mutation pattern. The regex `(^|\s)(chmod\s+)(\s|$)` requires the greedy `\s+` to leave whitespace for the trailing `(\s|$)` group, which only works with 2+ spaces between the command and its argument. Affects all command patterns in the alternation (`chmod`, `chown`, `cp`, `mv`, `mkdir`, `touch`, `tee`, `truncate`). Only redirect operators (`>`, `>>`) and `install -` reliably match. Impact: some mutation commands against read-only/no-delete paths may pass through unchecked.
+   Commands like `chmod 755 script.sh` do not match the mutation pattern. The regex
+   `(^|\s)(chmod\s+)(\s|$)` requires the greedy `\s+` to leave whitespace for the
+   trailing `(\s|$)` group, which only works with 2+ spaces between the command and
+   its argument. Impact: some mutation commands against read-only/no-delete paths may
+   pass through unchecked.
 
 2. **`expert/helpers.ts` — Domain alias matching silently ignores short aliases.**
-   `term_matches_prompt` rejects terms shorter than 3 characters. Aliases like `"db"` (2 chars) never match. This is intentional to avoid false positives but is not documented — users defining aliases should be aware of the minimum length.
+   `term_matches_prompt` rejects terms shorter than 3 characters. Aliases like `"db"`
+   never match. This is intentional to avoid false positives but is not obvious to
+   users defining aliases.
 
 3. **`expert/helpers.ts` — Keyword-only matches fall below routing threshold.**
-   A single keyword match scores +4, but `MIN_DOMAIN_MATCH_SCORE` is 6. A keyword alone is never sufficient to route a prompt to a domain — it must combine with another signal (description word, scope path, etc.). This may surprise users who expect keywords to be first-class routing signals.
+   A single keyword match scores +4, but `MIN_DOMAIN_MATCH_SCORE` is 6. A keyword
+   alone is never sufficient to route a prompt to a domain.
 
 4. **`expert/helpers.ts` — `scan_scope_paths` does not ignore top-level ignored directories.**
-   `is_ignored_dir` only applies to subdirectories encountered during recursive walk. If `"node_modules"` is passed directly as a scope path, its contents are returned. The ignore list is a convenience for walking parent directories, not a security boundary.
+   `is_ignored_dir` only applies during recursive walk. If `"node_modules"` is passed
+   directly as a scope path, its contents are returned. The ignore list is a convenience,
+   not a security boundary.
 
 ---
 
@@ -64,7 +78,7 @@ These were discovered while writing the initial test suite. They are documented 
 
 ## P1
 
-1. **Fix MUTATION_COMMAND_PATTERN regex** — the trailing `(\s|$)` group prevents single-space command matching. Consider removing it or restructuring the alternation. (See testing findings above.)
+1. **Fix `MUTATION_COMMAND_PATTERN` regex** — the trailing `(\s|$)` group prevents single-space command matching. Consider removing it or restructuring the alternation. (See testing findings above.)
 
 ## P2
 

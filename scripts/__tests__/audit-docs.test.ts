@@ -35,10 +35,7 @@ const ARCHITECTURE_CONTENT = `# ARCHITECTURE
 
 ### \`extensions/\`
 
-Key extensions to know by name:
-
-- \`alpha\` — First extension.
-- \`beta\` — Second extension.
+Extensions live under this directory.
 `;
 
 const README_CONTENT = `# Agents
@@ -134,20 +131,9 @@ describe("scripts/audit-docs.ts", () => {
 		expect(result.stdout).toContain("Docs audit passed");
 	});
 
-	// ------- E1: Extension missing from ARCHITECTURE.md -------
+	// ------- E1: Extension missing from README.md -------
 
-	it("reports extension missing from ARCHITECTURE.md (E1)", async () => {
-		await write_clean_fixture(test_dir);
-		await mkdir(path.join(test_dir, "extensions", "gamma"), { recursive: true });
-
-		const result = run_audit(test_dir);
-		expect(result.status).toBe(1);
-		expect(result.stderr).toContain("extension 'gamma' missing from ARCHITECTURE.md codemap");
-	});
-
-	// ------- E2: Extension missing from README.md -------
-
-	it("reports extension missing from README.md (E2)", async () => {
+	it("reports extension missing from README.md (E1)", async () => {
 		await write_clean_fixture(test_dir);
 		await mkdir(path.join(test_dir, "extensions", "gamma"), { recursive: true });
 
@@ -156,9 +142,9 @@ describe("scripts/audit-docs.ts", () => {
 		expect(result.stderr).toContain("extension 'gamma' missing from README.md structure");
 	});
 
-	// ------- E3: Extension missing from QUALITY.md -------
+	// ------- E2: Extension missing from QUALITY.md -------
 
-	it("reports extension missing from QUALITY.md (E3)", async () => {
+	it("reports extension missing from QUALITY.md (E2)", async () => {
 		await write_clean_fixture(test_dir);
 		await mkdir(path.join(test_dir, "extensions", "gamma"), { recursive: true });
 
@@ -167,15 +153,15 @@ describe("scripts/audit-docs.ts", () => {
 		expect(result.stderr).toContain("extension 'gamma' missing from QUALITY.md scorecard");
 	});
 
-	// ------- E4: Completed plan in active/ -------
+	// ------- E3: Completed plan in active/ -------
 
-	it("reports completed plan still in active/ (E4)", async () => {
+	it("reports completed plan still in active/ (E3)", async () => {
 		await write_clean_fixture(test_dir);
 		await writeFile(
 			path.join(test_dir, "docs", "exec-plans", "active", "2026-01-02-done.md"),
 			"# Done Plan\n\nStatus: Completed\n\n## Outcomes\nDone.\n",
 		);
-		// Also add to index so we don't get E6
+		// Also add to index so we don't get E5
 		const index = `${INDEX_CONTENT}\n- [[docs/exec-plans/active/2026-01-02-done]] — Done plan\n`;
 		await writeFile(path.join(test_dir, "docs", "exec-plans", "README.md"), index);
 
@@ -184,7 +170,7 @@ describe("scripts/audit-docs.ts", () => {
 		expect(result.stderr).toContain("completed exec plan still in active/");
 	});
 
-	it("detects case-insensitive status: complete (E4)", async () => {
+	it("detects case-insensitive status: complete (E3)", async () => {
 		await write_clean_fixture(test_dir);
 		await writeFile(
 			path.join(test_dir, "docs", "exec-plans", "active", "2026-01-02-done.md"),
@@ -198,9 +184,9 @@ describe("scripts/audit-docs.ts", () => {
 		expect(result.stderr).toContain("completed exec plan still in active/");
 	});
 
-	// ------- E5: Phantom index entry -------
+	// ------- E4: Phantom index entry -------
 
-	it("reports phantom index entry (E5)", async () => {
+	it("reports phantom index entry (E4)", async () => {
 		await write_clean_fixture(test_dir);
 		// Add a reference to a plan that doesn't exist
 		const index = `${INDEX_CONTENT}\n- [[docs/exec-plans/active/2026-99-99-ghost]] — Ghost plan\n`;
@@ -212,9 +198,9 @@ describe("scripts/audit-docs.ts", () => {
 		expect(result.stderr).toContain("2026-99-99-ghost");
 	});
 
-	// ------- E6: Plan file missing from index -------
+	// ------- E5: Plan file missing from index -------
 
-	it("reports plan file missing from index (E6)", async () => {
+	it("reports plan file missing from index (E5)", async () => {
 		await write_clean_fixture(test_dir);
 		// Add an active plan file that's not referenced in the index
 		await writeFile(
@@ -228,7 +214,7 @@ describe("scripts/audit-docs.ts", () => {
 		expect(result.stderr).toContain("2026-01-03-orphan");
 	});
 
-	it("reports completed plan file missing from index (E6)", async () => {
+	it("reports completed plan file missing from index (E5)", async () => {
 		await write_clean_fixture(test_dir);
 		await writeFile(
 			path.join(test_dir, "docs", "exec-plans", "completed", "2026-01-03-orphan.md"),
@@ -240,9 +226,9 @@ describe("scripts/audit-docs.ts", () => {
 		expect(result.stderr).toContain("completed exec plan missing from index");
 	});
 
-	// ------- A3: All milestones complete in active plan -------
+	// ------- A2: All milestones complete in active plan -------
 
-	it("reports advisory when all milestones are complete (A3)", async () => {
+	it("reports advisory when all milestones are complete (A2)", async () => {
 		await write_clean_fixture(test_dir);
 		await writeFile(
 			path.join(test_dir, "docs", "exec-plans", "active", "2026-01-01-plan-a.md"),
@@ -278,8 +264,7 @@ describe("scripts/audit-docs.ts", () => {
 
 		const result = run_audit(test_dir);
 		expect(result.status).toBe(1);
-		// Should get E1, E2, and E3 all at once
-		expect(result.stderr).toContain("missing from ARCHITECTURE.md");
+		// Should get E1 and E2 together
 		expect(result.stderr).toContain("missing from README.md");
 		expect(result.stderr).toContain("missing from QUALITY.md");
 	});

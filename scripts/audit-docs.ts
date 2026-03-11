@@ -11,29 +11,26 @@
  *
  * ## Check reference
  *
- * ### Errors (E1–E6) — exit 1 if any found
+ * ### Errors (E1–E5) — exit 1 if any found
  *
  * | Key | Check                                    | Function                     | What it proves                                                    |
  * |-----|------------------------------------------|------------------------------|-------------------------------------------------------------------|
- * | E1  | Extension missing from ARCHITECTURE.md   | audit_extension_coverage     | Extension dir exists in extensions/ but is not listed in codemap  |
- * | E2  | Extension missing from README.md         | audit_extension_coverage     | Extension dir exists but is absent from the repo structure tree   |
- * | E3  | Extension missing from QUALITY.md        | audit_extension_coverage     | Extension dir exists but has no scorecard row                     |
- * | E4  | Completed plan still in active/          | audit_exec_plan_status       | Plan has Status: Complete(d) but hasn't been moved to completed/  |
- * | E5  | Phantom entry in exec-plan index         | audit_exec_plan_index        | Wikilink in README.md references a file that doesn't exist        |
- * | E6  | Plan file missing from exec-plan index   | audit_exec_plan_index        | File exists in active/ or completed/ but has no wikilink in index |
+ * | E1  | Extension missing from README.md         | audit_extension_coverage     | Extension dir exists but is absent from the repo structure tree   |
+ * | E2  | Extension missing from QUALITY.md        | audit_extension_coverage     | Extension dir exists but has no scorecard row                     |
+ * | E3  | Completed plan still in active/          | audit_exec_plan_status       | Plan has Status: Complete(d) but hasn't been moved to completed/  |
+ * | E4  | Phantom entry in exec-plan index         | audit_exec_plan_index        | Wikilink in README.md references a file that doesn't exist        |
+ * | E5  | Plan file missing from exec-plan index   | audit_exec_plan_index        | File exists in active/ or completed/ but has no wikilink in index |
  *
- * ### Advisories (A1–A3) — exit 0, printed as info
+ * ### Advisories (A1–A2) — exit 0, printed as info
  *
  * | Key | Check                                    | Function                     | What it flags                                                     |
  * |-----|------------------------------------------|------------------------------|-------------------------------------------------------------------|
- * | A1  | Test count drift                         | audit_test_count             | Vitest actual count differs from QUALITY.md coverage baseline     |
- * | A2  | Last-updated date drift                  | audit_last_updated_dates     | Git commit date >7 days newer than documented "Last updated" date |
- * | A3  | All milestones complete in active plan   | audit_milestone_completion   | Every checkbox is [x] — plan may be ready to move to completed/   |
+ * | A1  | Last-updated date drift                  | audit_last_updated_dates     | Git commit date >7 days newer than documented "Last updated" date |
+ * | A2  | All milestones complete in active plan   | audit_milestone_completion   | Every checkbox is [x] — plan may be ready to move to completed/   |
  *
  * ## Graceful degradation
  *
- * - A1 skips silently if vitest is unavailable or fails
- * - A2 skips silently if not in a git repository
+ * - A1 skips silently if not in a git repository
  * - Missing doc files (ARCHITECTURE.md, etc.) produce an advisory, not a crash
  */
 
@@ -55,13 +52,12 @@ async function main() {
 	const repo_root = process.cwd();
 	const findings: AuditFinding[] = [];
 
-	// Error checks (E1–E6)
+	// Error checks (E1–E5)
 	await audit_extension_coverage(repo_root, findings);
 	await audit_exec_plan_status(repo_root, findings);
 	await audit_exec_plan_index(repo_root, findings);
 
-	// Advisory checks (A1–A3)
-	await audit_test_count(repo_root, findings);
+	// Advisory checks (A1–A2)
 	await audit_last_updated_dates(repo_root, findings);
 	await audit_milestone_completion(repo_root, findings);
 
@@ -145,7 +141,7 @@ async function list_plan_files(dir_path: string): Promise<string[]> {
 }
 
 // ---------------------------------------------------------------------------
-// E1–E3: Extension coverage in ARCHITECTURE.md, README.md, QUALITY.md
+// E1–E2: Extension coverage in README.md and QUALITY.md
 // ---------------------------------------------------------------------------
 
 async function audit_extension_coverage(repo_root: string, findings: AuditFinding[]) {
@@ -154,25 +150,12 @@ async function audit_extension_coverage(repo_root: string, findings: AuditFindin
 		return;
 	}
 
-	const arch_path = path.join(repo_root, "docs", "ARCHITECTURE.md");
 	const readme_path = path.join(repo_root, "README.md");
 	const quality_path = path.join(repo_root, "docs", "QUALITY.md");
 
-	const arch_content = await safe_read_file(arch_path);
 	const readme_content = await safe_read_file(readme_path);
 	const quality_content = await safe_read_file(quality_path);
 
-	if (arch_content === null) {
-		push_finding(
-			repo_root,
-			findings,
-			"advisory",
-			arch_path,
-			"ARCHITECTURE.md not found",
-			"Cannot check extension coverage without docs/ARCHITECTURE.md.",
-		);
-		return;
-	}
 	if (readme_content === null) {
 		push_finding(
 			repo_root,
@@ -197,19 +180,7 @@ async function audit_extension_coverage(repo_root: string, findings: AuditFindin
 	}
 
 	for (const name of extension_names) {
-		// E1: Extension in ARCHITECTURE.md codemap
-		if (!arch_content.includes(name)) {
-			push_finding(
-				repo_root,
-				findings,
-				"error",
-				arch_path,
-				`extension '${name}' missing from ARCHITECTURE.md codemap`,
-				`Add '${name}' to the Key extensions list in docs/ARCHITECTURE.md so agents can discover it.`,
-			);
-		}
-
-		// E2: Extension in README.md structure
+		// E1: Extension in README.md structure
 		if (!readme_content.includes(name)) {
 			push_finding(
 				repo_root,
@@ -221,7 +192,7 @@ async function audit_extension_coverage(repo_root: string, findings: AuditFindin
 			);
 		}
 
-		// E3: Extension in QUALITY.md scorecard
+		// E2: Extension in QUALITY.md scorecard
 		if (!quality_content.includes(name)) {
 			push_finding(
 				repo_root,
@@ -236,7 +207,7 @@ async function audit_extension_coverage(repo_root: string, findings: AuditFindin
 }
 
 // ---------------------------------------------------------------------------
-// E4: Completed exec plan still in active/
+// E3: Completed exec plan still in active/
 // ---------------------------------------------------------------------------
 
 async function audit_exec_plan_status(repo_root: string, findings: AuditFinding[]) {
@@ -265,7 +236,7 @@ async function audit_exec_plan_status(repo_root: string, findings: AuditFinding[
 }
 
 // ---------------------------------------------------------------------------
-// E5–E6: Exec plan index drift
+// E4–E5: Exec plan index drift
 // ---------------------------------------------------------------------------
 
 async function audit_exec_plan_index(repo_root: string, findings: AuditFinding[]) {
@@ -295,7 +266,7 @@ async function audit_exec_plan_index(repo_root: string, findings: AuditFinding[]
 		referenced_paths.add(`${sub_dir}/${file_name}`);
 	}
 
-	// E5: Phantom entries — referenced in index but file doesn't exist
+	// E4: Phantom entries — referenced in index but file doesn't exist
 	for (const ref_path of referenced_paths) {
 		const full_path = path.join(repo_root, "docs", "exec-plans", ref_path);
 		const content = await safe_read_file(full_path);
@@ -311,7 +282,7 @@ async function audit_exec_plan_index(repo_root: string, findings: AuditFinding[]
 		}
 	}
 
-	// E6: Files missing from index
+	// E5: Files missing from index
 	const active_dir = path.join(repo_root, "docs", "exec-plans", "active");
 	const completed_dir = path.join(repo_root, "docs", "exec-plans", "completed");
 
@@ -348,76 +319,7 @@ async function audit_exec_plan_index(repo_root: string, findings: AuditFinding[]
 }
 
 // ---------------------------------------------------------------------------
-// A1: Test count drift
-// ---------------------------------------------------------------------------
-
-async function audit_test_count(repo_root: string, findings: AuditFinding[]) {
-	const quality_path = path.join(repo_root, "docs", "QUALITY.md");
-	const quality_content = await safe_read_file(quality_path);
-	if (quality_content === null) {
-		return;
-	}
-
-	// Target the coverage baseline line specifically:
-	// "**Coverage baseline (YYYY-MM-DD):** NNN tests, NN files"
-	// Account for markdown bold markers around the label
-	const baseline_match = quality_content.match(/Coverage baseline.*?(\d+)\s+tests.*?(\d+)\s+files/u);
-
-	if (!baseline_match) {
-		return; // No baseline to compare against
-	}
-
-	const documented_tests = Number.parseInt(baseline_match[1], 10);
-	const documented_files = Number.parseInt(baseline_match[2], 10);
-
-	// Run vitest to get actual counts
-	const result = spawnSync("bunx", ["vitest", "run", "--reporter=json"], {
-		cwd: repo_root,
-		encoding: "utf8",
-		timeout: 30_000,
-	});
-
-	if (result.status !== 0 && result.status !== 1) {
-		console.log("(skipping test count check — vitest run failed)");
-		return;
-	}
-
-	// vitest json output may be mixed with other output; find the JSON object
-	const stdout = result.stdout ?? "";
-	const json_start = stdout.indexOf("{");
-	if (json_start === -1) {
-		console.log("(skipping test count check — could not parse vitest JSON output)");
-		return;
-	}
-
-	let vitest_data: { numTotalTests?: number; testResults?: unknown[] };
-	try {
-		vitest_data = JSON.parse(stdout.slice(json_start));
-	} catch {
-		console.log("(skipping test count check — invalid vitest JSON)");
-		return;
-	}
-
-	const actual_tests = vitest_data.numTotalTests ?? 0;
-	// testResults array has one entry per test file (not per describe block)
-	const actual_files = Array.isArray(vitest_data.testResults) ? vitest_data.testResults.length : 0;
-
-	if (actual_tests !== documented_tests || actual_files !== documented_files) {
-		const doc_str = `${documented_tests} tests across ${documented_files} files`;
-		const actual_str = `${actual_tests} tests across ${actual_files} files`;
-		push_finding(
-			repo_root,
-			findings,
-			"advisory",
-			quality_path,
-			`test count drift: documented ${doc_str}, actual ${actual_str}`,
-			`Update the coverage baseline in docs/QUALITY.md to reflect current counts.`,
-		);
-	}
-}
-
-// ---------------------------------------------------------------------------
-// A2: Last-updated date drift
+// A1: Last-updated date drift
 // ---------------------------------------------------------------------------
 
 async function audit_last_updated_dates(repo_root: string, findings: AuditFinding[]) {
@@ -482,7 +384,7 @@ async function audit_last_updated_dates(repo_root: string, findings: AuditFindin
 }
 
 // ---------------------------------------------------------------------------
-// A3: All milestones complete in active plan
+// A2: All milestones complete in active plan
 // ---------------------------------------------------------------------------
 
 async function audit_milestone_completion(repo_root: string, findings: AuditFinding[]) {
