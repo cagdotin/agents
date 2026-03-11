@@ -34,7 +34,7 @@ export function create_todos_command() {
 				const tags = todo.tags.length ? ` • ${todo.tags.join(", ")}` : "";
 				return {
 					value: title,
-					label: `${format_todo_id(todo.id)} ${title}`,
+					label: title,
 					description: `${todo.status || "open"}${tags}`,
 				};
 			});

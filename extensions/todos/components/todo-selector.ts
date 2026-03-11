@@ -11,7 +11,7 @@ import {
 	type TUI,
 } from "@mariozechner/pi-tui";
 import { render_assignment_suffix } from "../formatting.js";
-import { filter_todos, format_todo_id, is_todo_closed } from "../helpers.js";
+import { filter_todos, is_todo_closed } from "../helpers.js";
 import type { TodoFrontMatter } from "../types.js";
 
 export class TodoSelectorComponent extends Container implements Focusable {
@@ -150,8 +150,6 @@ export class TodoSelectorComponent extends Container implements Focusable {
 			const assignment_text = render_assignment_suffix(this.theme, todo, this.current_session_id);
 			const line =
 				prefix +
-				this.theme.fg("accent", format_todo_id(todo.id)) +
-				" " +
 				this.theme.fg(title_color, todo.title || "(untitled)") +
 				this.theme.fg("muted", tag_text) +
 				assignment_text +

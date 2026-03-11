@@ -80,13 +80,7 @@ export function render_todo_heading(theme: Theme, todo: TodoFrontMatter, current
 	const title_color = closed ? "dim" : "text";
 	const tag_text = todo.tags.length ? theme.fg("dim", ` [${todo.tags.join(", ")}]`) : "";
 	const assignment_text = render_assignment_suffix(theme, todo, current_session_id);
-	return (
-		theme.fg("accent", format_todo_id(todo.id)) +
-		" " +
-		theme.fg(title_color, get_todo_title(todo)) +
-		tag_text +
-		assignment_text
-	);
+	return theme.fg(title_color, get_todo_title(todo)) + tag_text + assignment_text;
 }
 
 export function render_todo_list(

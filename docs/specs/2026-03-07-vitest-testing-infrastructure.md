@@ -492,15 +492,17 @@ Ordered by suggested implementation sequence. Each step should be independently 
 
 ### Phase 4: Script + Coverage Baseline
 
-- [ ] `scripts/__tests__/validate-docs.test.ts` — with fixture directories
+- [x] `scripts/__tests__/validate-docs.test.ts` — with fixture directories (5 tests)
+- [x] `scripts/__tests__/audit-docs.test.ts` — audit script tests (13 tests)
 - [ ] Run `bun run test:coverage` and record baseline numbers in `QUALITY.md`
 - [ ] Decide on coverage thresholds (if any) for future enforcement
 
 ### Phase 5: Documentation
 
-- [ ] Update `docs/ARCHITECTURE.md` cross-cutting concerns section to mention testing
-- [x] Update `QUALITY.md` to reflect testing infrastructure score and code findings
-- [ ] Add testing conventions to `docs/CONTRIBUTING-DOCS.md` or create a separate `CONTRIBUTING-CODE.md`
+- [x] Update `docs/ARCHITECTURE.md` cross-cutting concerns section to mention testing
+- [x] Update `QUALITY.md` to reflect testing infrastructure score, code findings, and per-tier coverage status
+- [x] Create `docs/TESTING.md` — full testing conventions, tiered approach, mock strategy, and how-to guide
+- [x] Update `docs/CONTRIBUTING-DOCS.md` documentation map to include `TESTING.md`
 
 ## 10. Open Questions
 

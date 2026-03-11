@@ -1,6 +1,6 @@
 import { DynamicBorder, type Theme } from "@mariozechner/pi-coding-agent";
 import { Container, type SelectItem, SelectList, Text } from "@mariozechner/pi-tui";
-import { format_todo_id, is_todo_closed } from "../helpers.js";
+import { is_todo_closed } from "../helpers.js";
 import type { TodoMenuAction, TodoRecord } from "../types.js";
 
 export class TodoActionMenuComponent extends Container {
@@ -29,7 +29,7 @@ export class TodoActionMenuComponent extends Container {
 		];
 
 		this.addChild(new DynamicBorder((s: string) => theme.fg("accent", s)));
-		this.addChild(new Text(theme.fg("accent", theme.bold(`Actions for ${format_todo_id(todo.id)} "${title}"`))));
+		this.addChild(new Text(theme.fg("accent", theme.bold(`Actions for "${title}"`))));
 
 		this.select_list = new SelectList(options, options.length, {
 			selectedPrefix: (text) => theme.fg("accent", text),
