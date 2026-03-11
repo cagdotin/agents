@@ -1,5 +1,5 @@
 /**
- * Tmux Pane Title Extension
+ * Tmux Pane Title Sub-module
  *
  * Sets the tmux pane title to show project name, model, session title,
  * and agent status so you can distinguish multiple pi instances at a glance.
@@ -35,34 +35,15 @@
  *   3. Run `tmux source-file ~/.tmux.conf` to reload
  *
  * Requirements:
- * - Running inside tmux
+ * - Running inside tmux (checked by parent index.ts)
  */
 
-import { execSync } from "node:child_process";
 import { basename } from "node:path";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import { escape_tmux, tmux } from "./shared.js";
 
 const MARKER = "π";
 const MAX_SESSION_TITLE_LEN = 30;
-
-/** Check if we're running inside tmux */
-const is_tmux = (): boolean => {
-	return !!process.env.TMUX;
-};
-
-/** Run a tmux command, swallowing errors */
-const tmux = (cmd: string): string => {
-	try {
-		return execSync(`tmux ${cmd}`, { encoding: "utf-8", timeout: 2000 }).trim();
-	} catch {
-		return "";
-	}
-};
-
-/** Safely escape a string for use in tmux commands */
-const escape_tmux = (str: string): string => {
-	return str.replace(/'/g, "'\\''");
-};
 
 /**
  * Shorten model ID for display.
@@ -89,15 +70,7 @@ const truncate = (str: string, max: number): string => {
 	return `${str.slice(0, max - 1)}…`;
 };
 
-export default function (pi: ExtensionAPI) {
-	if (!is_tmux()) return;
-
-	// Capture pane ID at startup — stable, unique to our pane.
-	// All tmux queries use -t with this ID so they target the correct pane
-	// even when the user is focused on a different one.
-	const pane_id = tmux("display-message -p '#{pane_id}'");
-	if (!pane_id) return;
-
+export function register_pane_title(pi: ExtensionAPI, pane_id: string): void {
 	const project_name = basename(process.cwd());
 	let model_name = "";
 	let is_working = false;

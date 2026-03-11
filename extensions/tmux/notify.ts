@@ -1,8 +1,8 @@
 /**
- * Tmux Notification Badge Extension
+ * Tmux Notification Badge Sub-module
  *
  * When an agent finishes processing and you're on a different tmux window,
- * this extension:
+ * this module:
  * 1. Adds a badge (●) to the tmux window name
  * 2. Plays a notification sound
  * 3. Sends a BEL character for tmux monitor-bell highlighting
@@ -17,13 +17,14 @@
  *   set-option -g monitor-bell on
  *
  * Requirements:
- * - Running inside tmux
+ * - Running inside tmux (checked by parent index.ts)
  * - macOS (for afplay sound — gracefully skipped on other platforms)
  */
 
-import { exec, execSync } from "node:child_process";
+import { exec } from "node:child_process";
 import { existsSync } from "node:fs";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import { escape_tmux, tmux } from "./shared.js";
 
 const BADGE = "●";
 const MIN_DURATION_MS = 3000;
@@ -36,40 +37,13 @@ const MIN_DURATION_MS = 3000;
 const SOUND = "Glass";
 const SOUND_PATH = `/System/Library/Sounds/${SOUND}.aiff`;
 
-/** Check if we're running inside tmux */
-const is_tmux = (): boolean => {
-	return !!process.env.TMUX;
-};
-
-/** Run a tmux command, swallowing errors */
-const tmux = (cmd: string): string => {
-	try {
-		return execSync(`tmux ${cmd}`, { encoding: "utf-8", timeout: 2000 }).trim();
-	} catch {
-		return "";
-	}
-};
-
 /** Play a notification sound (non-blocking, fire-and-forget) */
 const play_sound = (): void => {
 	if (!existsSync(SOUND_PATH)) return;
 	exec(`afplay ${SOUND_PATH}`, () => {});
 };
 
-/** Safely escape a string for use in tmux commands */
-const escape_tmux = (str: string): string => {
-	return str.replace(/'/g, "'\\''");
-};
-
-export default function (pi: ExtensionAPI) {
-	if (!is_tmux()) return;
-
-	// Capture pane ID at startup — this is stable and unique to our pane.
-	// All tmux queries MUST use -t with this ID, otherwise tmux resolves
-	// to the user's currently focused pane (wrong when they're on another window).
-	const pane_id = tmux("display-message -p '#{pane_id}'");
-	if (!pane_id) return;
-
+export function register_notify(pi: ExtensionAPI, pane_id: string): void {
 	/** Get window name for OUR pane (not the user's current window) */
 	const get_window_name = (): string => {
 		return tmux(`display-message -t '${pane_id}' -p '#{window_name}'`);
@@ -90,6 +64,23 @@ export default function (pi: ExtensionAPI) {
 	let original_name: string | null = null;
 	let badge_active = false;
 	let focus_check_interval: ReturnType<typeof setInterval> | null = null;
+
+	const start_focus_polling = () => {
+		if (focus_check_interval) return;
+
+		focus_check_interval = setInterval(() => {
+			if (is_window_active()) {
+				clear_badge();
+			}
+		}, 1000);
+	};
+
+	const stop_focus_polling = () => {
+		if (focus_check_interval) {
+			clearInterval(focus_check_interval);
+			focus_check_interval = null;
+		}
+	};
 
 	const add_badge = () => {
 		if (badge_active) return;
@@ -123,23 +114,6 @@ export default function (pi: ExtensionAPI) {
 		}
 
 		original_name = null;
-	};
-
-	const start_focus_polling = () => {
-		if (focus_check_interval) return;
-
-		focus_check_interval = setInterval(() => {
-			if (is_window_active()) {
-				clear_badge();
-			}
-		}, 1000);
-	};
-
-	const stop_focus_polling = () => {
-		if (focus_check_interval) {
-			clearInterval(focus_check_interval);
-			focus_check_interval = null;
-		}
 	};
 
 	// Track when agent starts working
