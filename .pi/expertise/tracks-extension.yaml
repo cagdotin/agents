@@ -1,6 +1,6 @@
 domain: tracks-extension
 description: Repo-agnostic workstream contexts under `.pi/tracks/`, with deterministic sync, session-local attachment via session traces, closeout behavior, and subcommand-aware slash-command UX.
-last_synced: 2026-03-12T08:55:00Z
+last_synced: 2026-03-12T10:12:00Z
 scope:
   paths:
     - extensions/tracks/
@@ -44,11 +44,9 @@ gotchas:
     Tracks are runtime memory, not source-of-record. If a conclusion matters
     after closeout, promote it into repo docs, specs, exec plans, or expertise.
   - >-
-    Repo-wide `biome check .` sweeps generated `.pi/tracks/settings.json`,
-    so runtime state can break validation unless writes use canonical format.
-    This is a tooling mismatch between generated `.pi/` data and the repo's
-    validation scope. Resolution: exclude `.pi/tracks/settings.json` from
-    Biome formatting scope in `biome.json`.
+    `settings.json` must use tab indentation to match the repo's Biome formatter
+    config. Biome 2.x does NOT have an `ignore` key under `files`, so you
+    cannot exclude the file — storage writes must produce Biome-compliant JSON.
 design_decisions:
   - reason: Actions layer consolidates business logic to avoid duplication
     detail: >-
@@ -99,11 +97,6 @@ design_decisions:
       Tracks own their own `tasks.md` instead of referencing external todo
       systems. The user is unsure todos will remain the long-term task
       abstraction, so tracks stay self-contained.
-  - reason: Exclude runtime state from repo-wide formatting checks
-    detail: >-
-      `.pi/tracks/settings.json` is mutable runtime state, not source code.
-      Including it in `biome check .` couples repo quality gates to transient
-      runtime artifacts. Excluded via Biome config.
 codebase_concerns:
   - >-
     The custom YAML parser in storage.ts handles only flat key-value pairs and
@@ -113,7 +106,3 @@ codebase_concerns:
 references:
   - "Business logic for all track actions: extensions/tracks/actions.ts"
   - "Operator-facing behavior and workspace contract: extensions/tracks/README.md"
-  - "Command lifecycle and runtime attachment behavior: extensions/tracks/index.ts"
-  - "Summary generation, closeout, session-trace logic: extensions/tracks/helpers.ts"
-  - "Workspace persistence: extensions/tracks/storage.ts"
-  - "Test coverage (storage + helpers): extensions/tracks/__tests__/"
