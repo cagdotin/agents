@@ -1,55 +1,53 @@
 # Expert Extension
 
-Self-improving domain expertise for Pi.
+Domain-scoped persistent expertise for Pi.
 
-This extension maintains per-domain YAML "mental models" in `.pi/expertise/` and helps
-agents load/update the right domain context at the right time.
+This extension maintains per-domain YAML "mental models" in `.pi/expertise/` that
+give agents quick orientation on specific areas of a codebase.
 
 ## Core Idea
 
 `AGENTS.md` is global and always loaded. Expertise is:
 
 - **domain-scoped** (`database`, `auth-flow`, `extensions-dev`, ...)
-- **selectively injected** per turn
-- **explicitly maintained** through reflection
+- **on-demand** — a compact listing is injected; full YAML loads only when the agent calls `get` or the user pins a domain
+- **surgically updated** — the agent appends individual insights without rewriting the whole file
 
 ## What It Adds
 
-- `expertise` tool for CRUD + reflection operations
-- `/expert` command for list/chat/reflect/log/init workflows
-- auto-injection hook before agent starts
-- custom message renderer showing which domains were loaded
-- footer status tracking for pinned/loaded expertise
+- `expertise` tool for CRUD + append operations
+- `/expert` command for list/chat/init workflows
+- lightweight domain listing injected into the system prompt each turn
+- pinned domain injection (full YAML) via `/expert chat`
+- custom message renderer showing pinned domains
+- footer status tracking for pinned expertise
 
 ## Commands
 
 - `/expert` or `/expert list` — list domains
 - `/expert chat` — interactive domain picker (pin experts for current conversation)
 - `/expert chat clear` — clear all pinned domains
-- `/expert reflect [domain]` — run reflection (single domain or router-based auto-routing)
-- `/expert log [domain] [--limit N]` — show recent reflection log entries (with optional domain filter)
-- `/expert init <domain> <scope_path> [--description "..."]` — bootstrap a domain file directly from command mode
+- `/expert init <domain> <scope_path> [--description "..."]` — bootstrap a domain file
 
 ## Tool Actions
 
 Tool: `expertise`
 
 Actions:
-- `list`, `get`, `init`, `update`, `reflect`, `delete`
-
-`reflect` behavior:
-- with `domain`: direct single-domain reflection
-- without `domain`: router determines affected domains, then runs domain reflections in parallel
+- `list` — show all domains with descriptions
+- `get` — read a domain's full YAML
+- `init` — bootstrap a new domain from scope paths
+- `update` — replace full YAML content
+- `append` — add a single insight to a section (domain, section, and content required)
+- `delete` — remove a domain
 
 ## Expertise Header Metadata
 
-Domain YAML headers support (all optional except the existing core fields):
+Domain YAML headers support:
 
-- `scope.paths` — strong path-prefix matching and reflection filtering
-- `scope.patterns` — glob patterns (`*`, `**`, `?`) for matching files and scope hints
-- `keywords` — domain terms for prompt matching
-- `aliases` — alternate domain names/phrases
-- `related_domains` — hint-only related expertise names (shown as metadata, not auto-injected)
+- `scope.paths` — directory prefixes this domain covers
+- `scope.patterns` — glob patterns (`*`, `**`, `?`) for matching files
+- `related_domains` — hint-only related expertise names (shown in expanded pinned view)
 
 ## Settings
 
@@ -57,43 +55,40 @@ Optional file: `.pi/expertise/settings.json`
 
 ```json
 {
-  "auto_inject": true,
-  "reflection_model": "",
-  "max_inject_domains": 5,
-  "max_context_percent_for_auto_inject": 80,
   "max_context_percent_for_any_inject": 92
 }
 ```
 
-- `auto_inject` — inject matching domain expertise before each run
-- `reflection_model` — override model used for routing/reflection (empty = current model)
-- `max_inject_domains` — cap number of injected auto-matched domains per turn
-- `max_context_percent_for_auto_inject` — above this threshold, only pinned domains inject
-- `max_context_percent_for_any_inject` — above this threshold, all injection is skipped
+- `max_context_percent_for_any_inject` — above this context usage threshold, all injection (including pinned) is skipped
 
 ## Storage
 
 - Expertise files: `.pi/expertise/<domain>.yaml`
-- Reflection log: `.pi/expertise/.reflections.log`
+- Settings: `.pi/expertise/settings.json`
 
 ## File Map
 
 ```
 expert/
-├── index.ts          # entrypoint, command/tool registration, renderer
-├── hooks.ts          # lifecycle hooks + injection/status persistence
+├── index.ts          # entrypoint, command registration, message renderers
+├── hooks.ts          # lifecycle hooks, domain listing injection, pinned injection
 ├── tool.ts           # `expertise` tool implementation
-├── reflection.ts     # reflection pipeline orchestrator
-├── router.ts         # affected-domain routing step
-├── llm.ts            # in-process LLM calls
-├── storage.ts        # YAML/settings/log I/O
-├── helpers.ts        # matching/filtering/format helpers
-├── constants.ts      # prompts/defaults/content principles
+├── storage.ts        # YAML/settings I/O, append_to_section
+├── helpers.ts        # domain name validation, scope path scanning
+├── constants.ts      # defaults, content principles
 └── types.ts          # schema and type definitions
 ```
 
 ## Notes
 
-- Reflection is **explicit-only** (no automatic reflection on every turn).
+- The domain listing costs ~10-20 tokens per domain. Full YAML only loads on `get` or pin.
 - Expertise content is optimized for high-value, hard-to-discover knowledge (why/gotchas),
   not for duplicating obvious implementation details.
+- `append` is the preferred way to add insights — it's safe (doesn't risk existing content)
+  and updates `last_synced` automatically.
+
+## Known Limitations
+
+- **YAML roundtrip reformatting**: `append` parses and re-serializes the entire YAML file.
+  Hand-edited formatting (comments, key order, whitespace) will be normalized on the first append.
+  This is by design — expertise files are primarily agent-managed.

@@ -1,6 +1,6 @@
 domain: expert-extension
-description: "Self-improving domain expertise extension for pi — manages per-domain mental models as YAML files"
-last_synced: "2026-03-07T00:32:00Z"
+description: "Domain expertise extension for pi — manages per-domain mental models as YAML files with lightweight injection"
+last_synced: "2026-03-12T15:10:00Z"
 
 scope:
   paths:
@@ -8,47 +8,37 @@ scope:
 
 overview: |
   The extension provides persistent, domain-scoped working memory via YAML files in `.pi/expertise/`.
-  It combines selective injection, explicit reflection, and operator-facing controls (`/expert` + tool).
-  R9 hardening focused on reliability: better domain matching metadata, context-budget-aware injection,
-  and direct UX for reflection logs and domain bootstrapping.
+  After simplification, it uses a lightweight listing (name + description per domain) in the
+  system prompt instead of auto-injecting full YAML. The agent reads domains on demand via `get`.
+  Pinning (`/expert chat`) still injects full YAML for user-selected domains.
+  No LLM subprocess calls — all operations are file I/O.
 
 patterns:
-  - "Treat expertise headers as matching metadata, not just labels: keep `scope.paths`, `scope.patterns`, `keywords`, and `aliases` current."
-  - "`related_domains` is for lightweight operator/agent hints, not automatic extra context loading."
-  - "Use `/expert init` and `/expert log` for operator-driven setup/inspection instead of relying on LLM tool invocation."
+  - "Domain listing in system prompt costs ~10-20 tokens per domain; agent calls `get` to read full content when relevant."
+  - "Pinned domains inject full YAML via XML blocks in the system prompt."
+  - "`append` adds a single item to a YAML list section without touching other content — safer than `update` for incremental learning."
+  - "Use `/expert chat` for user-driven pinning, `expertise get` for agent-driven on-demand reads."
 
 design_decisions:
-  - reason: "Reflection is explicit-only, never automatic"
-    detail: "Auto-reflect on every cycle created latency/noise; reflection is user-triggered so learning happens when context justifies it."
-  - reason: "Two-stage reflection (router → per-domain experts) is retained"
-    detail: "Keeps multi-domain reflection scalable while allowing direct single-domain reflection when domain is known."
-  - reason: "R9 intentionally did not redesign LLM invocation architecture"
-    detail: "Hardening was scoped to matching, context budget, and command UX to reduce change risk."
-  - reason: "Matching upgrades are backward-compatible"
-    detail: "New metadata (`keywords`, `aliases`, `related_domains`, `scope.patterns`) is optional so existing YAML files continue to work."
-  - reason: "Context-aware injection uses deterministic degradation"
-    detail: "As context fills, injection behavior becomes more conservative and can fully skip at a critical threshold to avoid prompt bloat/compaction pressure."
-  - reason: "Trimming is thoughtful, not aggressive"
-    detail: "Expertise updates must preserve hard-won insights; do not silently drop useful knowledge just to satisfy a size target."
+  - reason: "Removed LLM reflection pipeline entirely"
+    detail: "LLM-driven rewrites of expertise files produced low-signal updates that corrupted long-lived mental models. Replaced with surgical `append` — agent decides what to add, no risk of dropping existing content."
+  - reason: "Replaced auto-injection with lightweight listing"
+    detail: "Heuristic matching added 1000-3000+ tokens per turn with unreliable accuracy. A listing costs ~10-20 tokens total and lets the agent decide what to read."
+  - reason: "Stripped CONTENT_PRINCIPLES from tool description"
+    detail: "~400 tokens of guidance text was in every conversation's tool listing. Moved to system prompt template (AGENTS.md) where it's only present when domains exist. Constant removed entirely from codebase."
+  - reason: "Custom toggle list for /expert chat instead of SettingsList"
+    detail: "SettingsList shows on/off text on the right — designed for multi-value settings. Replaced with ○/● circles on the left for clearer toggle UX."
+  - reason: "Pinned injection unchanged"
+    detail: "Pinning is user-explicit — the context cost is intentional and controlled."
 
 gotchas:
-  - "If expertise appears to stop auto-loading, check context-usage thresholds first; skip behavior is intentional under high context pressure."
-  - "Matching is still heuristic; missing `keywords`/`aliases` causes avoidable false negatives even with improved scoring."
-  - "Router XML parsing is regex-based and can be brittle if model output format drifts."
-  - "CONTENT_PRINCIPLES is a shared contract across tool docs and reflection prompt; changes have broad behavioral impact."
-  - "Reflection/status UX temporarily reuses the same status key; restoration logic must always run to avoid stale status display."
-  - "Session/pinned domain state is in module-level maps rebuilt from session data; lifecycle handling bugs can produce cross-session confusion."
-
-active_todos:
-  - "TODO-c93e622f: Rendering polish — keyHint on collapsed views, conditional reflect hint"
+  - "The `append` action requires all three params (domain, section, content) — missing any returns an error."
+  - "`append` only works on list sections (arrays). Attempting to append to a string section (like `overview`) returns an error suggesting `update` instead."
+  - "Empty string sections and null/missing sections are treated as 'create new list' by append_to_section."
+  - "Session/pinned domain state is in module-level maps rebuilt from session data; tests must clear `get_pinned_domains()` between runs."
+  - "Tool tests need ctx.cwd two levels above the expertise dir — get_expertise_dir(cwd) appends '.pi/expertise', so path.resolve(expertise_dir, '..', '..') is the correct cwd for mocks."
+  - "YAML roundtrip via append reformats hand-edited files (comments, key order, whitespace normalized). Documented in README."
 
 references:
-  - "R9 spec: specs/2026-03-06-r9-expert-extension-hardening.md"
-  - "Operator UX and command surface: extensions/expert/index.ts"
-  - "Context-budget injection policy: extensions/expert/hooks.ts"
-  - "Header parsing/settings normalization: extensions/expert/storage.ts"
-  - "Matching heuristics and scope-pattern support: extensions/expert/helpers.ts"
-
-codebase_concerns:
-  - "Key policy is split across prompt text, matching heuristics, and hook-time injection logic; without focused tests/docs, behavior can regress invisibly."
-  - "Reflection and routing depend on strict output-format discipline from models (XML/tags); parser fragility remains a reliability risk."
+  - "Simplification spec: docs/specs/2026-03-12-expert-extension-simplification.md"
+  - "Execution plan: docs/exec-plans/active/2026-03-12-expert-extension-simplification.md"

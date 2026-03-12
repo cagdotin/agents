@@ -1,16 +1,9 @@
-import { existsSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import YAML from "yaml";
 import { z } from "zod";
-import {
-	DEFAULT_SETTINGS,
-	EXPERTISE_DIR_NAME,
-	EXPERTISE_PATH_ENV,
-	REFLECTIONS_LOG_NAME,
-	SETTINGS_FILE_NAME,
-} from "./constants.js";
-import type { ExpertiseHeader, ExpertiseRecord, ExpertiseSettings, ReflectionLogEntry } from "./types.js";
+import { DEFAULT_SETTINGS, EXPERTISE_DIR_NAME, EXPERTISE_PATH_ENV, SETTINGS_FILE_NAME } from "./constants.js";
+import type { ExpertiseHeader, ExpertiseRecord, ExpertiseSettings } from "./types.js";
 
 // ---------------------------------------------------------------------------
 // Directory helpers
@@ -44,10 +37,6 @@ function get_settings_path(dir: string): string {
 	return path.join(dir, SETTINGS_FILE_NAME);
 }
 
-function get_reflections_log_path(dir: string): string {
-	return path.join(dir, REFLECTIONS_LOG_NAME);
-}
-
 // ---------------------------------------------------------------------------
 // YAML parsing — extract header fields from raw YAML
 // ---------------------------------------------------------------------------
@@ -75,32 +64,12 @@ const expertise_header_yaml_schema = z
 		description: z.string().optional(),
 		last_synced: z.string().optional(),
 		scope: expertise_scope_schema.optional(),
-		keywords: optional_string_list_schema,
-		aliases: optional_string_list_schema,
 		related_domains: optional_string_list_schema,
 	})
 	.passthrough();
 
-const reflection_log_entry_schema = z.object({
-	date: z.string(),
-	domain: z.string(),
-	session: z.string(),
-	model: z.string(),
-	summary: z.string(),
-});
-
 const expertise_settings_schema = z
 	.object({
-		auto_inject: z.preprocess((value) => (typeof value === "boolean" ? value : undefined), z.boolean().optional()),
-		reflection_model: z.preprocess((value) => (typeof value === "string" ? value : undefined), z.string().optional()),
-		max_inject_domains: z.preprocess(
-			(value) => (typeof value === "number" && Number.isFinite(value) ? value : undefined),
-			z.number().finite().optional(),
-		),
-		max_context_percent_for_auto_inject: z.preprocess(
-			(value) => (typeof value === "number" && Number.isFinite(value) ? value : undefined),
-			z.number().finite().optional(),
-		),
 		max_context_percent_for_any_inject: z.preprocess(
 			(value) => (typeof value === "number" && Number.isFinite(value) ? value : undefined),
 			z.number().finite().optional(),
@@ -127,8 +96,6 @@ function parse_expertise_header(raw: string, domain_fallback: string): Expertise
 				paths: scope.paths,
 				patterns: scope.patterns && scope.patterns.length > 0 ? scope.patterns : undefined,
 			},
-			keywords: data.keywords && data.keywords.length > 0 ? data.keywords : undefined,
-			aliases: data.aliases && data.aliases.length > 0 ? data.aliases : undefined,
 			related_domains: data.related_domains && data.related_domains.length > 0 ? data.related_domains : undefined,
 		};
 	} catch {
@@ -151,11 +118,15 @@ function make_empty_header(domain: string): ExpertiseHeader {
 
 export async function read_expertise(dir: string, domain: string): Promise<ExpertiseRecord | null> {
 	const file_path = get_domain_path(dir, domain);
-	if (!existsSync(file_path)) return null;
 
-	const raw = await fs.readFile(file_path, "utf8");
+	let raw: string;
+	try {
+		raw = await fs.readFile(file_path, "utf8");
+	} catch {
+		return null;
+	}
+
 	const header = parse_expertise_header(raw, domain);
-
 	return { ...header, raw };
 }
 
@@ -167,15 +138,21 @@ export async function write_expertise(dir: string, domain: string, content: stri
 
 export async function delete_expertise(dir: string, domain: string): Promise<boolean> {
 	const file_path = get_domain_path(dir, domain);
-	if (!existsSync(file_path)) return false;
-	await fs.unlink(file_path);
-	return true;
+	try {
+		await fs.unlink(file_path);
+		return true;
+	} catch {
+		return false;
+	}
 }
 
 export async function list_domains(dir: string): Promise<ExpertiseHeader[]> {
-	if (!existsSync(dir)) return [];
-
-	const entries = await fs.readdir(dir);
+	let entries: string[];
+	try {
+		entries = await fs.readdir(dir);
+	} catch {
+		return [];
+	}
 	const domains: ExpertiseHeader[] = [];
 
 	for (const entry of entries) {
@@ -207,8 +184,6 @@ export function build_skeleton_yaml(domain: string, description: string, scope_p
 		scope: {
 			paths: scope_paths,
 		},
-		keywords: [],
-		aliases: [],
 		related_domains: [],
 		overview: "",
 		patterns: [],
@@ -218,6 +193,55 @@ export function build_skeleton_yaml(domain: string, description: string, scope_p
 	};
 
 	return YAML.stringify(doc, { lineWidth: 120 });
+}
+
+// ---------------------------------------------------------------------------
+// Append to section — add a single item to a YAML list section
+// ---------------------------------------------------------------------------
+
+export async function append_to_section(
+	dir: string,
+	domain: string,
+	section: string,
+	content: string,
+): Promise<{ error?: string }> {
+	const file_path = get_domain_path(dir, domain);
+
+	let raw: string;
+	try {
+		raw = await fs.readFile(file_path, "utf8");
+	} catch {
+		return { error: `Domain '${domain}' not found. Use 'init' to create it.` };
+	}
+
+	let parsed: Record<string, unknown>;
+	try {
+		parsed = YAML.parse(raw);
+		if (!parsed || typeof parsed !== "object") {
+			return { error: "Failed to parse expertise YAML" };
+		}
+	} catch {
+		return { error: "Failed to parse expertise YAML" };
+	}
+
+	const existing_value = parsed[section];
+
+	if (existing_value === undefined || existing_value === null || existing_value === "") {
+		// Section doesn't exist or is empty — create it as a new list
+		parsed[section] = [content];
+	} else if (Array.isArray(existing_value)) {
+		existing_value.push(content);
+	} else {
+		return { error: `Section '${section}' is not a list. Use 'update' for full replacement.` };
+	}
+
+	// Update last_synced
+	parsed.last_synced = new Date().toISOString();
+
+	const updated_yaml = YAML.stringify(parsed, { lineWidth: 120 });
+	await fs.writeFile(file_path, updated_yaml, "utf8");
+
+	return {};
 }
 
 // ---------------------------------------------------------------------------
@@ -241,24 +265,11 @@ export async function read_settings(dir: string): Promise<ExpertiseSettings> {
 }
 
 function normalize_settings(raw: Partial<ExpertiseSettings>): ExpertiseSettings {
-	const max_context_percent_for_auto_inject = normalize_context_percent(
-		raw.max_context_percent_for_auto_inject,
-		DEFAULT_SETTINGS.max_context_percent_for_auto_inject,
-	);
-	const raw_any_inject_threshold = normalize_context_percent(
-		raw.max_context_percent_for_any_inject,
-		DEFAULT_SETTINGS.max_context_percent_for_any_inject,
-	);
-
 	return {
-		auto_inject: raw.auto_inject ?? DEFAULT_SETTINGS.auto_inject,
-		reflection_model:
-			typeof raw.reflection_model === "string" ? raw.reflection_model : DEFAULT_SETTINGS.reflection_model,
-		max_inject_domains: Number.isFinite(raw.max_inject_domains)
-			? Math.max(1, Math.floor(raw.max_inject_domains!))
-			: DEFAULT_SETTINGS.max_inject_domains,
-		max_context_percent_for_auto_inject,
-		max_context_percent_for_any_inject: Math.max(max_context_percent_for_auto_inject, raw_any_inject_threshold),
+		max_context_percent_for_any_inject: normalize_context_percent(
+			raw.max_context_percent_for_any_inject,
+			DEFAULT_SETTINGS.max_context_percent_for_any_inject,
+		),
 	};
 }
 
@@ -267,82 +278,4 @@ function normalize_context_percent(value: unknown, fallback: number): number {
 		return fallback;
 	}
 	return Math.max(1, Math.min(100, Math.floor(value)));
-}
-
-// ---------------------------------------------------------------------------
-// Reflection log
-// ---------------------------------------------------------------------------
-
-export async function append_reflection_log(dir: string, entry: ReflectionLogEntry): Promise<void> {
-	await ensure_expertise_dir(dir);
-	const log_path = get_reflections_log_path(dir);
-
-	const separator = "---\n";
-	const yaml_entry = YAML.stringify(entry, { lineWidth: 120 });
-	const block = `${separator}${yaml_entry}`;
-
-	await fs.appendFile(log_path, block, "utf8");
-}
-
-export interface ReflectionLogReadResult {
-	entries: ReflectionLogEntry[];
-	skipped_entries: number;
-}
-
-export async function read_reflection_log(
-	dir: string,
-	options?: { domain?: string; limit?: number },
-): Promise<ReflectionLogReadResult> {
-	const log_path = get_reflections_log_path(dir);
-	if (!existsSync(log_path)) {
-		return { entries: [], skipped_entries: 0 };
-	}
-
-	const raw = await fs.readFile(log_path, "utf8");
-	const docs = raw.split(/^---\s*$/gm);
-
-	const parsed_entries: ReflectionLogEntry[] = [];
-	let skipped_entries = 0;
-
-	for (const doc of docs) {
-		const trimmed = doc.trim();
-		if (!trimmed) continue;
-
-		try {
-			const parsed = YAML.parse(trimmed);
-			const entry = to_reflection_log_entry(parsed);
-			if (!entry) {
-				skipped_entries++;
-				continue;
-			}
-			parsed_entries.push(entry);
-		} catch {
-			skipped_entries++;
-		}
-	}
-
-	const domain_filter = options?.domain?.trim();
-	const filtered_entries = domain_filter
-		? parsed_entries.filter((entry) => entry.domain === domain_filter)
-		: parsed_entries;
-
-	const sorted_entries = filtered_entries.sort((a, b) => b.date.localeCompare(a.date));
-	const limited_entries =
-		typeof options?.limit === "number" && Number.isFinite(options.limit)
-			? sorted_entries.slice(0, Math.max(1, Math.floor(options.limit)))
-			: sorted_entries;
-
-	return {
-		entries: limited_entries,
-		skipped_entries,
-	};
-}
-
-function to_reflection_log_entry(parsed: unknown): ReflectionLogEntry | null {
-	const validated_entry = reflection_log_entry_schema.safeParse(parsed);
-	if (!validated_entry.success) {
-		return null;
-	}
-
-	return validated_entry.data;
 }

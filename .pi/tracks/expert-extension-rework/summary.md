@@ -6,8 +6,8 @@
 - Track: expert-extension-rework
 - Purpose: Rethink the expert extension — reduce context overhead and latency, question the reflection/update cycle, decide what stays and what goes
 - Status: active
-- Last synced: 2026-03-12T09:10:12.851Z
-- Session count: 1
+- Last synced: 2026-03-12T15:34:49.617Z
+- Session count: 2
 - Summary version: 1
 
 ## Related paths
@@ -15,12 +15,12 @@
 - .pi/expertise/
 
 ## Next steps
-- [ ] Delete dead code (reflection.ts, router.ts, llm.ts + their tests)
-- [ ] Clean constants.ts, types.ts, helpers.ts, storage.ts
-- [ ] Rewrite hooks.ts (lightweight listing replaces auto-injection)
-- [ ] Rewrite tool.ts (add append, remove reflect, slim description)
-- [ ] Rewrite index.ts (remove reflect/log commands)
-- [ ] Update remaining tests
+- [x] Delete dead code (reflection.ts, router.ts, llm.ts + their tests)
+- [x] Clean constants.ts, types.ts, helpers.ts, storage.ts
+- [x] Rewrite hooks.ts (lightweight listing replaces auto-injection)
+- [x] Rewrite tool.ts (add append, remove reflect, slim description)
+- [x] Rewrite index.ts (remove reflect/log commands)
+- [x] Update remaining tests
 
 ## Open checklist
 - No open checklist items captured yet.
@@ -35,4 +35,4 @@
 - No decisions captured yet.
 
 ## Report pulse
-Analyzed the full expert extension codebase (10 files, ~1500 lines) and documented:
+| Spec requirement | Status | |---|---| | Delete dead code (reflection.ts, router.ts, llm.ts) | ✅ Done (prior session) | | Clean constants.ts, types.ts, helpers.ts, storage.ts | ✅ Done | | Strip CONTENT_PRINCIPLES from tool description | ✅ Done (~400 tokens/conversation saved) | | Remove dead CONTENT_PRINCIPLES constant | ✅ Done (constants.ts: 45 → 11 lines) |

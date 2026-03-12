@@ -1,34 +1,86 @@
-# Report
+# Expert Extension Review & Cleanup Report
 
-## Status: Plan complete, ready for implementation
+**Scope**: Full review + implementation of `extensions/expert/` (8 source files, 4 test files)
+**Status**: All review findings resolved. Manual E2E verification passed.
 
-### What happened
+---
 
-Analyzed the full expert extension codebase (10 files, ~1500 lines) and documented:
-- Current behavior in detail (`current-behavior.md`)
-- Root causes of the three main complaints (context overhead, latency, low-value reflection)
-- Quantified the context cost (~1500-3000+ tokens per turn)
+## What was done
 
-### What was decided
+### Spec compliance — all gaps closed
 
-1. Kill the LLM reflection pipeline entirely (router + per-domain reflection + reflection log)
-2. Replace auto-injection with a lightweight skills-like domain listing (~10-20 tokens per domain)
-3. Add a surgical `append` tool action for the agent to add individual insights
-4. Keep pinned injection (user-explicit, intentional cost)
-5. Strip bloated `CONTENT_PRINCIPLES` from tool description
+| Spec requirement | Status |
+|---|---|
+| Delete dead code (reflection.ts, router.ts, llm.ts) | ✅ Done (prior session) |
+| Clean constants.ts, types.ts, helpers.ts, storage.ts | ✅ Done |
+| Strip CONTENT_PRINCIPLES from tool description | ✅ Done (~400 tokens/conversation saved) |
+| Remove dead CONTENT_PRINCIPLES constant | ✅ Done (constants.ts: 45 → 11 lines) |
+| Add `append` action | ✅ Done |
+| Remove `reflect` action | ✅ Done |
+| Lightweight domain listing | ✅ Done |
+| Keep pinned injection | ✅ Done |
+| Slim tool description (§4.3) | ✅ Done |
+| Remove `/expert reflect` and `/expert log` | ✅ Done |
 
-### Artifacts produced
+### Code quality fixes
 
-- Spec: `docs/specs/2026-03-12-expert-extension-simplification.md`
-- Execution plan: `docs/exec-plans/active/2026-03-12-expert-extension-simplification.md`
-- Current behavior doc: `.pi/tracks/expert-extension-rework/current-behavior.md`
+| Fix | Impact |
+|---|---|
+| Replaced `existsSync` with try/catch | 6 call sites — eliminates TOCTOU races |
+| Hoisted `is_ignored_dir` Set to module level | No allocation per call |
+| Trimmed `init` response | 20-line instruction wall → 2 sentences |
+| Documented YAML roundtrip in README | "Known Limitations" section added |
+| Extracted `parse_init_args` + `tokenize_command_args` to helpers.ts | index.ts: 355 → 265 lines |
 
-### What's next
+### UX improvement
 
-Implementation — 7 milestones, starting with deleting dead code and ending with e2e verification. Any session can pick this up from the exec plan.
+| Change | Before | After |
+|---|---|---|
+| `/expert chat` toggle UI | SettingsList with "on"/"off" text on right side | Custom toggle list with ○/● circles on left + cursor |
 
-### Open risks
+### Test coverage
 
-- Need to update the extension README after implementation
-- Existing system prompt templates that reference `expertise reflect` will need updating
-- The `append`-only model has no pruning story yet (acceptable tradeoff for now)
+| Metric | Before | After |
+|---|---|---|
+| Test files | 2 | 4 |
+| Tests | 36 | 110 |
+| Expect calls | 56 | 196 |
+| Files with tests | helpers, storage | helpers, storage, hooks, tool |
+| Coverage (by file) | ~24% | ~80% (index.ts renderers/commands remain untested — need pi API integration tests) |
+
+### Final line counts
+
+| File | Lines |
+|---|---|
+| constants.ts | 11 |
+| helpers.ts | 173 |
+| hooks.ts | 193 |
+| index.ts | 265 |
+| storage.ts | 281 |
+| tool.ts | 302 |
+| types.ts | 95 |
+| **Source total** | **1320** |
+| helpers.test.ts | 220 |
+| storage.test.ts | 319 |
+| hooks.test.ts | 483 |
+| tool.test.ts | 408 |
+| **Test total** | **1430** |
+
+---
+
+## Remaining (not blocking)
+
+- `any` types on tool execute/render — pi extension API limitation (todos extension uses same pattern)
+- index.ts command handler + message renderers untested — need pi API mocks for integration tests
+- Append deduplication — acceptable for now, agent expected to be smart
+- index.ts size (265 lines) — comfortable, no split needed currently
+
+## E2E verification results
+
+- ✅ Domain listing injection
+- ✅ `/expert chat` — toggle UI with ○/● circles
+- ✅ Pinning + status bar
+- ✅ `/expert chat clear` — status bar cleared
+- ✅ `/expert list`
+- ✅ `/expert init`
+- ✅ `expertise delete`

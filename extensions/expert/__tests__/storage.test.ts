@@ -2,14 +2,14 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import YAML from "yaml";
 import {
-	append_reflection_log,
+	append_to_section,
 	build_skeleton_yaml,
 	delete_expertise,
 	get_expertise_dir,
 	list_domains,
 	read_expertise,
-	read_reflection_log,
 	read_settings,
 	write_expertise,
 } from "../storage.js";
@@ -42,7 +42,6 @@ beforeEach(() => {
 describe("get_expertise_dir", () => {
 	it("returns default .pi/expertise path", () => {
 		const cwd = "/projects/app";
-		// Clear any env override
 		const original = process.env.PI_EXPERTISE_PATH;
 		delete process.env.PI_EXPERTISE_PATH;
 		const result = get_expertise_dir(cwd);
@@ -92,22 +91,19 @@ scope:
 		expect(result).toBeNull();
 	});
 
-	it("parses keywords and aliases", async () => {
+	it("parses related_domains", async () => {
 		const yaml_content = `domain: test
 description: "Test"
 last_synced: "2026-01-01"
 scope:
   paths: []
-keywords:
-  - sql
-  - query
-aliases:
-  - db
+related_domains:
+  - auth-flow
+  - frontend
 `;
 		await write_expertise(test_dir, "test", yaml_content);
 		const result = await read_expertise(test_dir, "test");
-		expect(result!.keywords).toEqual(["sql", "query"]);
-		expect(result!.aliases).toEqual(["db"]);
+		expect(result!.related_domains).toEqual(["auth-flow", "frontend"]);
 	});
 });
 
@@ -186,173 +182,138 @@ describe("read_settings", () => {
 	it("returns defaults when file is missing", async () => {
 		await mkdir(test_dir, { recursive: true });
 		const settings = await read_settings(test_dir);
-		expect(settings.auto_inject).toBe(true);
-		expect(settings.reflection_model).toBe("");
-		expect(settings.max_inject_domains).toBe(5);
+		expect(settings.max_context_percent_for_any_inject).toBe(92);
 	});
 
 	it("parses valid settings", async () => {
 		await mkdir(test_dir, { recursive: true });
-		await writeFile(
-			path.join(test_dir, "settings.json"),
-			JSON.stringify({ auto_inject: false, reflection_model: "gpt-4", max_inject_domains: 3 }),
-		);
+		await writeFile(path.join(test_dir, "settings.json"), JSON.stringify({ max_context_percent_for_any_inject: 85 }));
 		const settings = await read_settings(test_dir);
-		expect(settings.auto_inject).toBe(false);
-		expect(settings.reflection_model).toBe("gpt-4");
-		expect(settings.max_inject_domains).toBe(3);
-	});
-
-	it("fills missing fields with defaults", async () => {
-		await mkdir(test_dir, { recursive: true });
-		await writeFile(path.join(test_dir, "settings.json"), JSON.stringify({ auto_inject: false }));
-		const settings = await read_settings(test_dir);
-		expect(settings.auto_inject).toBe(false);
-		expect(settings.max_inject_domains).toBe(5); // default
+		expect(settings.max_context_percent_for_any_inject).toBe(85);
 	});
 
 	it("returns defaults for invalid JSON", async () => {
 		await mkdir(test_dir, { recursive: true });
 		await writeFile(path.join(test_dir, "settings.json"), "not valid json {{{");
 		const settings = await read_settings(test_dir);
-		expect(settings.auto_inject).toBe(true);
+		expect(settings.max_context_percent_for_any_inject).toBe(92);
 	});
 
 	it("keeps valid settings while ignoring invalid field types", async () => {
 		await mkdir(test_dir, { recursive: true });
 		await writeFile(
 			path.join(test_dir, "settings.json"),
-			JSON.stringify({ auto_inject: false, max_inject_domains: "invalid" }),
+			JSON.stringify({ max_context_percent_for_any_inject: "invalid" }),
 		);
 		const settings = await read_settings(test_dir);
-		expect(settings.auto_inject).toBe(false);
-		expect(settings.max_inject_domains).toBe(5);
+		expect(settings.max_context_percent_for_any_inject).toBe(92); // default, because "invalid" is not a number
 	});
 
 	it("clamps context percentages to valid range", async () => {
 		await mkdir(test_dir, { recursive: true });
-		await writeFile(
-			path.join(test_dir, "settings.json"),
-			JSON.stringify({ max_context_percent_for_auto_inject: 150, max_context_percent_for_any_inject: -5 }),
-		);
+		await writeFile(path.join(test_dir, "settings.json"), JSON.stringify({ max_context_percent_for_any_inject: -5 }));
 		const settings = await read_settings(test_dir);
-		expect(settings.max_context_percent_for_auto_inject).toBeLessThanOrEqual(100);
 		expect(settings.max_context_percent_for_any_inject).toBeGreaterThanOrEqual(1);
 	});
 });
 
 // ---------------------------------------------------------------------------
-// append_reflection_log / read_reflection_log
+// append_to_section
 // ---------------------------------------------------------------------------
 
-describe("reflection log", () => {
-	it("appends entry to new log", async () => {
-		const entry = {
-			date: "2026-01-01T00:00:00Z",
-			domain: "test",
-			session: "session-1",
-			model: "gpt-4",
-			summary: "Added new pattern",
-		};
-		await append_reflection_log(test_dir, entry);
+describe("append_to_section", () => {
+	it("appends to an existing list section", async () => {
+		const yaml_content = `domain: test
+description: Test domain
+last_synced: "2026-01-01T00:00:00Z"
+scope:
+  paths: []
+gotchas:
+  - Existing gotcha
+`;
+		await write_expertise(test_dir, "test", yaml_content);
 
-		const { entries } = await read_reflection_log(test_dir);
-		expect(entries.length).toBe(1);
-		expect(entries[0].domain).toBe("test");
-		expect(entries[0].summary).toBe("Added new pattern");
+		const result = await append_to_section(test_dir, "test", "gotchas", "New gotcha discovered");
+		expect(result.error).toBeUndefined();
+
+		const updated = await read_expertise(test_dir, "test");
+		expect(updated).not.toBeNull();
+		const parsed = YAML.parse(updated!.raw);
+		expect(parsed.gotchas).toEqual(["Existing gotcha", "New gotcha discovered"]);
+		// last_synced should be updated
+		expect(parsed.last_synced).not.toBe("2026-01-01T00:00:00Z");
 	});
 
-	it("appends multiple entries", async () => {
-		const entry1 = {
-			date: "2026-01-01T00:00:00Z",
-			domain: "test",
-			session: "s1",
-			model: "gpt-4",
-			summary: "First",
-		};
-		const entry2 = {
-			date: "2026-01-02T00:00:00Z",
-			domain: "test",
-			session: "s2",
-			model: "gpt-4",
-			summary: "Second",
-		};
-		await append_reflection_log(test_dir, entry1);
-		await append_reflection_log(test_dir, entry2);
+	it("creates a new section when it doesn't exist", async () => {
+		const yaml_content = `domain: test
+description: Test domain
+last_synced: "2026-01-01T00:00:00Z"
+scope:
+  paths: []
+`;
+		await write_expertise(test_dir, "test", yaml_content);
 
-		const { entries } = await read_reflection_log(test_dir);
-		expect(entries.length).toBe(2);
-		// Sorted by date descending
-		expect(entries[0].summary).toBe("Second");
-		expect(entries[1].summary).toBe("First");
+		const result = await append_to_section(test_dir, "test", "patterns", "New pattern");
+		expect(result.error).toBeUndefined();
+
+		const updated = await read_expertise(test_dir, "test");
+		const parsed = YAML.parse(updated!.raw);
+		expect(parsed.patterns).toEqual(["New pattern"]);
 	});
 
-	it("filters by domain", async () => {
-		const entry1 = {
-			date: "2026-01-01T00:00:00Z",
-			domain: "alpha",
-			session: "s1",
-			model: "m",
-			summary: "A",
-		};
-		const entry2 = {
-			date: "2026-01-02T00:00:00Z",
-			domain: "beta",
-			session: "s2",
-			model: "m",
-			summary: "B",
-		};
-		await append_reflection_log(test_dir, entry1);
-		await append_reflection_log(test_dir, entry2);
+	it("creates a new section when existing section is empty string", async () => {
+		const yaml_content = `domain: test
+description: Test domain
+last_synced: "2026-01-01T00:00:00Z"
+scope:
+  paths: []
+patterns: ""
+`;
+		await write_expertise(test_dir, "test", yaml_content);
 
-		const { entries } = await read_reflection_log(test_dir, { domain: "alpha" });
-		expect(entries.length).toBe(1);
-		expect(entries[0].domain).toBe("alpha");
+		const result = await append_to_section(test_dir, "test", "patterns", "A pattern");
+		expect(result.error).toBeUndefined();
+
+		const updated = await read_expertise(test_dir, "test");
+		const parsed = YAML.parse(updated!.raw);
+		expect(parsed.patterns).toEqual(["A pattern"]);
 	});
 
-	it("applies limit", async () => {
-		for (let i = 0; i < 5; i++) {
-			await append_reflection_log(test_dir, {
-				date: `2026-01-0${i + 1}T00:00:00Z`,
-				domain: "test",
-				session: `s${i}`,
-				model: "m",
-				summary: `Entry ${i}`,
-			});
-		}
-
-		const { entries } = await read_reflection_log(test_dir, { limit: 3 });
-		expect(entries.length).toBe(3);
-	});
-
-	it("returns empty for nonexistent log", async () => {
-		const nonexistent = path.join(tmp_dir, "no-log");
-		const { entries, skipped_entries } = await read_reflection_log(nonexistent);
-		expect(entries).toEqual([]);
-		expect(skipped_entries).toBe(0);
-	});
-
-	it("skips malformed log entries", async () => {
+	it("returns error for non-existent domain", async () => {
 		await mkdir(test_dir, { recursive: true });
-		await writeFile(
-			path.join(test_dir, ".reflections.log"),
-			`---
-date: 2026-01-01T00:00:00Z
-domain: test
-session: s1
-model: m
-summary: ok
----
-date: 2026-01-02T00:00:00Z
-domain: test
-session: s2
-model: 42
-summary: bad
-`,
-		);
+		const result = await append_to_section(test_dir, "nonexistent", "gotchas", "test");
+		expect(result.error).toContain("not found");
+	});
 
-		const { entries, skipped_entries } = await read_reflection_log(test_dir);
-		expect(entries.length).toBe(1);
-		expect(skipped_entries).toBe(1);
+	it("returns error for non-list section", async () => {
+		const yaml_content = `domain: test
+description: Test domain
+last_synced: "2026-01-01T00:00:00Z"
+scope:
+  paths: []
+overview: "This is a string section"
+`;
+		await write_expertise(test_dir, "test", yaml_content);
+
+		const result = await append_to_section(test_dir, "test", "overview", "should fail");
+		expect(result.error).toContain("not a list");
+	});
+
+	it("handles empty list section", async () => {
+		const yaml_content = `domain: test
+description: Test domain
+last_synced: "2026-01-01T00:00:00Z"
+scope:
+  paths: []
+gotchas: []
+`;
+		await write_expertise(test_dir, "test", yaml_content);
+
+		const result = await append_to_section(test_dir, "test", "gotchas", "First gotcha");
+		expect(result.error).toBeUndefined();
+
+		const updated = await read_expertise(test_dir, "test");
+		const parsed = YAML.parse(updated!.raw);
+		expect(parsed.gotchas).toEqual(["First gotcha"]);
 	});
 });

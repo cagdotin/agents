@@ -51,6 +51,56 @@ export function matchesKey(data: string, keyId: string): boolean {
 	return false;
 }
 
+// ── TUI component mocks ──────────────────────────────────────────
+
+export class Text {
+	constructor(
+		public text: string,
+		public x: number,
+		public y: number,
+	) {}
+	render(_width: number) {
+		return this.text.split("\n");
+	}
+	invalidate() {}
+}
+
+export class Box {
+	children: any[] = [];
+	constructor(
+		public padding: number,
+		public margin: number,
+		public transform?: (t: string) => string,
+	) {}
+	addChild(child: any) {
+		this.children.push(child);
+	}
+	render(_width: number) {
+		return [];
+	}
+	invalidate() {}
+}
+
+export class Container {
+	children: any[] = [];
+	addChild(child: any) {
+		this.children.push(child);
+	}
+	render(_width: number) {
+		return [];
+	}
+	invalidate() {}
+}
+
+export class SettingsList {
+	render(_width: number) {
+		return [];
+	}
+	invalidate() {}
+	handleInput(_data: string) {}
+	updateValue(_id: string, _newValue: string) {}
+}
+
 // ── Text wrapping mock ───────────────────────────────────────────
 
 export function wrapTextWithAnsi(text: string, width: number): string[] {

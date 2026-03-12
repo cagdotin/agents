@@ -20,4 +20,10 @@ Pinning is user-explicit — the context cost is intentional and controlled. The
 
 ~400 tokens of guidance text was embedded in the tool description, present in every conversation's tool listing. This is disproportionate context cost for a tool that's used occasionally.
 
-**Replacement**: concise 2-3 sentence tool description.
+**Replacement**: concise 2-3 sentence tool description. Constant removed entirely from codebase (was dead code once removed from tool.ts).
+
+## 5. Replace SettingsList with custom toggle list for /expert chat
+
+The SettingsList component shows "on"/"off" text on the right side — designed for multi-value settings, not binary toggles. Hard to scan visually.
+
+**Replacement**: custom toggle list with ○/● circles on the left, cursor indicator, bold selected row, and scroll support. Cleaner UX for a simple pin/unpin workflow.

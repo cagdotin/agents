@@ -13,8 +13,6 @@ export interface ExpertiseHeader {
 		paths: string[];
 		patterns?: string[];
 	};
-	keywords?: string[];
-	aliases?: string[];
 	related_domains?: string[];
 }
 
@@ -28,45 +26,7 @@ export interface ExpertiseRecord extends ExpertiseHeader {
 // ---------------------------------------------------------------------------
 
 export interface ExpertiseSettings {
-	auto_inject: boolean;
-	reflection_model: string;
-	max_inject_domains: number;
-	max_context_percent_for_auto_inject: number;
 	max_context_percent_for_any_inject: number;
-}
-
-// ---------------------------------------------------------------------------
-// Router result — output from the domain-routing stage
-// ---------------------------------------------------------------------------
-
-export interface RouterResult {
-	domain: string;
-	points: string;
-}
-
-// ---------------------------------------------------------------------------
-// Pipeline result — output from full reflection pipeline
-// ---------------------------------------------------------------------------
-
-export interface PipelineResult {
-	results: Array<{
-		domain: string;
-		summary: string;
-		error?: string;
-	}>;
-	router_skipped: boolean;
-}
-
-// ---------------------------------------------------------------------------
-// Reflection log entry
-// ---------------------------------------------------------------------------
-
-export interface ReflectionLogEntry {
-	date: string;
-	domain: string;
-	session: string;
-	model: string;
-	summary: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -104,7 +64,7 @@ export interface ExpertisePinnedState {
 // ---------------------------------------------------------------------------
 
 export const ExpertiseParams = Type.Object({
-	action: StringEnum(["list", "get", "init", "update", "reflect", "delete"] as const),
+	action: StringEnum(["list", "get", "init", "update", "append", "delete"] as const),
 	domain: Type.Optional(
 		Type.String({ description: "Domain name (lowercase, hyphens allowed, e.g. 'database', 'auth-flow')" }),
 	),
@@ -113,9 +73,14 @@ export const ExpertiseParams = Type.Object({
 		Type.Array(Type.String(), { description: "File paths/directories this domain covers (for init)" }),
 	),
 	content: Type.Optional(Type.String({ description: "Full YAML content for the expertise file (for update)" })),
+	section: Type.Optional(
+		Type.String({
+			description: "Target section for append (e.g. 'gotchas', 'design_decisions', 'patterns', 'references')",
+		}),
+	),
 });
 
-export type ExpertiseAction = "list" | "get" | "init" | "update" | "reflect" | "delete";
+export type ExpertiseAction = "list" | "get" | "init" | "update" | "append" | "delete";
 
 // ---------------------------------------------------------------------------
 // Tool result details
@@ -126,5 +91,5 @@ export type ExpertiseToolDetails =
 	| { action: "get"; domain: string; expertise: ExpertiseRecord; error?: string }
 	| { action: "init"; domain: string; expertise: ExpertiseRecord; file_listing: string; error?: string }
 	| { action: "update"; domain: string; error?: string }
-	| { action: "reflect"; results: PipelineResult["results"]; router_skipped: boolean; error?: string }
+	| { action: "append"; domain: string; section: string; error?: string }
 	| { action: "delete"; domain: string; error?: string };

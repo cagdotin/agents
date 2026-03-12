@@ -1,15 +1,13 @@
 import type { Theme } from "@mariozechner/pi-coding-agent";
 import { Text } from "@mariozechner/pi-tui";
-import { CONTENT_PRINCIPLES } from "./constants.js";
 import { scan_scope_paths, validate_domain_name } from "./helpers.js";
-import { run_reflection_pipeline } from "./reflection.js";
 import {
+	append_to_section,
 	build_skeleton_yaml,
 	delete_expertise,
 	get_expertise_dir,
 	list_domains,
 	read_expertise,
-	read_settings,
 	write_expertise,
 } from "./storage.js";
 import type { ExpertiseAction, ExpertiseToolDetails } from "./types.js";
@@ -22,10 +20,9 @@ export function create_expertise_tool(dir_label: string) {
 		description:
 			`Manage domain expertise files in ${dir_label} — the agent's persistent mental model of specific areas of the codebase. ` +
 			"Actions: list (show all domains), get (read a domain's expertise), init (bootstrap new domain from scope paths), " +
-			"update (replace full YAML content), reflect (extract insights from current conversation and update — domain is optional, " +
-			"omit to auto-detect affected domains via router), delete (remove domain). " +
-			"After completing work that changes code in a domain's scope, use 'reflect' to update the expertise with learnings from the conversation.\n\n" +
-			CONTENT_PRINCIPLES,
+			"update (replace full YAML content), append (add a single insight to a section — " +
+			"domain, section, and content are all required), delete (remove domain). " +
+			"After completing work that changes code in a domain's scope, use 'append' to record non-obvious insights worth remembering.",
 		parameters: ExpertiseParams,
 
 		async execute(
@@ -112,20 +109,8 @@ export function create_expertise_tool(dir_label: string) {
 								type: "text",
 								text:
 									`Domain '${params.domain}' initialized.\n\nFiles in scope:\n${file_listing}\n\n` +
-									"Now read the key files to understand the domain, then use 'update' to save your expertise.\n\n" +
-									"CRITICAL — write a SHORT expertise file (aim for 30-60 lines of YAML). " +
-									"Only include things that pass the 10-second rule: if a developer could figure it out " +
-									"by reading the code in 10 seconds, LEAVE IT OUT.\n\n" +
-									"Focus on:\n" +
-									"- overview: 2-3 sentences of orientation, not a file listing\n" +
-									"- design_decisions: WHY things are the way they are (most valuable section)\n" +
-									"- gotchas: things that actually burn people\n" +
-									"- references: 'for X see path/to/file' pointers\n\n" +
-									"Do NOT include: file listings, function names, implementation details visible from the code, " +
-									"patterns you can copy from existing files, anything that reads like documentation.\n\n" +
-									"If you find yourself needing many gotchas or explanations, ask WHY — " +
-									"it may signal poor naming, missing docs, or a domain that's too broad. " +
-									"Add a 'codebase_concerns' section to flag these rather than just documenting around them.",
+									"Read the key files to understand the domain, then use 'update' to populate the expertise. " +
+									"Keep it short (30-60 lines). Only record what would take 30+ minutes of archaeology to discover.",
 							},
 						],
 						details: {
@@ -172,69 +157,33 @@ export function create_expertise_tool(dir_label: string) {
 					};
 				}
 
-				case "reflect": {
-					const settings = await read_settings(expertise_dir);
-					const session_file = ctx.sessionManager.getSessionFile() ?? "unknown";
-					const branch_messages = ctx.sessionManager
-						.getBranch()
-						.filter((e: any) => e.type === "message")
-						.map((e: any) => e.message);
-
-					const pipeline = await run_reflection_pipeline(
-						branch_messages,
-						settings,
-						ctx.cwd,
-						session_file,
-						params.domain || undefined,
-					);
-
-					if (pipeline.results.length === 0) {
-						const msg = pipeline.router_skipped
-							? "No results from reflection."
-							: "Router found no domains affected by this conversation.";
-						return {
-							content: [{ type: "text", text: msg }],
-							details: { action: "reflect", results: [], router_skipped: pipeline.router_skipped },
-						};
+				case "append": {
+					if (!params.domain) {
+						return error_result("append", "domain is required for append");
+					}
+					if (!params.section) {
+						return error_result(
+							"append",
+							"section is required for append (e.g. 'gotchas', 'design_decisions', 'patterns', 'references')",
+						);
+					}
+					if (!params.content) {
+						return error_result("append", "content is required for append");
 					}
 
-					const successes = pipeline.results.filter((r) => !r.error);
-					const failures = pipeline.results.filter((r) => r.error);
-
-					const parts: string[] = [];
-					if (successes.length > 0) {
-						parts.push("**Updated:**");
-						for (const r of successes) {
-							parts.push(`- **${r.domain}**: ${r.summary}`);
-						}
-					}
-					if (failures.length > 0) {
-						parts.push("\n**Failed:**");
-						for (const r of failures) {
-							parts.push(`- **${r.domain}**: ${r.error}`);
-						}
-					}
-
-					const has_errors = failures.length > 0 && successes.length === 0;
-					if (has_errors) {
-						return {
-							content: [{ type: "text", text: parts.join("\n") }],
-							details: {
-								action: "reflect",
-								results: pipeline.results,
-								router_skipped: pipeline.router_skipped,
-								error: failures[0].error,
-							},
-						};
+					const result = await append_to_section(expertise_dir, params.domain, params.section, params.content);
+					if (result.error) {
+						return error_result("append", result.error);
 					}
 
 					return {
-						content: [{ type: "text", text: parts.join("\n") }],
-						details: {
-							action: "reflect",
-							results: pipeline.results,
-							router_skipped: pipeline.router_skipped,
-						},
+						content: [
+							{
+								type: "text",
+								text: `Appended to '${params.section}' in domain '${params.domain}'.`,
+							},
+						],
+						details: { action: "append", domain: params.domain, section: params.section },
 					};
 				}
 
@@ -320,33 +269,14 @@ export function create_expertise_tool(dir_label: string) {
 					);
 				}
 
-				case "reflect": {
-					const successes = details.results.filter((r: any) => !r.error);
-					const failures = details.results.filter((r: any) => r.error);
-
-					if (successes.length === 0 && failures.length === 0) {
-						return new Text(theme.fg("dim", "No domains affected"), 0, 0);
-					}
-
-					const domain_names = successes.map((r: any) => r.domain).join(", ");
-					const header =
-						theme.fg("success", "🧠 ") +
-						theme.fg("muted", "Reflected on ") +
-						theme.fg("accent", domain_names || "(none)");
-
-					if (failures.length > 0) {
-						const fail_note = theme.fg("error", ` (${failures.length} failed)`);
-						if (!expanded) {
-							return new Text(header + fail_note + theme.fg("dim", " · expand for details"), 0, 0);
-						}
-					}
-
-					if (!expanded) return new Text(header + theme.fg("dim", " · expand for details"), 0, 0);
-
-					const detail_lines = successes
-						.map((r: any) => `  ${theme.fg("accent", r.domain)}: ${theme.fg("dim", r.summary)}`)
-						.concat(failures.map((r: any) => `  ${theme.fg("error", r.domain)}: ${theme.fg("dim", r.error)}`));
-					return new Text(`${header}\n${detail_lines.join("\n")}`, 0, 0);
+				case "append": {
+					return new Text(
+						theme.fg("success", "✓ ") +
+							theme.fg("muted", "Appended to ") +
+							theme.fg("accent", `${details.domain}/${details.section}`),
+						0,
+						0,
+					);
 				}
 
 				case "delete": {
