@@ -1,0 +1,13 @@
+name: lightpanda-browser
+purpose: "Explore and plan integration of Lightpanda headless browser into the agents toolset for web scraping, research, UI testing, and automation capabilities."
+status: active
+created_at: "2026-03-12T15:55:18.694Z"
+updated_at: "2026-03-12T17:03:41.795Z"
+last_synced_at: "2026-03-12T17:03:41.795Z"
+session_count: 2
+summary_version: 1
+related_paths:
+  - extensions/
+  - skills/
+  - docs/specs/
+  - docs/ARCHITECTURE.md
