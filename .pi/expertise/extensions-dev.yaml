@@ -1,7 +1,7 @@
 domain: extensions-dev
 description: Cross-extension conventions for progressive-disclosure docs, schema-first boundary validation, qualitative
   quality reporting, and repo-agnostic task-scoped runtime workspaces.
-last_synced: 2026-03-13T13:21:05.575Z
+last_synced: 2026-03-13T16:29:35.847Z
 scope:
   paths:
     - AGENTS.md
@@ -82,6 +82,10 @@ patterns:
   - "When tightening an extension’s persisted/boundary model, keep detection keyed to the canonical identity (for QMD:
     normalized repo root) and downgrade legacy state to a repair warning when possible; that preserves existing manual
     setups while still steering new writes toward the stricter v1 format."
+  - For extension portability, a self-contained `diy/` folder inside the extension can package a behavior snapshot spec,
+    an execution plan, and copyable raw-reference links (including track artifacts). This makes it easy for users to
+    copy one directory into another repo and ask any agent to rebuild the plugin without installing the original
+    package.
 design_decisions:
   - reason: Agent-facing docs optimize for context budget
     detail: Top-level docs are overviews, not handbooks. If an agent can infer something quickly from code, tests, repo

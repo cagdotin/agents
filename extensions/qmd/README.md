@@ -83,6 +83,12 @@ extensions/qmd/
 │   ├── data.ts                 # Snapshot builder, file tree, helpers
 │   ├── panel.ts                # Interactive TUI panel (overview/files/updating)
 │   └── plain-text.ts           # Non-TUI fallback summary
+├── diy/
+│   ├── README.md               # How to copy/paste this blueprint into another repo
+│   ├── qmd-extension-snapshot-spec.md
+│   ├── qmd-extension-diy-execution-plan.md
+│   ├── agent-prompt-template.md
+│   └── references.md
 ├── docs/
 │   ├── architecture.md         # Layer diagram and responsibilities
 │   ├── freshness.md            # Freshness model and footer behavior
@@ -101,6 +107,16 @@ extensions/qmd/
     └── ui/
         └── data.test.ts
 ```
+
+## DIY blueprint
+
+If you want to recreate this extension in another repo without installing this package, use:
+
+- `diy/README.md` — copy/paste usage instructions
+- `diy/qmd-extension-snapshot-spec.md` — current behavior blueprint
+- `diy/qmd-extension-diy-execution-plan.md` — implementation milestones
+- `diy/references.md` — internal docs + agent-memory raw links
+- `diy/agent-prompt-template.md` — copy/paste prompt for rebuilding elsewhere
 
 ## Docs
 
