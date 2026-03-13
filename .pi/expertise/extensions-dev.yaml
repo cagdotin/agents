@@ -1,7 +1,7 @@
 domain: extensions-dev
 description: Cross-extension conventions for progressive-disclosure docs, schema-first boundary validation, qualitative
   quality reporting, and repo-agnostic task-scoped runtime workspaces.
-last_synced: 2026-03-13T10:29:34.381Z
+last_synced: 2026-03-13T13:21:05.575Z
 scope:
   paths:
     - AGENTS.md
@@ -79,6 +79,9 @@ patterns:
     prove insufficient."
   - Keep minimal tracks self-contained and repo-agnostic; do not assume `.pi/todos/`, `docs/specs/`, `docs/exec-plans/`,
     or any other host-repo structure.
+  - "When tightening an extension’s persisted/boundary model, keep detection keyed to the canonical identity (for QMD:
+    normalized repo root) and downgrade legacy state to a repair warning when possible; that preserves existing manual
+    setups while still steering new writes toward the stricter v1 format."
 design_decisions:
   - reason: Agent-facing docs optimize for context budget
     detail: Top-level docs are overviews, not handbooks. If an agent can infer something quickly from code, tests, repo
@@ -164,10 +167,10 @@ gotchas:
     agents will drift back to chat-only coordination.
   - If track templates mention project-specific docs, workflows, or folder assumptions, the extension stops being
     portable.
-  - 'QMD Bun/sqlite-vec issue is fixed via local fork at `~/git/qmd-fork` (applies upstream PRs #377 and #385).
-    PR #377 calls `Database.setCustomSQLite()` with Homebrew SQLite on macOS so `bun:sqlite` can load sqlite-vec.
-    PR #385 fixes launcher lockfile priority and `cleanupOrphanedVectors()` crash. Requires `brew install sqlite`.
-    Both CLI and SDK work natively under Bun. Switch back to `npm install -g @tobilu/qmd` when upstream merges.'
+  - "QMD Bun/sqlite-vec issue is fixed via local fork at `~/git/qmd-fork` (applies upstream PRs #377 and #385). PR #377
+    calls `Database.setCustomSQLite()` with Homebrew SQLite on macOS so `bun:sqlite` can load sqlite-vec. PR #385 fixes
+    launcher lockfile priority and `cleanupOrphanedVectors()` crash. Requires `brew install sqlite`. Both CLI and SDK
+    work natively under Bun. Switch back to `npm install -g @tobilu/qmd` when upstream merges."
 references:
   - "Global workflow and enforcement policy: `AGENTS.md`"
   - "Repository docs index and reading order: `docs/README.md`"

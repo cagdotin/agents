@@ -1,74 +1,56 @@
 # Report
 
-## Status: spec and rollout plan revised; implementation not started
+## Status: QMD extension v1 implemented and validated in-repo
 
-Research and CLI setup are done. The QMD extension design was reviewed and then tightened around cleaner boundaries before implementation begins.
+The QMD extension now exists under `extensions/qmd/` with the revised deep-module architecture from the v1 spec. Repo checks pass, the extension is documented, and focused tests cover contracts, onboarding, freshness, store wrapping, and runtime injection.
 
-## What changed in this revision
+## What shipped
 
-1. **Module shape simplified**
-   - moved from a broader Core / Features / Extension split to a smaller set of deeper modules
-   - new shape centers on:
-     - `core/qmd-store.ts`
-     - `core/types.ts`
-     - `core/errors.ts`
-     - `domain/repo-binding.ts`
-     - `domain/freshness.ts`
-     - `domain/onboarding.ts`
-     - `extension/runtime.ts`
-     - `extension/command.ts`
-     - `extension/tool.ts`
+1. **Core layer implemented**
+   - `extensions/qmd/core/errors.ts`
+   - `extensions/qmd/core/types.ts`
+   - `extensions/qmd/core/qmd-store.ts`
+   - Zod now owns runtime validation for marker files and onboarding payloads; TypeBox is only used for the `qmd_init` tool boundary.
 
-2. **Source-of-truth model clarified**
-   - QMD store owns collections and contexts
-   - `.pi/qmd.json` is now only a repo-binding + freshness marker
-   - this removes duplicated config truth from the design
+2. **Repo binding model implemented**
+   - `domain/repo-binding.ts` resolves the normalized repo root, derives path-based collection keys, reads/writes `.pi/qmd.json`, and reconciles marker/store state.
+   - Detection is path-based and can still recognize legacy collection names by repo root, surfacing a repair warning instead of silently failing.
 
-3. **Repo identity made path-based**
-   - canonical identity is the normalized repo root path
-   - basename collision handling was removed from the design
-   - collection keys remain path-derived, but encoded to satisfy QMD collection-name constraints
+3. **Freshness implemented**
+   - `domain/freshness.ts` compares the indexed commit against the current git worktree.
+   - It reports `fresh`, `stale`, or `unknown` and includes markdown path counts when stale.
 
-4. **Validation doctrine tightened**
-   - Zod is now the default/runtime authority for file and proposal validation
-   - TypeBox is limited to the Pi tool-registration boundary
+4. **Deterministic onboarding implemented**
+   - `domain/onboarding.ts` now handles scan → draft → prompt → normalize → execute.
+   - The repo scan is bounded and prompt-safe.
+   - `execute_init()` adds the collection, writes contexts, updates only that collection, embeds only when needed, and writes `.pi/qmd.json`.
 
-5. **Init flow made more deterministic**
-   - old direction: scan → LLM proposes config from raw context
-   - revised direction: scan → deterministic draft → LLM refines with user → normalize/validate → execute
+5. **Extension wiring implemented**
+   - `extension/runtime.ts` refreshes state on session lifecycle events, keeps the footer quiet for non-indexed repos, injects short QMD CLI guidance when indexed, and closes the store on shutdown.
+   - `extension/command.ts` provides `/qmd status`, `/qmd update`, and `/qmd init`.
+   - `extension/tool.ts` registers `qmd_init`, keeps it inactive by default, activates it only during onboarding, and always removes it in `finally`.
 
-6. **Update behavior narrowed**
-   - `/qmd update` is explicitly scoped to the current repo collection only
-   - no global reindexing by default
+6. **Docs + tests added**
+   - `extensions/qmd/README.md`
+   - `extensions/qmd/docs/architecture.md`
+   - `extensions/qmd/docs/onboarding.md`
+   - `extensions/qmd/docs/freshness.md`
+   - `extensions/qmd/__tests__/...`
 
-7. **Footer behavior made quieter**
-   - indexed repos show status
-   - non-indexed repos stay silent
+## Validation
 
-## Current implementation target
+- `bun run check` ✅
+- SDK import from `@tobilu/qmd` works in this repo via the linked local fork
+- Full repo test suite passes with the new extension included
 
-**Milestone 1: Core + Contracts**
+## Implementation learnings
 
-Immediate next work:
-- scaffold extension directories
-- implement `core/errors.ts`
-- implement `core/types.ts` with Zod-first schemas
-- implement `core/qmd-store.ts`
-- verify SDK import from the extension
-- confirm the path-derived collection-key encoding
+- **Legacy collection compatibility matters.** The current repo already had a manual `agents` collection, so repo-root fallback plus repair warnings is the right practical bridge into the stricter v1 model.
+- **Freshness must compare against the worktree, not just `HEAD`.** Using `git diff <indexed_commit>` plus an untracked markdown pass catches local edits correctly.
+- **Workflow-scoped tool activation is viable for v1.** The extension can safely add/remove only `qmd_init` without taking ownership of global tool state.
 
-## Stable decisions at this point
+## Still worth checking later
 
-- QMD remains the right retrieval engine for this work
-- the extension should be infrastructure, not an always-on search tool
-- the agent should continue using `bash` + `qmd query/search/get`
-- path-based repo identity is the correct model
-- `.pi/qmd.json` must stay small and local
-- v1 should prefer deterministic, visible behavior over hidden automation
-
-## Open constraints still worth validating during implementation
-
-- benchmark `store.listCollections()` latency in real usage
-- verify the chosen path-encoding format is ergonomic enough in CLI output/prompt text
-- confirm embed progress UX for `/qmd init`
-- decide later whether non-git freshness fallback is worth the added complexity
+- benchmark `store.listCollections()` latency in a live non-test session
+- evaluate whether legacy collection bindings should get an explicit migration command in v2
+- decide whether non-git freshness fallback is worth the extra complexity

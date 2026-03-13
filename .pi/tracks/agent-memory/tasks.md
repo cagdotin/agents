@@ -20,55 +20,55 @@ Remaining active work lives below.
 See `exec-plans/qmd-extension-v1.md` for the full checklist.
 
 ### M1: Core + Contracts
-- [ ] Scaffold `core/`, `domain/`, `extension/`, `docs/`, `__tests__/`
-- [ ] Add `core/errors.ts`
-- [ ] Add `core/types.ts` with **Zod-first** schemas
-- [ ] Add `core/qmd-store.ts`
-- [ ] Verify SDK import from extension
-- [ ] Confirm path-derived collection key encoding
+- [x] Scaffold `core/`, `domain/`, `extension/`, `docs/`, `__tests__/`
+- [x] Add `core/errors.ts`
+- [x] Add `core/types.ts` with **Zod-first** schemas
+- [x] Add `core/qmd-store.ts`
+- [x] Verify SDK import from extension
+- [x] Confirm path-derived collection key encoding
 
 ### M2: Repo Binding + Detection
-- [ ] Normalize repo root detection
-- [ ] Implement `.pi/qmd.json` marker read/write
-- [ ] Implement path-based binding detection
-- [ ] Add marker/SDK mismatch handling
+- [x] Normalize repo root detection
+- [x] Implement `.pi/qmd.json` marker read/write
+- [x] Implement path-based binding detection
+- [x] Add marker/SDK mismatch handling
 
 ### M3: Runtime Wiring + Silent Footer
-- [ ] Wire `session_start` binding + freshness checks
-- [ ] Add `before_agent_start` QMD prompt injection
-- [ ] Keep non-indexed repos silent
-- [ ] Add `session_shutdown` store cleanup
+- [x] Wire `session_start` binding + freshness checks
+- [x] Add `before_agent_start` QMD prompt injection
+- [x] Keep non-indexed repos silent
+- [x] Add `session_shutdown` store cleanup
 
 ### M4: Status + Scoped Update Command
-- [ ] Implement `/qmd status`
-- [ ] Implement `/qmd update` for current repo only
-- [ ] Refresh marker freshness after update
+- [x] Implement `/qmd status`
+- [x] Implement `/qmd update` for current repo only
+- [x] Refresh marker freshness after update
 
 ### M5: Freshness Detection
-- [ ] Add git-based markdown freshness detection
-- [ ] Return `fresh | stale | unknown`
-- [ ] Surface freshness in footer/status
+- [x] Add git-based markdown freshness detection
+- [x] Return `fresh | stale | unknown`
+- [x] Surface freshness in footer/status
 
 ### M6: Deterministic Onboarding Pipeline
-- [ ] Add bounded repo scan
-- [ ] Add deterministic draft proposal
-- [ ] Add prompt builder for LLM refinement
-- [ ] Add Zod normalization of confirmed proposal
-- [ ] Execute init via SDK
+- [x] Add bounded repo scan
+- [x] Add deterministic draft proposal
+- [x] Add prompt builder for LLM refinement
+- [x] Add Zod normalization of confirmed proposal
+- [x] Execute init via SDK
 
 ### M7: Workflow Tool + Init UX Hardening
-- [ ] Register `qmd_init` inactive by default
-- [ ] Activate it only during `/qmd init`
-- [ ] Parse tool input through Zod after Pi boundary validation
-- [ ] Always deactivate in `finally`
-- [ ] Document shared `setActiveTools()` caveat
+- [x] Register `qmd_init` inactive by default
+- [x] Activate it only during `/qmd init`
+- [x] Parse tool input through Zod after Pi boundary validation
+- [x] Always deactivate in `finally`
+- [x] Document shared `setActiveTools()` caveat
 
 ### M8: Documentation + Quality Pass
-- [ ] Add `README.md`
-- [ ] Add `docs/architecture.md`
-- [ ] Add `docs/onboarding.md`
-- [ ] Add `docs/freshness.md`
-- [ ] Align track docs with implementation learnings
+- [x] Add `README.md`
+- [x] Add `docs/architecture.md`
+- [x] Add `docs/onboarding.md`
+- [x] Add `docs/freshness.md`
+- [x] Align track docs with implementation learnings
 
 ## Future work
 

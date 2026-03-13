@@ -6,8 +6,8 @@
 - Track: agent-memory
 - Purpose: Research, evaluate, and integrate agent memory/context management improvements — covering QMD, OpenViking patterns, and enhancements to our expertise/tracks systems
 - Status: active
-- Last synced: 2026-03-13T12:44:29.103Z
-- Session count: 5
+- Last synced: 2026-03-13T13:53:41.368Z
+- Session count: 7
 - Summary version: 1
 
 ## Related paths
@@ -27,12 +27,11 @@
 - Scaffold `core/`, `domain/`, `extension/`, `docs/`, `__tests__/`
 
 ## Open checklist
-- Scaffold `core/`, `domain/`, `extension/`, `docs/`, `__tests__/`
-- Add `core/errors.ts`
-- Add `core/types.ts` with **Zod-first** schemas
-- Add `core/qmd-store.ts`
-- Verify SDK import from extension
-- Confirm path-derived collection key encoding
+- Thin expertise toward navigational / high-level memory
+- Use QMD as deep retrieval for markdown knowledge
+- Explore promotion paths from session findings → expertise append
+- Explore track/expertise/QMD layering inspired by OpenViking tiering
+- Watch for a new QMD release that merges PR #377 and PR #385, then switch from local fork to published package.
 
 ## Findings
 - **Local-first, zero infrastructure.** Single SQLite file, local models, no API keys, no server process.
@@ -47,4 +46,4 @@
 - **Rule:** The canonical identity is the normalized repo root path. There is one binding per repo root.
 
 ## Report pulse
-Research and CLI setup are done. The QMD extension design was reviewed and then tightened around cleaner boundaries before implementation begins.
+The QMD extension now exists under `extensions/qmd/` with the revised deep-module architecture from the v1 spec. Repo checks pass, the extension is documented, and focused tests cover contracts, onboarding, freshness, store wrapping, and runtime injection.
