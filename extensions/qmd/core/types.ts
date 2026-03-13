@@ -19,13 +19,11 @@ export const repo_binding_result_schema = z.discriminatedUnion("status", [
 		collection_key: z.string().min(1),
 		marker: qmd_repo_marker_schema.nullable(),
 		source: z.enum(["marker", "store"]),
-		repair_warning: z.string().min(1).optional(),
 	}),
 	z.object({
 		status: z.literal("not_indexed"),
 		repo_root: z.string().min(1),
 		marker: qmd_repo_marker_schema.nullable().optional(),
-		repair_warning: z.string().min(1).optional(),
 	}),
 	z.object({
 		status: z.literal("unavailable"),

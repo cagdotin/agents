@@ -1,6 +1,6 @@
 # Report
 
-## Status: QMD extension v1 implemented and validated in-repo
+## Status: QMD extension v1 + TUI panel implemented and validated in-repo
 
 The QMD extension now exists under `extensions/qmd/` with the revised deep-module architecture from the v1 spec. Repo checks pass, the extension is documented, and focused tests cover contracts, onboarding, freshness, store wrapping, and runtime injection.
 
@@ -88,6 +88,29 @@ Full review of `extensions/qmd/` — all 11 source files, 6 test files, 3 docs, 
 2. Fix Biome formatting on `.pi/qmd.json`
 3. Declare `@tobilu/qmd` in `package.json` or document more visibly
 4. De-duplicate `resolve_repo_root` call in `write_repo_marker`
+
+## QMD TUI Panel — shipped
+
+7. **TUI panel implemented**
+   - `extensions/qmd/ui/panel.ts` — `QmdPanel` class with overview, files, and updating views
+   - `extensions/qmd/ui/data.ts` — `QmdPanelSnapshot` builder, file tree construction, helpers
+   - `extensions/qmd/ui/constants.ts` — panel constants (width, shortcuts, icon)
+   - `extensions/qmd/ui/plain-text.ts` — non-TUI fallback summary
+   - `extensions/qmd/docs/panel.md` — panel behavior documentation
+
+8. **Panel features**
+   - Three views: overview (index stats, freshness, contexts, stale files), files (NERDTree-style collapsible tree), updating (progress)
+   - Accessible via `/qmd` (no args), `/qp` alias, `Ctrl+Alt+Q` shortcut
+   - Vi-style navigation: `j/k`, `g/G`, `PageUp/Down`, `enter` to drill in, `esc`/`q` to go back
+   - `u` triggers in-panel update, `i` starts init for non-indexed repos
+   - `r` refreshes the snapshot without closing the panel
+   - Graceful fallback: non-TUI environments get plain-text summary
+   - File tree collapses single-child directory chains (e.g. `docs/exec-plans/active`)
+
+9. **Panel implementation learnings**
+   - `QMDStore.internal.getActiveDocumentPaths(key)` is the low-level API — not exposed on the high-level store
+   - Overview, file browser, and update views are tightly coupled — implemented together in M4–M6 rather than sequentially
+   - Snapshot is flat and serializable — panel renders without understanding binding/freshness discriminated unions
 
 ## Still worth checking later
 

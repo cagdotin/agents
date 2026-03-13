@@ -342,4 +342,21 @@ bun test extensions/qmd/__tests__/ui/data.test.ts
 
 ## Outcomes & Retrospective
 
-(to be filled after work completes)
+All 8 milestones shipped. The QMD extension now has a full interactive TUI panel.
+
+### What shipped
+- `ui/constants.ts`, `ui/data.ts`, `ui/panel.ts`, `ui/plain-text.ts` — clean separation of data, rendering, and fallback
+- `__tests__/ui/data.test.ts` — snapshot builder, file tree, formatting helpers all covered
+- `docs/panel.md` — panel behavior, states, keyboard shortcuts documented
+- `extension/command.ts` — `/qmd` opens panel by default, subcommands preserved, `/qp` alias and `Ctrl+Alt+Q` shortcut registered
+- `core/qmd-store.ts` — `get_active_document_paths()` and `get_index_health()` added
+
+### What worked well
+- **Snapshot-as-data pattern.** Flat `QmdPanelSnapshot` made the panel trivially testable and kept rendering free of domain logic.
+- **Callbacks for actions.** Panel stays free of Pi imports; update/init logic lives in `command.ts`.
+- **File tree with single-child collapsing.** Makes deeply nested repos navigable without excessive clicking.
+- **Merging M4–M6.** The three views are tightly coupled in a single class — splitting them into separate milestones would have created artificial seams.
+
+### Surprises
+- `store.internal.getActiveDocumentPaths(key)` is on the low-level `InternalStore`, not the high-level `QMDStore`. Worked fine but wasn't obvious from the SDK surface.
+- 5 pre-existing test failures in other QMD tests due to vitest/bun `vi.resetModules()` incompatibility — not regressions from this work.

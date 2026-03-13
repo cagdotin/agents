@@ -9,7 +9,6 @@ export interface QmdPanelSnapshot {
 	repo_root: string | null;
 	collection_key: string | null;
 	binding_source: "marker" | "store" | null;
-	repair_warning: string | null;
 	error_reason: string | null;
 
 	// Freshness
@@ -44,10 +43,7 @@ export async function build_qmd_panel_snapshot(
 	}
 
 	if (binding.status === "not_indexed") {
-		return {
-			...empty_snapshot("not_indexed", binding.repo_root, null),
-			repair_warning: binding.repair_warning ?? null,
-		};
+		return empty_snapshot("not_indexed", binding.repo_root, null);
 	}
 
 	// Status: indexed
@@ -66,7 +62,6 @@ export async function build_qmd_panel_snapshot(
 			repo_root: binding.repo_root,
 			collection_key: binding.collection_key,
 			binding_source: binding.source,
-			repair_warning: binding.repair_warning ?? null,
 			error_reason: null,
 
 			freshness_status: freshness?.status ?? null,
@@ -103,7 +98,6 @@ function empty_snapshot(
 		repo_root,
 		collection_key: null,
 		binding_source: null,
-		repair_warning: null,
 		error_reason,
 
 		freshness_status: null,

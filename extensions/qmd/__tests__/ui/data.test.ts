@@ -144,16 +144,6 @@ describe("build_qmd_panel_snapshot", () => {
 		expect(snap.binding_status).toBe("unavailable");
 		expect(snap.error_reason).toBe("Failed to read QMD store data.");
 	});
-
-	it("repair warning is forwarded", async () => {
-		const snap = await build_qmd_panel_snapshot(
-			"/repo",
-			indexed_binding({ repair_warning: "Marker was repaired" }),
-			fresh_result,
-		);
-
-		expect(snap.repair_warning).toBe("Marker was repaired");
-	});
 });
 
 describe("format_relative_time", () => {

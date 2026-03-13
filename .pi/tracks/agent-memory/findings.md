@@ -43,6 +43,13 @@
 - **The most transferable idea is tiering, not the stack.** L0/L1/L2 and hierarchical retrieval are useful design inspirations, but OpenViking's implementation is too heavyweight for direct adoption here.
 - **Virtual filesystem and deterministic navigation remain valuable inspiration.** They reinforce our preference for file-based working memory and explicit navigation over opaque orchestration.
 
+## TUI Panel Implementation
+
+- **`QMDStore.internal` is the real API surface for document queries.** `getActiveDocumentPaths()` and `getIndexHealth()` live on `store.internal` (the `InternalStore`), not the high-level `QMDStore`. The high-level store wraps collection/context management; document-level queries go through `internal`.
+- **Flat snapshot pattern is the right abstraction for TUI panels.** A serializable struct with no SDK objects lets the panel render without understanding discriminated unions, binding sources, or freshness variants. Testing becomes trivial — construct a snapshot, assert rendered output.
+- **Callback injection keeps panels reusable.** The `QmdPanel` class takes `QmdPanelCallbacks` (get_snapshot, on_update, on_init, on_close) instead of importing extension internals. This matches the session-stats pattern and keeps the `ui/` layer free of Pi imports.
+- **Single-child directory collapsing is essential for deep repos.** Without it, a path like `docs/exec-plans/active/` creates three tree levels with one child each. Collapsing to `docs/exec-plans/active` makes the tree navigable.
+
 ## Comparison to Our Current System
 
 | Dimension | Our System (pi) | QMD | OpenViking |

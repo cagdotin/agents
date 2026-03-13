@@ -17,9 +17,6 @@ export function build_plain_text_summary(snapshot: QmdPanelSnapshot): string {
 		if (snapshot.repo_root) {
 			lines.push(`repo: ${snapshot.repo_root}`);
 		}
-		if (snapshot.repair_warning) {
-			lines.push(`note: ${snapshot.repair_warning}`);
-		}
 		lines.push("Run /qmd init to onboard this repository.");
 		return lines.join("\n");
 	}
@@ -64,11 +61,6 @@ export function build_plain_text_summary(snapshot: QmdPanelSnapshot): string {
 		for (const p of snapshot.stale_paths) {
 			lines.push(`  ${p}`);
 		}
-	}
-
-	if (snapshot.repair_warning) {
-		lines.push("");
-		lines.push(`note: ${snapshot.repair_warning}`);
 	}
 
 	return lines.join("\n");

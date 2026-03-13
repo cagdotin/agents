@@ -14,20 +14,12 @@ import {
 const exec_file = promisify(exec_file_callback);
 const QMD_MARKER_RELATIVE_PATH = path.join(".pi", "qmd.json");
 
-function normalize_path_separators(value: string): string {
-	return value.replaceAll(path.sep, "/");
-}
-
 async function safe_realpath(value: string): Promise<string> {
 	try {
 		return await realpath(value);
 	} catch {
 		return path.resolve(value);
 	}
-}
-
-function build_repair_warning(message: string): string {
-	return `${message} Run /qmd update to refresh the local marker if the store binding is still correct, or /qmd init to create a new v1 binding.`;
 }
 
 export async function resolve_repo_root(cwd: string): Promise<string> {
@@ -96,51 +88,17 @@ export async function write_repo_marker(cwd: string, marker: QmdRepoMarker): Pro
 }
 
 function is_collection_for_repo(collection: QmdCollectionRecord, repo_root: string): boolean {
-	return normalize_path_separators(collection.pwd) === normalize_path_separators(repo_root);
-}
-
-function build_marker_mismatch_warning(
-	repo_root: string,
-	marker: QmdRepoMarker,
-	collection: QmdCollectionRecord,
-): string {
-	if (!is_collection_for_repo(collection, repo_root)) {
-		return build_repair_warning(
-			`The local marker points at '${marker.collection_key}', but that collection now resolves to ${collection.pwd} instead of ${repo_root}.`,
-		);
-	}
-
-	if (marker.collection_key !== collection.name) {
-		return build_repair_warning(
-			`The local marker points at '${marker.collection_key}', but the store binding for this repo is '${collection.name}'.`,
-		);
-	}
-
-	return build_repair_warning(`The local marker for ${repo_root} no longer matches the QMD store binding.`);
+	return collection.pwd === repo_root;
 }
 
 export async function detect_repo_binding(cwd: string): Promise<RepoBindingResult> {
 	const repo_root = await resolve_repo_root(cwd);
-	const expected_collection_key = collection_key_from_repo_root(repo_root);
 
 	let marker: QmdRepoMarker | null = null;
-	let marker_warning: string | undefined;
 	try {
 		marker = await read_repo_marker(repo_root);
-	} catch (error) {
-		marker_warning = get_error_message(error);
-	}
-
-	if (marker) {
-		if (marker.repo_root !== repo_root) {
-			marker_warning = build_repair_warning(
-				`The local marker claims this repo root is ${marker.repo_root}, but the current normalized repo root is ${repo_root}.`,
-			);
-		} else if (marker.collection_key !== expected_collection_key) {
-			marker_warning = build_repair_warning(
-				`The local marker uses collection key '${marker.collection_key}', but expected '${expected_collection_key}' for this repo path.`,
-			);
-		}
+	} catch {
+		// Corrupt marker — treat as absent.
 	}
 
 	let collections: QmdCollectionRecord[];
@@ -171,7 +129,6 @@ export async function detect_repo_binding(cwd: string): Promise<RepoBindingResul
 			collection_key: marker_collection.name,
 			marker,
 			source: "marker",
-			repair_warning: marker_warning,
 		};
 	}
 
@@ -182,18 +139,6 @@ export async function detect_repo_binding(cwd: string): Promise<RepoBindingResul
 			collection_key: repo_collection.name,
 			marker,
 			source: "store",
-			repair_warning: marker
-				? (marker_warning ?? build_marker_mismatch_warning(repo_root, marker, repo_collection))
-				: undefined,
-		};
-	}
-
-	if (marker && marker_collection) {
-		return {
-			status: "not_indexed",
-			repo_root,
-			marker,
-			repair_warning: marker_warning ?? build_marker_mismatch_warning(repo_root, marker, marker_collection),
 		};
 	}
 
@@ -201,6 +146,5 @@ export async function detect_repo_binding(cwd: string): Promise<RepoBindingResul
 		status: "not_indexed",
 		repo_root,
 		marker: marker ?? undefined,
-		repair_warning: marker_warning,
 	};
 }

@@ -35,10 +35,6 @@ async function with_store<T>(action: string, fn: (store: QMDStore) => Promise<T>
 	}
 }
 
-export async function get_store(): Promise<QMDStore> {
-	return with_store("open the QMD store", async (store) => store);
-}
-
 export async function close_store(): Promise<void> {
 	if (!store_promise) {
 		return;
@@ -54,11 +50,6 @@ export async function close_store(): Promise<void> {
 
 export async function list_collections(): Promise<QmdCollectionRecord[]> {
 	return with_store("list QMD collections", async (store) => store.listCollections());
-}
-
-export async function get_collection_by_repo_root(repo_root: string): Promise<QmdCollectionRecord | null> {
-	const collections = await list_collections();
-	return collections.find((collection) => collection.pwd === repo_root) ?? null;
 }
 
 export async function add_collection(params: {

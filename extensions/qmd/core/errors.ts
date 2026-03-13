@@ -21,15 +21,6 @@ export class QmdUnavailableError extends QmdExtensionError {
 	}
 }
 
-export class RepoNotIndexedError extends QmdExtensionError {
-	constructor(repo_root: string) {
-		super(
-			"repo_not_indexed",
-			`This repository is not indexed by QMD yet: ${repo_root}. Run /qmd init to create a repo binding and index its markdown files.`,
-		);
-	}
-}
-
 export class CollectionBindingMismatchError extends QmdExtensionError {
 	constructor(message: string, cause?: unknown) {
 		super("collection_binding_mismatch", message, { cause });

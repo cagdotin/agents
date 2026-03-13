@@ -1,72 +1,26 @@
 # Tasks
 
-## Current focus
-
-Add a TUI panel to the QMD extension — an interactive dashboard showing index status, freshness, contexts, stale files, and indexed file browser. Accessible via `/qmd`, `/qp`, and `Ctrl+Alt+Q`.
-
-- Spec: `docs/specs/2026-03-13-qmd-tui-panel.md`
-- Exec plan: `exec-plans/qmd-tui-panel.md`
-
 ## Current state
 
-Completed already: QMD research and option comparison, local QMD install via fork with Bun fixes, initial `agents` collection setup and embedding, QMD skill installation, and the revised spec/execution-plan/design-doc pass.
+All planned QMD extension work is complete — both the v1 extension and the TUI panel.
 
-Remaining active work lives below.
+## Completed: QMD Pi Extension v1 ✅
 
-## Active rollout: QMD Pi Extension v1
+See `exec-plans/qmd-extension-v1.md` for the full checklist. All 8 milestones done.
 
-See `exec-plans/qmd-extension-v1.md` for the full checklist.
+## Completed: QMD TUI Panel ✅
 
-### M1: Core + Contracts
-- [x] Scaffold `core/`, `domain/`, `extension/`, `docs/`, `__tests__/`
-- [x] Add `core/errors.ts`
-- [x] Add `core/types.ts` with **Zod-first** schemas
-- [x] Add `core/qmd-store.ts`
-- [x] Verify SDK import from extension
-- [x] Confirm path-derived collection key encoding
+See `exec-plans/qmd-tui-panel.md` for the full checklist. All 8 milestones done.
 
-### M2: Repo Binding + Detection
-- [x] Normalize repo root detection
-- [x] Implement `.pi/qmd.json` marker read/write
-- [x] Implement path-based binding detection
-- [x] Add marker/SDK mismatch handling
-
-### M3: Runtime Wiring + Silent Footer
-- [x] Wire `session_start` binding + freshness checks
-- [x] Add `before_agent_start` QMD prompt injection
-- [x] Keep non-indexed repos silent
-- [x] Add `session_shutdown` store cleanup
-
-### M4: Status + Scoped Update Command
-- [x] Implement `/qmd status`
-- [x] Implement `/qmd update` for current repo only
-- [x] Refresh marker freshness after update
-
-### M5: Freshness Detection
-- [x] Add git-based markdown freshness detection
-- [x] Return `fresh | stale | unknown`
-- [x] Surface freshness in footer/status
-
-### M6: Deterministic Onboarding Pipeline
-- [x] Add bounded repo scan
-- [x] Add deterministic draft proposal
-- [x] Add prompt builder for LLM refinement
-- [x] Add Zod normalization of confirmed proposal
-- [x] Execute init via SDK
-
-### M7: Workflow Tool + Init UX Hardening
-- [x] Register `qmd_init` inactive by default
-- [x] Activate it only during `/qmd init`
-- [x] Parse tool input through Zod after Pi boundary validation
-- [x] Always deactivate in `finally`
-- [x] Document shared `setActiveTools()` caveat
-
-### M8: Documentation + Quality Pass
-- [x] Add `README.md`
-- [x] Add `docs/architecture.md`
-- [x] Add `docs/onboarding.md`
-- [x] Add `docs/freshness.md`
-- [x] Align track docs with implementation learnings
+- Spec: `docs/specs/2026-03-13-qmd-tui-panel.md`
+- Interactive dashboard accessible via `/qmd`, `/qp`, and `Ctrl+Alt+Q`
+- Overview view: binding status, freshness, index stats, contexts, stale files
+- Files view: NERDTree-style collapsible file browser with vi-style navigation
+- Updating view: in-panel update with progress
+- Plain-text fallback for non-TUI environments
+- Full keyboard shortcuts (scroll, navigate, toggle, update, init)
+- Tests covering snapshot builder, file tree, formatting helpers
+- Documented in `extensions/qmd/docs/panel.md` and README
 
 ## Future work
 

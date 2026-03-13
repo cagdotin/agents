@@ -49,27 +49,18 @@ function render_status(binding: RepoBindingResult, freshness?: FreshnessResult):
 
 	if (binding.status === "not_indexed") {
 		const lines = [`QMD status: not indexed`, `repo_root: ${binding.repo_root}`];
-		if (binding.repair_warning) {
-			lines.push(`note: ${binding.repair_warning}`);
-		}
 		lines.push(`suggested collection key: ${collection_key_from_repo_root(binding.repo_root)}`);
 		lines.push("Next step: run /qmd init");
 		return lines.join("\n");
 	}
 
-	const lines = [
+	return [
 		"QMD status: indexed",
 		`repo_root: ${binding.repo_root}`,
 		`collection_key: ${binding.collection_key}`,
 		`binding_source: ${binding.source}`,
 		render_freshness(freshness),
-	];
-
-	if (binding.repair_warning) {
-		lines.push(`note: ${binding.repair_warning}`);
-	}
-
-	return lines.join("\n");
+	].join("\n");
 }
 
 export function register_qmd_command(pi: ExtensionAPI, state: QmdExtensionState): void {

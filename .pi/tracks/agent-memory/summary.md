@@ -6,8 +6,8 @@
 - Track: agent-memory
 - Purpose: Research, evaluate, and integrate agent memory/context management improvements — covering QMD, OpenViking patterns, and enhancements to our expertise/tracks systems
 - Status: active
-- Last synced: 2026-03-13T15:09:25.411Z
-- Session count: 9
+- Last synced: 2026-03-13T15:32:12.463Z
+- Session count: 11
 - Summary version: 1
 
 ## Related paths
@@ -20,11 +20,11 @@
 
 ## Next steps
 - Spec: `docs/specs/2026-03-13-qmd-tui-panel.md`
-- Exec plan: `exec-plans/qmd-tui-panel.md`
-- Scaffold `core/`, `domain/`, `extension/`, `docs/`, `__tests__/`
-- Add `core/errors.ts`
-- Add `core/types.ts` with **Zod-first** schemas
-- Add `core/qmd-store.ts`
+- Interactive dashboard accessible via `/qmd`, `/qp`, and `Ctrl+Alt+Q`
+- Overview view: binding status, freshness, index stats, contexts, stale files
+- Files view: NERDTree-style collapsible file browser with vi-style navigation
+- Updating view: in-panel update with progress
+- Plain-text fallback for non-TUI environments
 
 ## Open checklist
 - Thin expertise toward navigational / high-level memory

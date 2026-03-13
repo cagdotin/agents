@@ -2,7 +2,7 @@ import type { Theme } from "@mariozechner/pi-coding-agent";
 import { matchesKey, type TUI, truncateToWidth, visibleWidth } from "@mariozechner/pi-tui";
 import { QMD_PANEL_ICON, QMD_PANEL_SHORTCUT, QMD_PANEL_WIDTH } from "./constants.js";
 import type { FileTreeNode, FlatTreeEntry, QmdPanelSnapshot } from "./data.js";
-import { build_file_tree, flatten_tree, format_relative_time, wrap_text } from "./data.js";
+import { build_file_tree, flatten_tree, format_relative_time } from "./data.js";
 
 type PanelView = "overview" | "files" | "updating";
 
@@ -333,11 +333,6 @@ export class QmdPanel {
 			if (snap.repo_root) {
 				content.push(`  ${snap.repo_root}`);
 			}
-			if (snap.repair_warning) {
-				for (const line of wrap_text(`note: ${snap.repair_warning}`, iw - 4, "  ")) {
-					content.push(t.fg("warning", line));
-				}
-			}
 			content.push("");
 			content.push(`  ${t.fg("muted", "Run /qmd init to onboard this repository.")}`);
 			content.push("");
@@ -434,14 +429,6 @@ export class QmdPanel {
 			}
 			if (snap.stale_paths.length > max_show) {
 				content.push(`    ${t.fg("dim", `… +${snap.stale_paths.length - max_show} more`)}`);
-			}
-			content.push("");
-		}
-
-		// ── repair warning (wrapped) ─────────────────────────
-		if (snap.repair_warning) {
-			for (const line of wrap_text(`note: ${snap.repair_warning}`, iw - 4, "  ")) {
-				content.push(t.fg("warning", line));
 			}
 			content.push("");
 		}
