@@ -53,3 +53,20 @@
 - `findings.md` — durable discoveries and constraints
 - `decisions.md` — design decisions and rationale
 - `report.md` — current implementation status
+
+## Merged Stream References
+
+### Tracks stream
+- `workstreams/tracks-extension.md`
+- `docs/specs/2026-03-11-tracks-extension-minimal-v1.md`
+- `docs/exec-plans/active/2026-03-11-tracks-extension-minimal-v1.md`
+- `docs/specs/2026-03-12-tracks-extension-workstream-lifecycle-v2.md`
+- `docs/exec-plans/active/2026-03-12-tracks-extension-workstream-lifecycle-v2.md`
+- `extensions/tracks/README.md`
+
+### Expert stream
+- `workstreams/expert-extension-rework.md`
+- `docs/specs/2026-03-12-expert-extension-simplification.md`
+- `docs/exec-plans/active/2026-03-12-expert-extension-simplification.md`
+- `extensions/expert/README.md`
+- `.pi/expertise/`

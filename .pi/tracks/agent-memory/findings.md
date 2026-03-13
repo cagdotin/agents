@@ -61,3 +61,11 @@
 | Stack | TypeScript/Bun | TypeScript/Bun ✅ | Python/Go/Rust ❌ |
 | Infrastructure | Zero | Zero | Server + API keys + config |
 | Fit for this repo | Good with manual discipline | Strong for retrieval ✅ | Strong ideas, weak fit ❌ |
+
+## Merged Stream Insights (tracks + expert)
+
+- **Tracks and expertise are complementary, not competing.** Tracks hold initiative-level execution state (multi-session and temporary), while expertise holds domain-level durable heuristics.
+- **Session trace authority is a hard requirement.** Shared settings can remember a default track, but live session behavior must resolve from session trace entries to avoid cross-session interference.
+- **Auto-learning loops need strict scope controls.** The old expertise reflection loop proved that unconstrained auto-updates drift quickly; append-first/manual promotion is safer for durable memory.
+- **OpenViking tiering maps well conceptually.** We can use L0/L1/L2/L3 as a design frame without adopting OpenViking's infrastructure.
+- **The unification opportunity is orchestration, not storage replacement.** Current file-based tracks/expertise plus QMD retrieval already cover storage; the missing piece is smoother promotion and navigation between layers.

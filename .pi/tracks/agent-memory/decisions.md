@@ -79,3 +79,16 @@
 
 ## Track-scoped specs and plans
 - **Rationale:** Keep work-in-progress planning artifacts inside the track while the design is still evolving. Promote durable outcomes into repo docs when the design stabilizes.
+
+## Consolidate memory work under `agent-memory`
+- **Rationale:** `track-extension` and `expert-extension-rework` evolved into substreams of the same initiative. Keeping separate tracks duplicated context and split decision history.
+- **Rule:** `agent-memory` remains the single active umbrella track for memory architecture work; former track knowledge is preserved in `workstreams/` notes.
+
+## Keep layered memory boundaries explicit
+- **Rationale:** Future unification should reduce operational friction, not blur responsibilities.
+- **Layering:**
+  - L0 session context (chat + session trace)
+  - L1 workstream context (tracks)
+  - L2 domain context (expertise)
+  - L3 deep retrieval (QMD)
+- **Guardrail:** Any unified plugin design must preserve these boundaries even if implementation modules are merged.

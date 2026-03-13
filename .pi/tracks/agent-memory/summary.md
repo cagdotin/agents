@@ -6,8 +6,8 @@
 - Track: agent-memory
 - Purpose: Research, evaluate, and integrate agent memory/context management improvements — covering QMD, OpenViking patterns, and enhancements to our expertise/tracks systems
 - Status: active
-- Last synced: 2026-03-13T15:32:12.463Z
-- Session count: 11
+- Last synced: 2026-03-13T16:14:08.005Z
+- Session count: 13
 - Summary version: 1
 
 ## Related paths
@@ -19,19 +19,18 @@
 - docs/
 
 ## Next steps
-- Spec: `docs/specs/2026-03-13-qmd-tui-panel.md`
-- Interactive dashboard accessible via `/qmd`, `/qp`, and `Ctrl+Alt+Q`
-- Overview view: binding status, freshness, index stats, contexts, stale files
-- Files view: NERDTree-style collapsible file browser with vi-style navigation
-- Updating view: in-panel update with progress
-- Plain-text fallback for non-TUI environments
+- QMD stream shipped
+- expert simplification shipped
+- tracks lifecycle milestone 2 pending
+- next target: unified tracks+expert direction inspired by OpenViking layering
+- ✅ v1 extension implemented
+- ✅ TUI panel implemented
 
 ## Open checklist
-- Thin expertise toward navigational / high-level memory
-- Use QMD as deep retrieval for markdown knowledge
-- Explore promotion paths from session findings → expertise append
-- Explore track/expertise/QMD layering inspired by OpenViking tiering
-- Watch for a new QMD release that merges PR #377 and PR #385, then switch from local fork to published package.
+- Implement tracks milestone 2 from `docs/specs/2026-03-12-tracks-extension-workstream-lifecycle-v2.md`
+- Define v1 design sketch for unified tracks+expert memory plugin (workstream memory + domain memory boundary)
+- Decide promotion flow: session findings → track files → expertise append
+- Validate which OpenViking ideas to adopt next (tiering/promotion/retrieval orchestration) without adopting its runtime stack
 
 ## Findings
 - **Local-first, zero infrastructure.** Single SQLite file, local models, no API keys, no server process.
@@ -46,4 +45,4 @@
 - **Rule:** The canonical identity is the normalized repo root path. There is one binding per repo root.
 
 ## Report pulse
-The QMD extension now exists under `extensions/qmd/` with the revised deep-module architecture from the v1 spec. Repo checks pass, the extension is documented, and focused tests cover contracts, onboarding, freshness, store wrapping, and runtime injection.
+This track now acts as the single umbrella for memory work. QMD implementation is shipped, expert simplification is shipped, and tracks lifecycle milestone 2 remains open. Former `track-extension` and `expert-extension-rework` tracks have been merged into `workstreams/` notes inside this track.

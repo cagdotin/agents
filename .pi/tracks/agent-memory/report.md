@@ -1,6 +1,8 @@
 # Report
 
-## Status: QMD extension v1 + TUI panel implemented and validated in-repo
+## Status: consolidated umbrella track for memory architecture (QMD + tracks + expert)
+
+This track now acts as the single umbrella for memory work. QMD implementation is shipped, expert simplification is shipped, and tracks lifecycle milestone 2 remains open. Former `track-extension` and `expert-extension-rework` tracks have been merged into `workstreams/` notes inside this track.
 
 The QMD extension now exists under `extensions/qmd/` with the revised deep-module architecture from the v1 spec. Repo checks pass, the extension is documented, and focused tests cover contracts, onboarding, freshness, store wrapping, and runtime injection.
 
@@ -117,3 +119,9 @@ Full review of `extensions/qmd/` — all 11 source files, 6 test files, 3 docs, 
 - benchmark `store.listCollections()` latency in a live non-test session
 - evaluate whether legacy collection bindings should get an explicit migration command in v2
 - decide whether non-git freshness fallback is worth the extra complexity
+
+## Consolidation notes
+
+- Merged `track-extension` learnings and open tasks into `workstreams/tracks-extension.md`.
+- Merged `expert-extension-rework` decisions and follow-ups into `workstreams/expert-extension-rework.md`.
+- `agent-memory` remains active and is now the canonical place for future unified memory-plugin exploration (tracks + expertise, OpenViking-inspired layering).

@@ -7,15 +7,17 @@ Research, evaluate, and integrate agent memory/context management improvements �
 ## Read this first
 
 1. `summary.md` — current compressed snapshot.
-2. `tasks.md` — active tasks, milestones, and next steps.
-3. `specs/qmd-extension-v1.md` — design spec for the QMD extension (current focus).
-4. `exec-plans/qmd-extension-v1.md` — execution plan with milestones and checklists.
-5. `references.md` — curated reading path when more context is needed.
+2. `tasks.md` — active tasks, milestones, and next steps across all memory streams.
+3. `workstreams/` — consolidated stream notes from former `track-extension` and `expert-extension-rework` tracks.
+4. `specs/qmd-extension-v1.md` — QMD extension v1 design spec.
+5. `exec-plans/qmd-extension-v1.md` — QMD extension v1 execution plan.
+6. `references.md` — curated reading path when more context is needed.
 
 ## File guide
 
 - `summary.md` — deterministic snapshot refreshed by `/track sync`.
 - `tasks.md` — active tasks, milestones, next steps, and checklist items.
+- `workstreams/` — per-stream consolidated notes (QMD, tracks extension, expert extension).
 - `specs/` — design specs for planned work.
 - `exec-plans/` — execution plans with milestones and checklists.
 - `references.md` — task-specific reading path, not a file inventory.

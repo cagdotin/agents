@@ -1,52 +1,53 @@
 # Tasks
 
-## Current state
+## Current phase
 
-All planned QMD extension work is complete — both the v1 extension and the TUI panel.
+Consolidated memory architecture planning (post-implementation):
+- QMD stream shipped
+- expert simplification shipped
+- tracks lifecycle milestone 2 pending
+- next target: unified tracks+expert direction inspired by OpenViking layering
 
-## Completed: QMD Pi Extension v1 ✅
+## Stream status
 
-See `exec-plans/qmd-extension-v1.md` for the full checklist. All 8 milestones done.
+### QMD stream
+- ✅ v1 extension implemented
+- ✅ TUI panel implemented
+- ⏳ pending upstream release with PR #377 + #385
 
-## Completed: QMD TUI Panel ✅
+### Tracks stream (merged from `track-extension`)
+- ✅ minimal tracks extension implemented
+- ✅ session-trace authority fix validated
+- ⏳ milestone 2 lifecycle/status improvements still open
 
-See `exec-plans/qmd-tui-panel.md` for the full checklist. All 8 milestones done.
+### Expert stream (merged from `expert-extension-rework`)
+- ✅ simplification implemented
+- ✅ append-first expertise updates in place
+- ⏳ future pruning strategy for append-only domains
 
-- Spec: `docs/specs/2026-03-13-qmd-tui-panel.md`
-- Interactive dashboard accessible via `/qmd`, `/qp`, and `Ctrl+Alt+Q`
-- Overview view: binding status, freshness, index stats, contexts, stale files
-- Files view: NERDTree-style collapsible file browser with vi-style navigation
-- Updating view: in-panel update with progress
-- Plain-text fallback for non-TUI environments
-- Full keyboard shortcuts (scroll, navigate, toggle, update, init)
-- Tests covering snapshot builder, file tree, formatting helpers
-- Documented in `extensions/qmd/docs/panel.md` and README
+## Current tasks
 
-## Future work
+- [ ] Implement tracks milestone 2 from `docs/specs/2026-03-12-tracks-extension-workstream-lifecycle-v2.md`
+- [ ] Define v1 design sketch for unified tracks+expert memory plugin (workstream memory + domain memory boundary)
+- [ ] Decide promotion flow: session findings → track files → expertise append
+- [ ] Validate which OpenViking ideas to adopt next (tiering/promotion/retrieval orchestration) without adopting its runtime stack
 
-### Layer 3: Expertise ↔ QMD hybrid
-- [ ] Thin expertise toward navigational / high-level memory
-- [ ] Use QMD as deep retrieval for markdown knowledge
-- [ ] Explore promotion paths from session findings → expertise append
-- [ ] Explore track/expertise/QMD layering inspired by OpenViking tiering
+## Open threads
 
-## Architecture decisions (current)
-- **One global QMD index** — single `~/.cache/qmd/index.sqlite`
-- **One binding per repo root** — canonical identity is normalized repo path
-- **QMD store is canonical** — marker file is not a second config system
-- **Path-derived collection key** — deterministic encoding from repo root
-- **Agent searches via CLI** — `bash` + `qmd query/search/get`
-- **Extension uses SDK for infra only** — detection, update, status, contexts
-- **Zod-first runtime validation** — TypeBox only at Pi tool registration boundary
-- **Deterministic onboarding draft** — LLM refines, does not invent from scratch
-- **Repo-scoped updates only** — `/qmd update` never updates all collections by default
-- **Silent non-indexed footer** — show status only when indexed
-- **Workflow-scoped init tool** — activate on `/qmd init`, deactivate on completion/failure
+- Should unified memory live as one extension with internal modules, or two extensions sharing one explicit contract?
+- Which information belongs in tracks vs expertise to avoid duplication?
+- Should promotion be manual-only in v1 of unification, with optional assisted suggestions later?
+- How should compaction/pruning work for long-lived expertise files while preserving important history?
 
-## Pending upstream
-- [ ] Watch for a new QMD release that merges PR #377 and PR #385, then switch from local fork to published package.
+## Next steps
 
-## Known constraints
-- **Bun compatibility:** currently solved by the local fork.
-- **QMD collection names are restricted:** raw paths cannot be used directly as collection names, so the extension must derive a path-based encoded key.
-- **`setActiveTools()` is shared mutable state:** v1 documents this limitation rather than trying to solve global tool-mode coordination.
+- Use `workstreams/tracks-extension.md` and `workstreams/expert-extension-rework.md` as consolidation baselines.
+- Draft a short unification spec that defines responsibilities for L1 (workstream) vs L2 (domain) memory.
+- Run one end-to-end workflow example (new initiative → track execution → expertise promotion → QMD lookup) and capture friction.
+
+## Done
+
+- QMD extension v1 + TUI panel shipped and validated.
+- Expert extension simplification shipped and validated.
+- Tracks minimal extension shipped and validated.
+- Former `track-extension` and `expert-extension-rework` tracks consolidated into this track's `workstreams/` folder.
