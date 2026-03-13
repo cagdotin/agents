@@ -91,6 +91,7 @@ export interface DamageControlUiState {
 	panel_open: boolean;
 	last_opened_at: string | null;
 	incident_active: boolean;
+	enabled: boolean;
 }
 
 export type DamageControlFooterState = "healthy" | "notify" | "incident";

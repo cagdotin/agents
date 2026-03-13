@@ -62,6 +62,8 @@ interface PanelTestSetup {
 	done_fn: ReturnType<typeof vi.fn>;
 	tui: ReturnType<typeof make_tui_mock>;
 	get_rows: ReturnType<typeof vi.fn>;
+	on_toggle_enabled: ReturnType<typeof vi.fn>;
+	is_enabled: ReturnType<typeof vi.fn>;
 }
 
 function create_panel(rows: DamageControlPanelRow[], terminal_rows = 40): PanelTestSetup {
@@ -69,18 +71,22 @@ function create_panel(rows: DamageControlPanelRow[], terminal_rows = 40): PanelT
 	const theme = make_theme_mock();
 	const done_fn = vi.fn();
 	const get_rows = vi.fn().mockReturnValue(rows);
+	const is_enabled = vi.fn().mockReturnValue(true);
+	const on_toggle_enabled = vi.fn();
 
 	const options = {
 		active_rules: make_active_rules(),
 		loaded_sources: ["bundled" as const],
 		get_rows,
 		get_footer_state: () => "healthy" as const,
+		is_enabled,
+		on_toggle_enabled,
 		shortcut_key: "ctrl+alt+d",
 		on_panel_open: undefined,
 	};
 
 	const panel = new DamageControlPanel(tui as any, theme as any, options, done_fn);
-	return { panel, done_fn, tui, get_rows };
+	return { panel, done_fn, tui, get_rows, on_toggle_enabled, is_enabled };
 }
 
 // ─── Tests ───────────────────────────────────────────────────────
@@ -570,7 +576,7 @@ describe("DamageControlPanel — list view rendering", () => {
 
 	it("footer shows 'j/k navigate' hint when events exist", () => {
 		const { panel } = create_panel(make_rows(3));
-		const lines = panel.render(56);
+		const lines = panel.render(80);
 		const footer = lines.find((l) => l.includes("j/k"));
 		expect(footer).toBeDefined();
 		expect(footer).toContain("navigate");
@@ -595,7 +601,7 @@ describe("DamageControlPanel — list view rendering", () => {
 	it("scroll position indicator appears when rows exceed viewport", () => {
 		// Use a very small terminal height to ensure rows exceed viewport
 		const { panel } = create_panel(make_rows(20), 18);
-		const lines = panel.render(80);
+		const lines = panel.render(100);
 		// Should show position indicator like "1-X/20"
 		expect(lines.some((l) => l.includes("/20"))).toBe(true);
 	});
@@ -675,5 +681,70 @@ describe("DamageControlPanel — clipboard copy", () => {
 		const lines = panel.render(72);
 		const footer = lines.find((l) => l.includes("copy"));
 		expect(footer).toBeUndefined();
+	});
+});
+
+// ── Toggle enable/disable ────────────────────────────────────────
+
+describe("DamageControlPanel — toggle enabled/disabled", () => {
+	it("d in list view calls on_toggle_enabled callback", () => {
+		const { panel, on_toggle_enabled } = create_panel(make_rows(3));
+		panel.render(72);
+		panel.handleInput("d");
+		expect(on_toggle_enabled).toHaveBeenCalledTimes(1);
+	});
+
+	it("d in list view triggers re-render", () => {
+		const { panel, tui } = create_panel(make_rows(3));
+		panel.render(72);
+		(tui as any).requestRender.mockClear();
+		panel.handleInput("d");
+		expect((tui as any).requestRender).toHaveBeenCalled();
+	});
+
+	it("panel title shows 'enabled' badge when enabled", () => {
+		const { panel } = create_panel(make_rows(3));
+		const lines = panel.render(72);
+		expect(lines.some((l) => l.includes("enabled"))).toBe(true);
+	});
+
+	it("panel title shows 'DISABLED' badge when disabled", () => {
+		const { panel, is_enabled } = create_panel(make_rows(3));
+		is_enabled.mockReturnValue(false);
+		const lines = panel.render(72);
+		expect(lines.some((l) => l.includes("DISABLED"))).toBe(true);
+	});
+
+	it("footer shows 'd disable' hint when enabled", () => {
+		const { panel } = create_panel(make_rows(3));
+		const lines = panel.render(80);
+		const footer = lines.find((l) => l.includes("d") && l.includes("disable"));
+		expect(footer).toBeDefined();
+	});
+
+	it("footer shows 'd enable' hint when disabled", () => {
+		const { panel, is_enabled } = create_panel(make_rows(3));
+		is_enabled.mockReturnValue(false);
+		const lines = panel.render(80);
+		const footer = lines.find((l) => l.includes("d") && l.includes("enable"));
+		expect(footer).toBeDefined();
+	});
+
+	it("d in detail view does NOT call on_toggle_enabled (key not mapped)", () => {
+		const { panel, on_toggle_enabled } = create_panel(make_rows(3));
+		panel.render(72);
+		panel.handleInput("\r"); // Enter → detail
+		panel.render(72);
+		panel.handleInput("d");
+		expect(on_toggle_enabled).not.toHaveBeenCalled();
+	});
+
+	it("detail view title shows DISABLED badge when disabled", () => {
+		const { panel, is_enabled } = create_panel(make_rows(3));
+		is_enabled.mockReturnValue(false);
+		panel.render(72);
+		panel.handleInput("\r"); // Enter → detail
+		const lines = panel.render(72);
+		expect(lines.some((l) => l.includes("DISABLED"))).toBe(true);
 	});
 });

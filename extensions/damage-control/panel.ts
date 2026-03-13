@@ -12,6 +12,8 @@ interface ShowDamageControlPanelOptions {
 	loaded_sources: RuleSourceKind[];
 	get_rows: (limit: number) => DamageControlPanelRow[];
 	get_footer_state: () => DamageControlFooterState;
+	is_enabled: () => boolean;
+	on_toggle_enabled: () => void;
 	shortcut_key: string;
 	on_panel_open?: (close_panel: () => void) => void;
 }
@@ -98,6 +100,11 @@ export class DamageControlPanel {
 		}
 		if (matchesKey(key_data, this.options.shortcut_key)) {
 			this.done();
+			return;
+		}
+		if (matchesKey(key_data, "d")) {
+			this.options.on_toggle_enabled();
+			this.tui.requestRender();
 			return;
 		}
 		if (matchesKey(key_data, "r")) {
@@ -239,10 +246,18 @@ export class DamageControlPanel {
 		const content: string[] = [];
 
 		// title row
-		const icon_color = state === "incident" ? "error" : state === "notify" ? "warning" : "success";
+		const is_enabled = this.options.is_enabled();
+		const icon_color = !is_enabled
+			? "dim"
+			: state === "incident"
+				? "error"
+				: state === "notify"
+					? "warning"
+					: "success";
 		const icon = t.fg(icon_color, DAMAGE_CONTROL_STATUS_ICON);
 		const source_label = sources.length > 0 ? sources.join(", ") : "none";
-		content.push(`${icon} ${t.fg("accent", t.bold("Damage Control"))}  ${t.fg("dim", source_label)}`);
+		const status_badge = is_enabled ? t.fg("success", "enabled") : t.fg("error", "DISABLED");
+		content.push(`${icon} ${t.fg("accent", t.bold("Damage Control"))}  ${status_badge}  ${t.fg("dim", source_label)}`);
 
 		// divider
 		content.push(t.fg("dim", "─".repeat(iw)));
@@ -297,7 +312,12 @@ export class DamageControlPanel {
 		// footer
 		content.push(t.fg("dim", "─".repeat(iw)));
 
-		const hints: string[] = [`${t.fg("accent", "esc")} close`, `${t.fg("accent", "r")} refresh`];
+		const toggle_label = is_enabled ? "disable" : "enable";
+		const hints: string[] = [
+			`${t.fg("accent", "esc")} close`,
+			`${t.fg("accent", "d")} ${toggle_label}`,
+			`${t.fg("accent", "r")} refresh`,
+		];
 		if (event_count > 0) {
 			hints.push(`${t.fg("accent", "j/k")} navigate`);
 			hints.push(`${t.fg("accent", "enter")} detail`);
@@ -335,10 +355,18 @@ export class DamageControlPanel {
 		const header: string[] = [];
 
 		// title row (same as list view)
-		const icon_color = state === "incident" ? "error" : state === "notify" ? "warning" : "success";
+		const is_enabled = this.options.is_enabled();
+		const icon_color = !is_enabled
+			? "dim"
+			: state === "incident"
+				? "error"
+				: state === "notify"
+					? "warning"
+					: "success";
 		const icon = t.fg(icon_color, DAMAGE_CONTROL_STATUS_ICON);
 		const source_label = sources.length > 0 ? sources.join(", ") : "none";
-		header.push(`${icon} ${t.fg("accent", t.bold("Damage Control"))}  ${t.fg("dim", source_label)}`);
+		const status_badge = is_enabled ? t.fg("success", "enabled") : t.fg("error", "DISABLED");
+		header.push(`${icon} ${t.fg("accent", t.bold("Damage Control"))}  ${status_badge}  ${t.fg("dim", source_label)}`);
 
 		// divider
 		header.push(t.fg("dim", "─".repeat(iw)));

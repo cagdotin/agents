@@ -42,6 +42,8 @@ The extension appends session log entries under custom type `damage-control-log`
 
 Use `/damage-control` (alias: `/dc`) to open the runtime panel, or press `Ctrl+Alt+D` to toggle it. The panel shows active rule counts, loaded rule sources, and recent branch-local policy events.
 
+Press `d` inside the panel to toggle damage control on or off. When disabled, the footer shield icon dims, a `⚠ DC OFF` banner appears in the status bar, and all tool calls pass through without policy checks. The toggle is session-scoped — damage control re-enables automatically on session start or switch.
+
 ## Usage Notes
 
 This extension is discovered automatically through the package extension manifest and is intended to be always on. Customize behavior by adding global and/or project rule files; you usually should not edit bundled defaults directly.

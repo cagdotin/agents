@@ -7,6 +7,7 @@ import {
 import {
 	DAMAGE_CONTROL_BLOCK_INSTRUCTION,
 	DAMAGE_CONTROL_CONFIRM_TIMEOUT_MS,
+	DAMAGE_CONTROL_DISABLE_BANNER_KEY,
 	DAMAGE_CONTROL_LOG_ENTRY_TYPE,
 	DAMAGE_CONTROL_PANEL_COMMAND,
 	DAMAGE_CONTROL_PANEL_COMMAND_ALIAS,
@@ -44,6 +45,7 @@ function create_ui_state(): DamageControlUiState {
 		panel_open: false,
 		last_opened_at: null,
 		incident_active: false,
+		enabled: true,
 	};
 }
 
@@ -55,6 +57,12 @@ export default function damage_control_extension(pi: ExtensionAPI) {
 
 	const refresh_footer_status = (ctx: ExtensionContext) => {
 		ctx.ui.setStatus(DAMAGE_CONTROL_STATUS_KEY, format_status_icon(ctx, ui_state));
+
+		if (!ui_state.enabled) {
+			ctx.ui.setStatus(DAMAGE_CONTROL_DISABLE_BANNER_KEY, ctx.ui.theme.fg("warning", "⚠ DC OFF"));
+		} else {
+			ctx.ui.setStatus(DAMAGE_CONTROL_DISABLE_BANNER_KEY, undefined);
+		}
 	};
 
 	const mark_panel_viewed = (ctx: ExtensionContext) => {
@@ -83,7 +91,7 @@ export default function damage_control_extension(pi: ExtensionAPI) {
 		}
 
 		if (!ctx.hasUI) {
-			console.log(build_panel_summary_for_terminal(ctx, active_rules, loaded_rule_sources));
+			console.log(build_panel_summary_for_terminal(ctx, active_rules, loaded_rule_sources, ui_state.enabled));
 			return;
 		}
 
@@ -96,6 +104,13 @@ export default function damage_control_extension(pi: ExtensionAPI) {
 				loaded_sources: loaded_rule_sources,
 				get_rows: (limit) => get_recent_damage_control_rows(ctx, limit),
 				get_footer_state: () => get_footer_state(ui_state),
+				is_enabled: () => ui_state.enabled,
+				on_toggle_enabled: () => {
+					ui_state.enabled = !ui_state.enabled;
+					refresh_footer_status(ctx);
+					const label = ui_state.enabled ? "enabled" : "disabled";
+					ctx.ui.notify(`🛡 Damage-Control ${label}`, ui_state.enabled ? "info" : "warning");
+				},
 				shortcut_key: DAMAGE_CONTROL_PANEL_SHORTCUT,
 				on_panel_open: (close) => {
 					close_panel = close;
@@ -204,6 +219,10 @@ export default function damage_control_extension(pi: ExtensionAPI) {
 	});
 
 	pi.on("tool_call", async (event, ctx) => {
+		if (!ui_state.enabled) {
+			return { block: false };
+		}
+
 		const result = evaluate_tool_call(event, ctx.cwd, active_rules);
 		if (!result.violation) {
 			return { block: false };
@@ -258,6 +277,9 @@ function format_block_reason(violation: PolicyViolation): string {
 }
 
 function format_status_icon(ctx: ExtensionContext, ui_state: DamageControlUiState): string {
+	if (!ui_state.enabled) {
+		return ctx.ui.theme.fg("dim", DAMAGE_CONTROL_STATUS_ICON);
+	}
 	const state = get_footer_state(ui_state);
 	if (state === "incident") {
 		return ctx.ui.theme.fg("error", DAMAGE_CONTROL_STATUS_ICON);
@@ -313,10 +335,11 @@ function build_panel_summary_for_terminal(
 	ctx: ExtensionContext,
 	active_rules: ActiveRules,
 	loaded_rule_sources: RuleSourceKind[],
+	enabled: boolean,
 ): string {
 	const rows = get_recent_damage_control_rows(ctx, 5);
 	const lines: string[] = [];
-	lines.push("Damage Control");
+	lines.push(`Damage Control${enabled ? "" : " (DISABLED)"}`);
 	lines.push(
 		`Rules: bash ${active_rules.bash_tool_patterns.length}, zero ${active_rules.zero_access_paths.length}, read-only ${active_rules.read_only_paths.length}, no-delete ${active_rules.no_delete_paths.length}`,
 	);
