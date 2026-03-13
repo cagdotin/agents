@@ -20,13 +20,13 @@ This repo is indexed by [QMD](https://github.com/tobi/qmd), a local hybrid searc
 
 ```bash
 # Semantic search (best quality — expansion + BM25 + vector + reranking)
-BUN_INSTALL="" qmd query -c agents "your question here"
+qmd query -c agents "your question here"
 
 # Keyword search (fast, no LLM, good for exact terms)
-BUN_INSTALL="" qmd search "exact keywords" -c agents
+qmd search "exact keywords" -c agents
 
 # Get a specific document by path
-BUN_INSTALL="" qmd get "docs/ARCHITECTURE.md"
+qmd get "docs/ARCHITECTURE.md"
 ```
 
 **When to use qmd vs grep:**

@@ -19,41 +19,27 @@ Local, on-device hybrid search engine for markdown content. Combines BM25 full-t
 
 **Use `rg`/`grep` instead** when you know the exact string, variable name, or file path.
 
-## Important: Runtime Workaround (v2.0.1)
-
-QMD's vector features crash under Bun because `bun:sqlite` silently replaces
-`better-sqlite3` and uses Apple's system SQLite which has extension loading
-disabled (`SQLITE_OMIT_LOAD_EXTENSION`). The launcher also falsely detects Bun
-when `$BUN_INSTALL` is set, even for npm installs.
-
-Fixes are in open PRs ([#377](https://github.com/tobi/qmd/pull/377),
-[#385](https://github.com/tobi/qmd/pull/385)). Until they ship, force Node:
-
-```bash
-BUN_INSTALL="" qmd <command>
-```
-
 ## Quick Reference
 
 ```bash
 # Hybrid search (best quality — expansion + BM25 + vector + reranking)
-BUN_INSTALL="" qmd query -c agents "your question"
+qmd query -c agents "your question"
 
 # BM25 keyword search (fast, no LLM)
-BUN_INSTALL="" qmd search "exact keywords" -c agents
+qmd search "exact keywords" -c agents
 
 # Structured query (you control sub-queries)
-BUN_INSTALL="" qmd query $'lex: "connection pool" timeout\nvec: why do database connections time out'
+qmd query $'lex: "connection pool" timeout\nvec: why do database connections time out'
 
 # Get a specific document by path or docid
-BUN_INSTALL="" qmd get "docs/ARCHITECTURE.md"
-BUN_INSTALL="" qmd get "#abc123"
+qmd get "docs/ARCHITECTURE.md"
+qmd get "#abc123"
 
 # Batch retrieve by glob
-BUN_INSTALL="" qmd multi-get "docs/*.md" -l 40
+qmd multi-get "docs/*.md" -l 40
 
 # Check index health
-BUN_INSTALL="" qmd status
+qmd status
 ```
 
 ## Query Types
@@ -77,7 +63,7 @@ BUN_INSTALL="" qmd status
 When a query term is ambiguous, add `intent:` on the first line:
 
 ```bash
-BUN_INSTALL="" qmd query $'intent: web page load times\nlex: performance\nvec: how to improve performance'
+qmd query $'intent: web page load times\nlex: performance\nvec: how to improve performance'
 ```
 
 ### Combining Types
@@ -96,49 +82,58 @@ First query gets 2× weight in fusion — put your best guess first.
 
 ```bash
 # Add a project as a collection
-BUN_INSTALL="" qmd collection add ~/git/project --name project-name
+qmd collection add ~/git/project --name project-name
 
 # Add context annotations (travel with search results)
-BUN_INSTALL="" qmd context add qmd://project-name "Description of this project"
-BUN_INSTALL="" qmd context add qmd://project-name/docs "Project documentation"
+qmd context add qmd://project-name "Description of this project"
+qmd context add qmd://project-name/docs "Project documentation"
 
 # Generate embeddings after adding/updating
-BUN_INSTALL="" qmd embed
+qmd embed
 
 # Re-index after file changes
-BUN_INSTALL="" qmd update
-BUN_INSTALL="" qmd embed
+qmd update
+qmd embed
 
 # List collections
-BUN_INSTALL="" qmd collection list
+qmd collection list
 
 # List indexed files
-BUN_INSTALL="" qmd ls project-name
+qmd ls project-name
 ```
 
 ## Output Formats
 
 ```bash
 # JSON (for scripting/agent processing)
-BUN_INSTALL="" qmd query --json "question"
+qmd query --json "question"
 
 # Files list (docid, score, path, context)
-BUN_INSTALL="" qmd query --files "question"
+qmd query --files "question"
 
 # Full document content
-BUN_INSTALL="" qmd query --full "question"
+qmd query --full "question"
 
 # Score traces (debugging search quality)
-BUN_INSTALL="" qmd query --json --explain "question"
+qmd query --json --explain "question"
 ```
 
 ## Setup
 
 ```bash
 npm install -g @tobilu/qmd
-BUN_INSTALL="" qmd collection add ~/path/to/project --name my-project
-BUN_INSTALL="" qmd context add qmd://my-project "Description"
-BUN_INSTALL="" qmd embed
+qmd collection add ~/path/to/project --name my-project
+qmd context add qmd://my-project "Description"
+qmd embed
 ```
 
 Models (~2GB) auto-download on first use. Index lives at `~/.cache/qmd/index.sqlite`.
+
+## Local Fork
+
+We run a local fork at `~/git/qmd-fork` that applies two unmerged upstream PRs:
+
+- **PR #377** — `Database.setCustomSQLite()` with Homebrew SQLite on macOS, so `bun:sqlite` can load sqlite-vec extensions. Requires `brew install sqlite`.
+- **PR #385** — launcher prioritizes `package-lock.json` over `bun.lock` to prevent false Bun detection; fixes `cleanupOrphanedVectors()` crash.
+
+When upstream merges these, switch back to `npm install -g @tobilu/qmd`.
