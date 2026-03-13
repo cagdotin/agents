@@ -1,7 +1,7 @@
 domain: extensions-dev
-description: "Cross-extension conventions for progressive-disclosure docs, schema-first boundary validation, qualitative quality reporting, and repo-agnostic task-scoped runtime workspaces."
-last_synced: "2026-03-11T17:32:20Z"
-
+description: Cross-extension conventions for progressive-disclosure docs, schema-first boundary validation, qualitative
+  quality reporting, and repo-agnostic task-scoped runtime workspaces.
+last_synced: 2026-03-13T10:29:34.381Z
 scope:
   paths:
     - AGENTS.md
@@ -31,7 +31,6 @@ scope:
     - lefthook.yml
     - docs/specs/2026-03-11-tracks-extension-minimal-v1.md
     - docs/exec-plans/active/2026-03-11-tracks-extension-minimal-v1.md
-
 overview: |
   This repo treats committed docs/code as long-term memory for humans and agents,
   while `.pi/` is the place for runtime or task-local working state.
@@ -55,79 +54,121 @@ overview: |
   - Tier 1/2 tests are the active target; Tier 3 runtime-heavy coverage remains deferred.
   - `docs/TESTING.md` is a short repo-specific testing overview.
   - `docs/QUALITY.md` is for qualitative judgment and prioritized gaps, not raw counters.
-
 patterns:
-  - "Use one Zod contract per external payload, parse once, then work with trusted data."
-  - "When migrating to schema-first validation, move related sibling boundaries together so one area does not mix old ad-hoc parsing with the new doctrine."
-  - "For persisted user-editable or legacy data, prefer compatibility-preserving normalization over rejecting the whole payload."
+  - Use one Zod contract per external payload, parse once, then work with trusted data.
+  - When migrating to schema-first validation, move related sibling boundaries together so one area does not mix old
+    ad-hoc parsing with the new doctrine.
+  - For persisted user-editable or legacy data, prefer compatibility-preserving normalization over rejecting the whole
+    payload.
   - "Validation failures should be agent-legible: say what is wrong, why it matters, and how to fix it."
-  - "Skills stay repo-agnostic; project-specific tooling, paths, and package-manager rules belong in repo docs or execution context."
-  - "Keep router skills thin; push substantive analysis into reusable core skills and split longer guidance into focused reference files when needed."
-  - "Agent-facing docs should keep only repo-specific doctrine and major-area pointers. Strip tutorials, inventories, status counters, and code-tour prose that code or tooling can answer."
-  - "If a documentation rule matters, encode it in `docs/CONTRIBUTING-DOCS.md` and supporting audits/checks rather than relying on contributor memory."
-  - "For tracks, stamp a canonical workspace from extension-owned templates so the workspace explains itself; behavior should be discoverable in generated files, not only in chat."
-  - "Use task-local `AGENTS.md` as the progressive-disclosure entrypoint for a track, with curated `references.md`/related files pointing to what to read next."
-  - "Keep track state as compressed current truth (`summary`, `tasks`, curated references, live `report`) instead of append-only note dumps."
-  - "Keep track sync deterministic in v1: template/metadata refreshes first, LLM summarization only if simple rules prove insufficient."
-  - "Keep minimal tracks self-contained and repo-agnostic; do not assume `.pi/todos/`, `docs/specs/`, `docs/exec-plans/`, or any other host-repo structure."
-
+  - Skills stay repo-agnostic; project-specific tooling, paths, and package-manager rules belong in repo docs or
+    execution context.
+  - Keep router skills thin; push substantive analysis into reusable core skills and split longer guidance into focused
+    reference files when needed.
+  - Agent-facing docs should keep only repo-specific doctrine and major-area pointers. Strip tutorials, inventories,
+    status counters, and code-tour prose that code or tooling can answer.
+  - If a documentation rule matters, encode it in `docs/CONTRIBUTING-DOCS.md` and supporting audits/checks rather than
+    relying on contributor memory.
+  - For tracks, stamp a canonical workspace from extension-owned templates so the workspace explains itself; behavior
+    should be discoverable in generated files, not only in chat.
+  - Use task-local `AGENTS.md` as the progressive-disclosure entrypoint for a track, with curated
+    `references.md`/related files pointing to what to read next.
+  - Keep track state as compressed current truth (`summary`, `tasks`, curated references, live `report`) instead of
+    append-only note dumps.
+  - "Keep track sync deterministic in v1: template/metadata refreshes first, LLM summarization only if simple rules
+    prove insufficient."
+  - Keep minimal tracks self-contained and repo-agnostic; do not assume `.pi/todos/`, `docs/specs/`, `docs/exec-plans/`,
+    or any other host-repo structure.
 design_decisions:
-  - reason: "Agent-facing docs optimize for context budget"
-    detail: "Top-level docs are overviews, not handbooks. If an agent can infer something quickly from code, tests, repo structure, or tooling output, it usually does not belong in stable docs."
-  - reason: "ARCHITECTURE is a finger-pointing codemap"
-    detail: "Its job is to orient readers to major areas, invariants, and which deeper doc to read next. It should not mirror the repo or enumerate extensions just for discoverability."
-  - reason: "TESTING is doctrine, not a tutorial"
-    detail: "`docs/TESTING.md` should stay a short repo-specific overview of tiers, mocks, placement, and safety boundaries. Generic Vitest advice and step-by-step cookbooks are intentionally out of scope."
-  - reason: "QUALITY is judgment, not telemetry"
-    detail: "`docs/QUALITY.md` should keep qualitative assessments and the next meaningful gaps to close. Tool-derived counts do not belong there."
-  - reason: "Specs and execution plans are intentionally separate"
-    detail: "Specs are relatively stable design contracts; execution plans are mutable rollout logs."
-  - reason: "Hybrid validation is a deliberate tradeoff"
-    detail: "Pi tool registration wants TypeBox-compatible schemas, while Zod is preferred for safer runtime parsing at external boundaries."
-  - reason: "Review skill owns judgment, not mechanical validation"
-    detail: "Lint/type/format/repo-rule enforcement belongs to CI/hooks. Review guidance should focus on correctness, risk, architecture, and other non-automatable concerns."
-  - reason: "Core skills are composed, not embedded"
-    detail: "Router skills should delegate substantive analysis to reusable skills instead of duplicating long instructions."
-  - reason: "Mechanical checks should encode non-obvious doctrine"
-    detail: "Audit rules are worth keeping for drift humans will miss, but they should not force docs to restate facts that are already trivial to discover from the repo."
-  - reason: "Module boundaries should be enforced mechanically"
-    detail: "Cross-extension import constraints are important enough to check in automation rather than rely on convention memory."
-  - reason: "Tracks are task-scoped working memory, not another source-of-record system"
-    detail: "The `.pi/tracks/` layer is for operational, compressed task context. Durable outcomes should be promoted into specs, exec plans, repo docs, or expertise instead of leaving the track as the only place truth lives."
-  - reason: "Tracks should be progressive-disclosure workspaces"
-    detail: "A track-local `AGENTS.md` is the entrypoint. The workspace should tell agents what to read next instead of dumping every task artifact into context."
-  - reason: "Track templates encode policy"
-    detail: "The extension should own generic templates and stamp a canonical file set into each track so behavior is legible in the workspace itself. This follows Unix 'representation' and 'generation': keep workflow knowledge in data/templates and let commands stay simple."
-  - reason: "Minimal track v1 stays self-contained"
-    detail: "Tracks should not hard-depend on `.pi/todos/` or other existing project abstractions while their long-term role is still uncertain. A track-owned `tasks.md` is the safer default."
-  - reason: "Minimal track v1 prefers deterministic sync over LLM summarization"
-    detail: "Start with predictable template/metadata updates for the snapshot files. Add model-generated synthesis only if deterministic rules prove insufficient."
-  - reason: "Track activation is dual-written on purpose"
-    detail: "Persist the active track in project settings for restoration, and mirror attach/close events into session-local entries for traceability, footer state, and reload-friendly UX."
-  - reason: "Handoff is deferred in minimal tracks"
-    detail: "A single `handoff.md` does not scale once many agents touch the same track. V1 should rely on current-state snapshots (`summary.md`, `tasks.md`, live `report.md`) until a durable handoff model emerges."
-  - reason: "Report is a live artifact, not just closeout output"
-    detail: "Keeping `report.md` current during work gives later sessions/agents another compressed snapshot and avoids a scramble at `track end`; closeout should finalize it, not create it from scratch."
-  - reason: "Tracks are their own abstraction"
-    detail: "Do not model the design after existing extensions just because they exist. Tracks are closer to a file-format manager / CLI for generating and maintaining standardized workspaces."
-  - reason: "Tracks must stay repo-agnostic"
-    detail: "The extension should manage only `.pi/tracks/` and a generic workspace format. Project-specific references may be curated inside a given track, but the extension and its default templates must not assume any host-repo structure."
-  - reason: "Unix philosophy is the design lens for coordination extensions"
-    detail: "Prefer file-based state, generated templates, small composable commands/hooks, and clear promotion paths over a monolithic orchestration engine."
-
+  - reason: Agent-facing docs optimize for context budget
+    detail: Top-level docs are overviews, not handbooks. If an agent can infer something quickly from code, tests, repo
+      structure, or tooling output, it usually does not belong in stable docs.
+  - reason: ARCHITECTURE is a finger-pointing codemap
+    detail: Its job is to orient readers to major areas, invariants, and which deeper doc to read next. It should not mirror
+      the repo or enumerate extensions just for discoverability.
+  - reason: TESTING is doctrine, not a tutorial
+    detail: "`docs/TESTING.md` should stay a short repo-specific overview of tiers, mocks, placement, and safety boundaries.
+      Generic Vitest advice and step-by-step cookbooks are intentionally out of scope."
+  - reason: QUALITY is judgment, not telemetry
+    detail: "`docs/QUALITY.md` should keep qualitative assessments and the next meaningful gaps to close. Tool-derived
+      counts do not belong there."
+  - reason: Specs and execution plans are intentionally separate
+    detail: Specs are relatively stable design contracts; execution plans are mutable rollout logs.
+  - reason: Hybrid validation is a deliberate tradeoff
+    detail: Pi tool registration wants TypeBox-compatible schemas, while Zod is preferred for safer runtime parsing at
+      external boundaries.
+  - reason: Review skill owns judgment, not mechanical validation
+    detail: Lint/type/format/repo-rule enforcement belongs to CI/hooks. Review guidance should focus on correctness, risk,
+      architecture, and other non-automatable concerns.
+  - reason: Core skills are composed, not embedded
+    detail: Router skills should delegate substantive analysis to reusable skills instead of duplicating long instructions.
+  - reason: Mechanical checks should encode non-obvious doctrine
+    detail: Audit rules are worth keeping for drift humans will miss, but they should not force docs to restate facts that
+      are already trivial to discover from the repo.
+  - reason: Module boundaries should be enforced mechanically
+    detail: Cross-extension import constraints are important enough to check in automation rather than rely on convention
+      memory.
+  - reason: Tracks are task-scoped working memory, not another source-of-record system
+    detail: The `.pi/tracks/` layer is for operational, compressed task context. Durable outcomes should be promoted into
+      specs, exec plans, repo docs, or expertise instead of leaving the track as the only place truth lives.
+  - reason: Tracks should be progressive-disclosure workspaces
+    detail: A track-local `AGENTS.md` is the entrypoint. The workspace should tell agents what to read next instead of
+      dumping every task artifact into context.
+  - reason: Track templates encode policy
+    detail: "The extension should own generic templates and stamp a canonical file set into each track so behavior is
+      legible in the workspace itself. This follows Unix 'representation' and 'generation': keep workflow knowledge in
+      data/templates and let commands stay simple."
+  - reason: Minimal track v1 stays self-contained
+    detail: Tracks should not hard-depend on `.pi/todos/` or other existing project abstractions while their long-term role
+      is still uncertain. A track-owned `tasks.md` is the safer default.
+  - reason: Minimal track v1 prefers deterministic sync over LLM summarization
+    detail: Start with predictable template/metadata updates for the snapshot files. Add model-generated synthesis only if
+      deterministic rules prove insufficient.
+  - reason: Track activation is dual-written on purpose
+    detail: Persist the active track in project settings for restoration, and mirror attach/close events into session-local
+      entries for traceability, footer state, and reload-friendly UX.
+  - reason: Handoff is deferred in minimal tracks
+    detail: A single `handoff.md` does not scale once many agents touch the same track. V1 should rely on current-state
+      snapshots (`summary.md`, `tasks.md`, live `report.md`) until a durable handoff model emerges.
+  - reason: Report is a live artifact, not just closeout output
+    detail: Keeping `report.md` current during work gives later sessions/agents another compressed snapshot and avoids a
+      scramble at `track end`; closeout should finalize it, not create it from scratch.
+  - reason: Tracks are their own abstraction
+    detail: Do not model the design after existing extensions just because they exist. Tracks are closer to a file-format
+      manager / CLI for generating and maintaining standardized workspaces.
+  - reason: Tracks must stay repo-agnostic
+    detail: The extension should manage only `.pi/tracks/` and a generic workspace format. Project-specific references may
+      be curated inside a given track, but the extension and its default templates must not assume any host-repo
+      structure.
+  - reason: Unix philosophy is the design lens for coordination extensions
+    detail: Prefer file-based state, generated templates, small composable commands/hooks, and clear promotion paths over a
+      monolithic orchestration engine.
 gotchas:
-  - "Path-targeted Biome checks can report `No files were processed` because of ignore/config interactions; repo scripts are more reliable than ad-hoc path checks."
-  - "Repo-wide `bun run check` can fail on unrelated pre-existing issues; separate existing failures from regressions introduced by your change."
-  - "Docs validation enforces `SKILL.md` frontmatter naming, but skill README presence is not mechanically enforced the way extension README presence is."
-  - "Resource frontmatter validation intentionally treats semantically empty required values (for example `tags: []`) as missing."
-  - "Shared Pi mocks are central to Tier 2 tests; a missing mock export often surfaces only as runtime `... is not a function` failures."
-  - "Damage-Control blocks `rm -rf`; cleanup sometimes needs a manual/user-executed delete."
-  - "A nested or task-local `AGENTS.md` is just content unless an extension explicitly loads/injects it; Pi will not automatically treat every `AGENTS.md` as first-class context."
-  - "Task workspaces become junk drawers fast if agents append endlessly. Templates should bias toward replacing stale summaries with compressed current truth rather than preserving every intermediate note."
+  - Path-targeted Biome checks can report `No files were processed` because of ignore/config interactions; repo scripts
+    are more reliable than ad-hoc path checks.
+  - Repo-wide `bun run check` can fail on unrelated pre-existing issues; separate existing failures from regressions
+    introduced by your change.
+  - Docs validation enforces `SKILL.md` frontmatter naming, but skill README presence is not mechanically enforced the
+    way extension README presence is.
+  - "Resource frontmatter validation intentionally treats semantically empty required values (for example `tags: []`) as
+    missing."
+  - Shared Pi mocks are central to Tier 2 tests; a missing mock export often surfaces only as runtime `... is not a
+    function` failures.
+  - Damage-Control blocks `rm -rf`; cleanup sometimes needs a manual/user-executed delete.
+  - A nested or task-local `AGENTS.md` is just content unless an extension explicitly loads/injects it; Pi will not
+    automatically treat every `AGENTS.md` as first-class context.
+  - Task workspaces become junk drawers fast if agents append endlessly. Templates should bias toward replacing stale
+    summaries with compressed current truth rather than preserving every intermediate note.
   - "Defer `handoff.md` in minimal tracks: a single handoff file becomes ambiguous quickly in many-agent workflows."
-  - "If update expectations like 'keep `report.md` current' are not embedded in generated templates/AGENTS guidance, agents will drift back to chat-only coordination."
-  - "If track templates mention project-specific docs, workflows, or folder assumptions, the extension stops being portable."
-
+  - If update expectations like 'keep `report.md` current' are not embedded in generated templates/AGENTS guidance,
+    agents will drift back to chat-only coordination.
+  - If track templates mention project-specific docs, workflows, or folder assumptions, the extension stops being
+    portable.
+  - QMD (sqlite-vec) is incompatible with Bun's built-in SQLite — must run with `BUN_INSTALL="" qmd ...` to force Node
+    execution. The QMD launcher script at the bin entry checks `$BUN_INSTALL` env var and routes to Bun when set.
+  - 'QMD Bun issue is a known upstream bug with 2 open fix PRs: #377 (use Homebrew SQLite via
+    `Database.setCustomSQLite()` on macOS) and #385 (check `package-lock.json` before `$BUN_INSTALL` in launcher). Once
+    merged, `BUN_INSTALL=""` workaround can be removed. See github.com/tobi/qmd/issues/363.'
 references:
   - "Global workflow and enforcement policy: `AGENTS.md`"
   - "Repository docs index and reading order: `docs/README.md`"
@@ -142,12 +183,17 @@ references:
   - "Unix philosophy resource used as design lens: `docs/resources/unix-philosophy-raymond.md`"
   - "Minimal tracks design contract: `docs/specs/2026-03-11-tracks-extension-minimal-v1.md`"
   - "Minimal tracks rollout plan: `docs/exec-plans/active/2026-03-11-tracks-extension-minimal-v1.md`"
-
 codebase_concerns:
-  - "This domain now spans docs governance, validation/testing doctrine, and emerging task-workspace conventions. If tracks implementation grows, split it into a dedicated `tracks-extension` or `task-workspaces` expertise domain."
-  - "ARCHITECTURE repeatedly regrows into a catalog/manual. If that continues, tighten audits/review around 'major areas + invariants + next docs only' rather than extension-by-extension descriptions."
-  - "Docs drift toward handbook/telemetry mode unless policed. Keep `docs/CONTRIBUTING-DOCS.md` and docs-audit rules aligned with the 'non-obvious doctrine only' policy."
-  - "Track/workspace conventions should live in templates and validators, not just chat or expertise. If agents need repeated reminders about file roles/update rules, encode them into generated files and checks."
-  - "Repo-agnostic track design is easy to erode with convenience shortcuts. If project-specific references keep creeping into templates, separate generic extension assets from any repo-local overlays explicitly."
-  - "Skill README enforcement remains asymmetric with extension README enforcement; either document that asymmetry as intentional or automate it."
-  - "Agent-legible Zod issue mapping appears in multiple places; a shared formatter/helper would reduce wording drift."
+  - This domain now spans docs governance, validation/testing doctrine, and emerging task-workspace conventions. If
+    tracks implementation grows, split it into a dedicated `tracks-extension` or `task-workspaces` expertise domain.
+  - ARCHITECTURE repeatedly regrows into a catalog/manual. If that continues, tighten audits/review around 'major areas
+    + invariants + next docs only' rather than extension-by-extension descriptions.
+  - Docs drift toward handbook/telemetry mode unless policed. Keep `docs/CONTRIBUTING-DOCS.md` and docs-audit rules
+    aligned with the 'non-obvious doctrine only' policy.
+  - Track/workspace conventions should live in templates and validators, not just chat or expertise. If agents need
+    repeated reminders about file roles/update rules, encode them into generated files and checks.
+  - Repo-agnostic track design is easy to erode with convenience shortcuts. If project-specific references keep creeping
+    into templates, separate generic extension assets from any repo-local overlays explicitly.
+  - Skill README enforcement remains asymmetric with extension README enforcement; either document that asymmetry as
+    intentional or automate it.
+  - Agent-legible Zod issue mapping appears in multiple places; a shared formatter/helper would reduce wording drift.

@@ -1,0 +1,15 @@
+name: agent-memory
+purpose: "Research, evaluate, and integrate agent memory/context management improvements — covering QMD, OpenViking patterns, and enhancements to our expertise/tracks systems"
+status: active
+created_at: "2026-03-13T09:36:06.348Z"
+updated_at: "2026-03-13T10:46:19.870Z"
+last_synced_at: "2026-03-13T10:15:17.170Z"
+session_count: 4
+summary_version: 1
+related_paths:
+  - extensions/expert
+  - extensions/tracks
+  - ".pi/expertise"
+  - ".pi/tracks"
+  - skills/
+  - docs/
