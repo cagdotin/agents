@@ -114,9 +114,10 @@ This repo has automated tests. For the testing model and boundaries, see
 
 ### Extension patterns
 
-When building new extensions, start by matching `todos` unless there is a good
-reason not to. Prefer the existing validation stack convention: TypeBox +
-`StringEnum` at Pi tool boundaries, Zod at runtime data boundaries.
+All extensions follow the same structure (`index.ts`, README, types, helpers,
+storage, tool). When building new extensions, match the existing conventions.
+Prefer the existing validation stack: TypeBox + `StringEnum` at Pi tool
+boundaries, Zod at runtime data boundaries.
 
 ---
 

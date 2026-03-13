@@ -47,7 +47,7 @@ After this work, a user can press `Ctrl+Alt+T` or type `/ss` in any Pi session t
 
 ### Repository structure
 
-Extensions live in `extensions/`. Each is a self-contained directory with `index.ts` entry, README, types, and tests. The gold-standard reference is `extensions/todos/`; the closest pattern match for this work is `extensions/damage-control/` (panel + footer status).
+Extensions live in `extensions/`. Each is a self-contained directory with `index.ts` entry, README, types, and tests. All extensions follow the same structure; the closest pattern match for this work is `extensions/damage-control/` (panel + footer status).
 
 ### Pi Extension API (relevant subset)
 

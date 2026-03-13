@@ -32,7 +32,7 @@ Common structure used here:
 - `hooks.ts` (event wiring)
 - helper/types/constants files
 
-Reference implementation: `extensions/todos/`.
+All extensions under `extensions/` follow this structure.
 
 ---
 
@@ -159,9 +159,10 @@ For Pi core libs imported by extensions/skills, keep them in `peerDependencies` 
 
 ## 8) Quick “Where do I copy from?”
 
-- Full tool + command + TUI flow: `extensions/todos/`
+- Tool + command + TUI flow: `extensions/todos/`, `extensions/tracks/`
 - LLM extraction flow with loader: `extensions/answer/`
 - Multi-hook stateful extension + message renderer: `extensions/expert/`
+- Panel + footer status: `extensions/damage-control/`, `extensions/session-stats/`
 - Simple event-only extension: `extensions/tmux/notify.ts`
 
 ---

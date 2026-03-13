@@ -12,7 +12,7 @@ This repository defines global commands, skills, extensions, and themes for codi
 - Implementation specs for planned/complex work: `docs/specs/`
 - Pi extension API quick reference (repo-focused): `docs/references/pi-api-reference.md`
 - External resources index and capture workflow: `docs/resources/README.md`
-- Extension implementation reference (gold standard): `extensions/todos/`
+- Extension implementations: `extensions/` (all follow the same structure)
 
 ## Discovering Information
 
@@ -38,7 +38,7 @@ Always pass `-c agents` to scope results to this repo. See `skills/qmd/SKILL.md`
 
 ## Golden Rules
 
-1. **Reuse before inventing** — check `extensions/todos/` and existing patterns before creating new ones.
+1. **Reuse before inventing** — check existing `extensions/` and patterns before creating new ones.
 2. **Validate at boundaries** — use TypeBox + `StringEnum` for tool params, and Zod for runtime boundary parsing (YAML/JSON/frontmatter/LLM output).
 3. **Shared utilities over hand-rolled helpers** — extract common logic; don't duplicate across extensions.
 4. **Every extension gets a README** — behavior, triggers, setup. No undocumented extensions.
