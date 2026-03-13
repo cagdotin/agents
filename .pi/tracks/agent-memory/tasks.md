@@ -2,12 +2,10 @@
 
 ## Current focus
 
-Build the QMD Pi extension v1 using the revised architecture:
-- deeper modules
-- path-based repo identity
-- Zod-first validation
-- deterministic onboarding draft
-- repo-scoped update behavior
+Add a TUI panel to the QMD extension — an interactive dashboard showing index status, freshness, contexts, stale files, and indexed file browser. Accessible via `/qmd`, `/qp`, and `Ctrl+Alt+Q`.
+
+- Spec: `docs/specs/2026-03-13-qmd-tui-panel.md`
+- Exec plan: `exec-plans/qmd-tui-panel.md`
 
 ## Current state
 

@@ -138,3 +138,26 @@ export async function get_status(): Promise<QmdIndexStatus> {
 		};
 	});
 }
+
+export async function get_active_document_paths(collection_key: string): Promise<string[]> {
+	return with_store(`get active document paths for '${collection_key}'`, async (store) => {
+		return store.internal.getActiveDocumentPaths(collection_key);
+	});
+}
+
+export interface QmdIndexHealthInfo {
+	needs_embedding: number;
+	total_docs: number;
+	days_stale: number | null;
+}
+
+export async function get_index_health(): Promise<QmdIndexHealthInfo> {
+	return with_store("get QMD index health", async (store) => {
+		const health = await store.getIndexHealth();
+		return {
+			needs_embedding: health.needsEmbedding,
+			total_docs: health.totalDocs,
+			days_stale: health.daysStale,
+		};
+	});
+}

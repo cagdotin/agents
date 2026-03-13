@@ -50,7 +50,7 @@ function get_marker_path(repo_root: string): string {
 }
 
 export function collection_key_from_repo_root(repo_root: string): string {
-	return `p_${Buffer.from(normalize_path_separators(repo_root)).toString("base64url")}`;
+	return path.basename(repo_root);
 }
 
 export async function read_repo_marker(cwd: string): Promise<QmdRepoMarker | null> {
@@ -138,7 +138,7 @@ export async function detect_repo_binding(cwd: string): Promise<RepoBindingResul
 			);
 		} else if (marker.collection_key !== expected_collection_key) {
 			marker_warning = build_repair_warning(
-				`The local marker uses legacy collection key '${marker.collection_key}'. v1 expects '${expected_collection_key}' for this repo path.`,
+				`The local marker uses collection key '${marker.collection_key}', but expected '${expected_collection_key}' for this repo path.`,
 			);
 		}
 	}

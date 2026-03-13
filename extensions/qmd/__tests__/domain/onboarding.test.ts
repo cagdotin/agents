@@ -33,7 +33,7 @@ describe("scan_repo + build_draft_proposal", () => {
 		const draft = build_draft_proposal(scan);
 
 		expect(scan.markdown_file_count).toBe(3);
-		expect(draft.collection_key.startsWith("p_")).toBe(true);
+		expect(draft.collection_key).toBe(path.basename(repo_dir));
 		expect(draft.paths.map((entry) => entry.path)).toContain("docs");
 		expect(draft.paths.map((entry) => entry.path)).toContain("extensions");
 	});

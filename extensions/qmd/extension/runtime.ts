@@ -13,6 +13,7 @@ export interface QmdExtensionState {
 		repo_root: string;
 		prompt: string;
 	};
+	close_panel?: () => void;
 }
 
 function footer_text(binding?: RepoBindingResult, freshness?: FreshnessResult): string | undefined {
@@ -53,10 +54,16 @@ export async function refresh_runtime_state(ctx: ExtensionContext, state: QmdExt
 
 export function register_runtime(pi: ExtensionAPI, state: QmdExtensionState): void {
 	pi.on("session_start", async (_event, ctx) => {
+		state.close_panel?.();
 		await refresh_runtime_state(ctx, state);
 	});
 
-	for (const event_name of ["session_switch", "session_tree", "session_fork", "session_compact"] as const) {
+	pi.on("session_switch", async (_event, ctx) => {
+		state.close_panel?.();
+		await refresh_runtime_state(ctx, state);
+	});
+
+	for (const event_name of ["session_tree", "session_fork", "session_compact"] as const) {
 		pi.on(event_name, async (_event, ctx) => {
 			await refresh_runtime_state(ctx, state);
 		});

@@ -1,4 +1,4 @@
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
 import { embed_pending, update_collection } from "../core/qmd-store.js";
 import type { FreshnessResult, RepoBindingResult } from "../core/types.js";
 import { check_freshness, get_repo_head_commit } from "../domain/freshness.js";
@@ -10,6 +10,10 @@ import {
 	resolve_repo_root,
 	write_repo_marker,
 } from "../domain/repo-binding.js";
+import { QMD_PANEL_ALIAS, QMD_PANEL_SHORTCUT } from "../ui/constants.js";
+import { build_qmd_panel_snapshot } from "../ui/data.js";
+import { show_qmd_panel } from "../ui/panel.js";
+import { build_plain_text_summary } from "../ui/plain-text.js";
 import { type QmdExtensionState, refresh_runtime_state } from "./runtime.js";
 import { activate_qmd_init_tool } from "./tool.js";
 
@@ -69,17 +73,152 @@ function render_status(binding: RepoBindingResult, freshness?: FreshnessResult):
 }
 
 export function register_qmd_command(pi: ExtensionAPI, state: QmdExtensionState): void {
+	let panel_open = false;
+	let close_panel: (() => void) | null = null;
+
+	// ── panel helpers ────────────────────────────────────────
+
+	async function get_binding_and_freshness(
+		cwd: string,
+	): Promise<{ binding: RepoBindingResult; freshness: FreshnessResult | undefined }> {
+		const binding = await detect_repo_binding(cwd);
+		const freshness =
+			binding.status === "indexed" && binding.marker ? await check_freshness(binding.marker) : undefined;
+		state.last_binding = binding;
+		state.last_freshness = freshness;
+		return { binding, freshness };
+	}
+
+	async function run_update(ctx: ExtensionContext): Promise<void> {
+		const binding = await detect_repo_binding(ctx.cwd);
+		if (binding.status !== "indexed") return;
+
+		const update_result = await update_collection(binding.collection_key);
+		if (update_result.needsEmbedding > 0) {
+			await embed_pending();
+		}
+		const now = new Date().toISOString();
+		const existing_marker = await read_repo_marker(binding.repo_root).catch(() => null);
+		await write_repo_marker(binding.repo_root, {
+			schema_version: 1,
+			repo_root: binding.repo_root,
+			collection_key: binding.collection_key,
+			last_indexed_at: now,
+			last_indexed_commit: (await get_repo_head_commit(binding.repo_root)) ?? "",
+			created_at: existing_marker?.created_at ?? now,
+		});
+
+		await refresh_runtime_state(ctx, state);
+	}
+
+	function start_init(ctx: ExtensionContext): void {
+		(async () => {
+			const binding = await detect_repo_binding(ctx.cwd);
+			if (binding.status === "indexed") {
+				output_message(ctx, "This repo already has a QMD binding.", "info");
+				return;
+			}
+			if (binding.status === "unavailable") {
+				output_message(ctx, render_status(binding), "warning");
+				return;
+			}
+
+			const repo_root = await resolve_repo_root(ctx.cwd);
+			const scan = await scan_repo(repo_root);
+			const draft = build_draft_proposal(scan);
+			state.init_workflow = { repo_root, prompt: build_init_prompt(scan, draft) };
+			activate_qmd_init_tool(pi);
+
+			const kickoff = [
+				"Help me review a QMD onboarding proposal for this repository.",
+				"Present the proposed collection setup and path contexts clearly.",
+				"Ask for explicit confirmation before calling qmd_init.",
+			].join(" ");
+
+			if (ctx.isIdle()) {
+				pi.sendUserMessage(kickoff);
+			} else {
+				pi.sendUserMessage(kickoff, { deliverAs: "followUp" });
+			}
+
+			output_message(
+				ctx,
+				"Started /qmd init. Review the proposal in chat, then explicitly confirm before execution.",
+				"info",
+			);
+		})();
+	}
+
+	async function open_or_toggle_panel(ctx: ExtensionContext): Promise<void> {
+		if (panel_open && close_panel) {
+			close_panel();
+			return;
+		}
+
+		const { binding, freshness } = await get_binding_and_freshness(ctx.cwd);
+		await refresh_runtime_state(ctx, state);
+
+		if (!ctx.hasUI) {
+			const snapshot = await build_qmd_panel_snapshot(ctx.cwd, binding, freshness);
+			console.log(build_plain_text_summary(snapshot));
+			return;
+		}
+
+		const initial_snapshot = await build_qmd_panel_snapshot(ctx.cwd, binding, freshness);
+		panel_open = true;
+
+		try {
+			await show_qmd_panel(
+				ctx,
+				{
+					get_snapshot: async () => {
+						const fresh = await get_binding_and_freshness(ctx.cwd);
+						await refresh_runtime_state(ctx, state);
+						return build_qmd_panel_snapshot(ctx.cwd, fresh.binding, fresh.freshness);
+					},
+					on_update: () => run_update(ctx),
+					on_init: () => start_init(ctx),
+					on_close: () => {
+						/* replaced by panel */
+					},
+				},
+				initial_snapshot,
+			);
+		} catch {
+			const snapshot = await build_qmd_panel_snapshot(ctx.cwd, binding, freshness);
+			ctx.ui.notify("QMD panel failed to render.", "warning");
+			ctx.ui.notify(build_plain_text_summary(snapshot), "info");
+		} finally {
+			panel_open = false;
+			close_panel = null;
+		}
+	}
+
+	// ── close panel helper (for lifecycle events) ────────────
+
+	state.close_panel = () => {
+		if (close_panel) {
+			close_panel();
+			close_panel = null;
+		}
+		panel_open = false;
+	};
+
+	// ── commands ──────────────────────────────────────────────
+
 	pi.registerCommand("qmd", {
-		description: "Manage QMD repo onboarding, status, and scoped updates",
+		description: "QMD index dashboard · subcommands: status, update, init",
 		handler: async (args, ctx) => {
-			const sub_command = (args ?? "").trim() || "status";
+			const sub_command = (args ?? "").trim();
+
+			// No args → open panel
+			if (!sub_command) {
+				await open_or_toggle_panel(ctx);
+				return;
+			}
 
 			if (sub_command === "status") {
-				const binding = await detect_repo_binding(ctx.cwd);
-				const freshness =
-					binding.status === "indexed" && binding.marker ? await check_freshness(binding.marker) : undefined;
-				state.last_binding = binding;
-				state.last_freshness = freshness;
+				const { binding, freshness } = await get_binding_and_freshness(ctx.cwd);
 				await refresh_runtime_state(ctx, state);
 				output_message(ctx, render_status(binding, freshness), "info");
 				return;
@@ -93,76 +232,35 @@ export function register_qmd_command(pi: ExtensionAPI, state: QmdExtensionState)
 				}
 
 				output_message(ctx, `Updating QMD collection ${binding.collection_key}...`, "info");
-				const update_result = await update_collection(binding.collection_key);
-				const embed_result = update_result.needsEmbedding > 0 ? await embed_pending() : null;
-				const now = new Date().toISOString();
-				const existing_marker = await read_repo_marker(binding.repo_root).catch(() => null);
-				await write_repo_marker(binding.repo_root, {
-					schema_version: 1,
-					repo_root: binding.repo_root,
-					collection_key: binding.collection_key,
-					last_indexed_at: now,
-					last_indexed_commit: (await get_repo_head_commit(binding.repo_root)) ?? "",
-					created_at: existing_marker?.created_at ?? now,
-				});
-
-				await refresh_runtime_state(ctx, state);
-				const lines = [
-					`QMD update complete for ${binding.collection_key}.`,
-					`indexed: ${update_result.indexed}, updated: ${update_result.updated}, unchanged: ${update_result.unchanged}, removed: ${update_result.removed}`,
+				await run_update(ctx);
+				const { binding: updated_binding } = await get_binding_and_freshness(ctx.cwd);
+				const update_lines = [
+					`QMD update complete for ${updated_binding.status === "indexed" ? updated_binding.collection_key : "collection"}.`,
 				];
-				if (embed_result) {
-					lines.push(`embeddings: embedded ${embed_result.embedded}, skipped ${embed_result.skipped}`);
-				}
-				if (binding.repair_warning) {
-					lines.push(`note: ${binding.repair_warning}`);
-				}
-				output_message(ctx, lines.join("\n"), "info");
+				output_message(ctx, update_lines.join("\n"), "info");
 				return;
 			}
 
 			if (sub_command === "init") {
-				const binding = await detect_repo_binding(ctx.cwd);
-				if (binding.status === "indexed") {
-					const freshness = binding.marker ? await check_freshness(binding.marker) : undefined;
-					output_message(ctx, `${render_status(binding, freshness)}\n\nThis repo already has a QMD binding.`, "info");
-					return;
-				}
-				if (binding.status === "unavailable") {
-					output_message(ctx, render_status(binding), "warning");
-					return;
-				}
-
-				const repo_root = await resolve_repo_root(ctx.cwd);
-				const scan = await scan_repo(repo_root);
-				const draft = build_draft_proposal(scan);
-				state.init_workflow = {
-					repo_root,
-					prompt: build_init_prompt(scan, draft),
-				};
-				activate_qmd_init_tool(pi);
-
-				const kickoff = [
-					"Help me review a QMD onboarding proposal for this repository.",
-					"Present the proposed collection setup and path contexts clearly.",
-					"Ask for explicit confirmation before calling qmd_init.",
-				].join(" ");
-
-				if (ctx.isIdle()) {
-					pi.sendUserMessage(kickoff);
-				} else {
-					pi.sendUserMessage(kickoff, { deliverAs: "followUp" });
-				}
-
-				output_message(
-					ctx,
-					"Started /qmd init. Review the proposal in chat, then explicitly confirm before execution.",
-					"info",
-				);
+				start_init(ctx);
 				return;
 			}
 
 			output_message(ctx, "Usage: /qmd [status | update | init]", "info");
+		},
+	});
+
+	pi.registerCommand(QMD_PANEL_ALIAS, {
+		description: "Alias for /qmd — open QMD index dashboard",
+		handler: async (_args, ctx) => {
+			await open_or_toggle_panel(ctx);
+		},
+	});
+
+	pi.registerShortcut(QMD_PANEL_SHORTCUT, {
+		description: "Toggle the QMD index dashboard",
+		handler: async (ctx) => {
+			await open_or_toggle_panel(ctx);
 		},
 	});
 }

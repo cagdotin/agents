@@ -24,11 +24,19 @@ beforeEach(async () => {
 });
 
 describe("collection_key_from_repo_root", () => {
-	it("derives a stable path-based key", async () => {
+	it("derives a human-readable key from the repo directory name", async () => {
 		const module = await import("../../domain/repo-binding.js");
 		const key = module.collection_key_from_repo_root("/tmp/repo");
-		expect(key.startsWith("p_")).toBe(true);
+		expect(key).toBe("repo");
 		expect(key).toBe(module.collection_key_from_repo_root("/tmp/repo"));
+	});
+
+	it("uses the last path segment for nested paths", async () => {
+		const module = await import("../../domain/repo-binding.js");
+		expect(module.collection_key_from_repo_root("/Users/cgn/git/0xcgn/agents")).toBe("agents");
+		expect(module.collection_key_from_repo_root("/Users/cgn/git/meister/meister-ai-platform")).toBe(
+			"meister-ai-platform",
+		);
 	});
 });
 
