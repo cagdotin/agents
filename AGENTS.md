@@ -14,6 +14,28 @@ This repository defines global commands, skills, extensions, and themes for codi
 - External resources index and capture workflow: `docs/resources/README.md`
 - Extension implementation reference (gold standard): `extensions/todos/`
 
+## Discovering Information
+
+This repo is indexed by [QMD](https://github.com/tobi/qmd), a local hybrid search engine. **Use `qmd query` when you need to find something conceptual** — prior decisions, design patterns, how something works — rather than grepping for exact strings.
+
+```bash
+# Semantic search (best quality — expansion + BM25 + vector + reranking)
+BUN_INSTALL="" qmd query -c agents "your question here"
+
+# Keyword search (fast, no LLM, good for exact terms)
+BUN_INSTALL="" qmd search "exact keywords" -c agents
+
+# Get a specific document by path
+BUN_INSTALL="" qmd get "docs/ARCHITECTURE.md"
+```
+
+**When to use qmd vs grep:**
+- `rg` / `grep` — you know the exact string, variable name, or file path
+- `qmd query` — you know what you're looking for conceptually but not where it lives or what it's called
+- `qmd search` — you know keywords but not which files contain them (faster than query, no LLM)
+
+Always pass `-c agents` to scope results to this repo. See `skills/qmd/SKILL.md` for the full reference.
+
 ## Golden Rules
 
 1. **Reuse before inventing** — check `extensions/todos/` and existing patterns before creating new ones.
