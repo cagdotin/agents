@@ -2,28 +2,54 @@
 
 ## Primary Research Source
 - Fireship video (2026-03-12): https://www.youtube.com/watch?v=Xn-gtHDsaPY
-  - Covered 7 OSS tools; 2 are memory-relevant (QMD, OpenViking)
+  - Survey source that surfaced QMD and OpenViking as the two most relevant memory/search systems to examine.
 
 ## QMD — Query Markup Documents
-- **Repo:** https://github.com/tobi/qmd (15k★, MIT, TypeScript/Bun)
-- **Author:** Tobi Lütke (Shopify CEO)
-- **Docs:** README covers full architecture, search pipeline, SDK API
-- **CLAUDE.md:** repo has its own agent instructions file
-- **SDK:** `@tobilu/qmd` on npm — `createStore()` API
-- **MCP:** stdio + HTTP transport, Claude Code plugin available
-- **Changelog:** v2.0 shipped 2026-03-10 (stable SDK API)
+- **Repo:** https://github.com/tobi/qmd
+- **Local fork:** `~/git/qmd-fork` (v2.0.1 + PR #377 + PR #385)
+- **SDK package:** `@tobilu/qmd`
+- **Primary docs:** `~/git/qmd-fork/README.md`
+- **Key source files:**
+  - `~/git/qmd-fork/src/index.ts` — SDK surface (`createStore`, store methods)
+  - `~/git/qmd-fork/src/store.ts` — lower-level internals and store operations
+  - `~/git/qmd-fork/src/collections.ts` — collection config helpers and collection-name validation
+  - `~/git/qmd-fork/src/cli/qmd.ts` — CLI path/context behavior and operator UX
+- **Important implementation references:**
+  - PR #377 — https://github.com/tobi/qmd/pull/377
+  - PR #385 — https://github.com/tobi/qmd/pull/385
+
+## Pi Integration References
+- `skills/qmd/SKILL.md` — agent-facing CLI usage guidance
+- `docs/references/pi-api-reference.md` — repo-focused Pi extension API notes
+- Pi upstream extension docs:
+  - `/Users/cgn/.local/share/mise/installs/node/23.3.0/lib/node_modules/@mariozechner/pi-coding-agent/docs/extensions.md`
+- Pi examples checked for feasibility/patterns:
+  - `/Users/cgn/.local/share/mise/installs/node/23.3.0/lib/node_modules/@mariozechner/pi-coding-agent/examples/extensions/dynamic-tools.ts`
+  - `/Users/cgn/.local/share/mise/installs/node/23.3.0/lib/node_modules/@mariozechner/pi-coding-agent/examples/extensions/plan-mode/index.ts`
+
+## Design Lenses Applied to the Extension Review
+- `docs/resources/unix-philosophy-raymond.md`
+  - Primary design lens for modularity, separation, representation, silence, and repair.
+- `docs/resources/deep-modules-ai-ready-codebase.md`
+  - Primary design lens for preferring deeper modules, smaller public surfaces, and progressive disclosure.
 
 ## OpenViking — Context Database for AI Agents
-- **Repo:** https://github.com/volcengine/OpenViking (7.7k★, Apache 2.0, Python/Go/Rust)
-- **Author:** ByteDance/Volcengine
-- **Docs:** `docs/en/concepts/` — 8 concept docs covering architecture, context types, layers, retrieval, sessions, storage, extraction
+- **Repo:** https://github.com/volcengine/OpenViking
 - **Website:** https://www.openviking.ai
 - **Key docs read:**
-  - `01-architecture.md` — system overview, module responsibilities, data flow
-  - `02-context-types.md` — Resource/Memory/Skill taxonomy, 6 memory categories
-  - `03-context-layers.md` — L0/L1/L2 model, generation mechanism, best practices
-  - `05-storage.md` — dual-layer AGFS + vector index, VikingFS abstraction
-  - `06-extraction.md` — parser pipeline, tree builder, semantic queue, AST mode
-  - `07-retrieval.md` — intent analysis, hierarchical retrieval algorithm, reranking
-  - `08-session.md` — session lifecycle, compression, 6-category memory extraction, dedup
-  - `06-mcp-integration.md` — MCP server setup for Claude Code, Cursor, etc.
+  - `docs/en/concepts/01-architecture.md`
+  - `docs/en/concepts/02-context-types.md`
+  - `docs/en/concepts/03-context-layers.md`
+  - `docs/en/concepts/05-storage.md`
+  - `docs/en/concepts/06-extraction.md`
+  - `docs/en/concepts/07-retrieval.md`
+  - `docs/en/concepts/08-session.md`
+  - `docs/en/concepts/06-mcp-integration.md`
+- **Why it matters here:** useful for design ideas (tiering, hierarchical retrieval, memory promotion), not as a direct implementation target.
+
+## Local Track Artifacts
+- `specs/qmd-extension-v1.md` — current design spec
+- `exec-plans/qmd-extension-v1.md` — rollout plan
+- `findings.md` — durable discoveries and constraints
+- `decisions.md` — design decisions and rationale
+- `report.md` — current implementation status

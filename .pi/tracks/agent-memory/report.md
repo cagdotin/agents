@@ -1,46 +1,74 @@
 # Report
 
-## Status: Layer 1 complete, ready for use
+## Status: spec and rollout plan revised; implementation not started
 
-QMD is installed globally and the agents repo is indexed as the first collection. Search quality is validated.
+Research and CLI setup are done. The QMD extension design was reviewed and then tightened around cleaner boundaries before implementation begins.
 
-## What's done
+## What changed in this revision
 
-1. **QMD installed globally** via `npm install -g @tobilu/qmd`
-2. **Agents collection created**: 92 markdown files indexed, 263 chunks embedded
-3. **7 context annotations** set across subcollections (root, .pi, docs, extensions, skills, resources, exec-plans)
-4. **3 GGUF models downloaded** (~2GB total): embedding (300M), reranker (600M), query expansion (1.7B)
-5. **QMD skill installed** at `~/.agents/skills/qmd/SKILL.md`
-6. **Search quality validated** with 3 test queries — results are relevant and correctly ranked
+1. **Module shape simplified**
+   - moved from a broader Core / Features / Extension split to a smaller set of deeper modules
+   - new shape centers on:
+     - `core/qmd-store.ts`
+     - `core/types.ts`
+     - `core/errors.ts`
+     - `domain/repo-binding.ts`
+     - `domain/freshness.ts`
+     - `domain/onboarding.ts`
+     - `extension/runtime.ts`
+     - `extension/command.ts`
+     - `extension/tool.ts`
 
-## How to use
+2. **Source-of-truth model clarified**
+   - QMD store owns collections and contexts
+   - `.pi/qmd.json` is now only a repo-binding + freshness marker
+   - this removes duplicated config truth from the design
 
-```bash
-# Search this project
-BUN_INSTALL="" qmd query -c agents "your question"
+3. **Repo identity made path-based**
+   - canonical identity is the normalized repo root path
+   - basename collision handling was removed from the design
+   - collection keys remain path-derived, but encoded to satisfy QMD collection-name constraints
 
-# BM25 keyword search (fast, no LLM)
-BUN_INSTALL="" qmd search "exact term" -c agents
+4. **Validation doctrine tightened**
+   - Zod is now the default/runtime authority for file and proposal validation
+   - TypeBox is limited to the Pi tool-registration boundary
 
-# Add another project
-BUN_INSTALL="" qmd collection add ~/git/0xcgn/PROJECT --name PROJECT
-BUN_INSTALL="" qmd context add qmd://PROJECT "Description of what this project is"
-BUN_INSTALL="" qmd embed
+5. **Init flow made more deterministic**
+   - old direction: scan → LLM proposes config from raw context
+   - revised direction: scan → deterministic draft → LLM refines with user → normalize/validate → execute
 
-# Cross-project search (omit -c)
-BUN_INSTALL="" qmd query "your question"
+6. **Update behavior narrowed**
+   - `/qmd update` is explicitly scoped to the current repo collection only
+   - no global reindexing by default
 
-# Update index after changes
-BUN_INSTALL="" qmd update
-BUN_INSTALL="" qmd embed
-```
+7. **Footer behavior made quieter**
+   - indexed repos show status
+   - non-indexed repos stay silent
 
-## Known issue: Bun compatibility
+## Current implementation target
 
-QMD requires Node (not Bun) due to sqlite-vec extension loading. The `BUN_INSTALL=""` prefix forces the QMD launcher to use Node instead of Bun. This is because the launcher script checks `$BUN_INSTALL` env var and routes to Bun if set.
+**Milestone 1: Core + Contracts**
 
-## What's next
+Immediate next work:
+- scaffold extension directories
+- implement `core/errors.ts`
+- implement `core/types.ts` with Zod-first schemas
+- implement `core/qmd-store.ts`
+- verify SDK import from the extension
+- confirm the path-derived collection-key encoding
 
-- **Layer 2**: Pi extension wrapping QMD with auto-project-detection, `/qmd` command, and session lifecycle hooks
-- **Layer 3**: Expertise domains become thin pointers; QMD becomes the deep retrieval layer
-- **More collections**: Add projects as needed — each is `qmd collection add` + `qmd context add` + `qmd embed`
+## Stable decisions at this point
+
+- QMD remains the right retrieval engine for this work
+- the extension should be infrastructure, not an always-on search tool
+- the agent should continue using `bash` + `qmd query/search/get`
+- path-based repo identity is the correct model
+- `.pi/qmd.json` must stay small and local
+- v1 should prefer deterministic, visible behavior over hidden automation
+
+## Open constraints still worth validating during implementation
+
+- benchmark `store.listCollections()` latency in real usage
+- verify the chosen path-encoding format is ergonomic enough in CLI output/prompt text
+- confirm embed progress UX for `/qmd init`
+- decide later whether non-git freshness fallback is worth the added complexity

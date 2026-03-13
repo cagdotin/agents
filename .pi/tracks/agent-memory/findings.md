@@ -2,49 +2,55 @@
 
 ## QMD Architecture
 
-- **Local-first, zero infrastructure.** Single SQLite file, 3 GGUF models (~2GB total) auto-downloaded. No API keys, no server process needed.
-- **Stack match.** TypeScript/Bun — exactly our stack. SDK: `import { createStore } from '@tobilu/qmd'`.
-- **Hybrid search pipeline is sophisticated.** Query expansion (fine-tuned 1.7B model) → parallel BM25 + vector → RRF fusion (k=60, original query 2× weight, top-rank bonus) → LLM reranking (qwen3-reranker-0.6B) → position-aware blending (rank 1-3: 75% RRF / 25% reranker; rank 11+: 40%/60%).
-- **Smart markdown chunking.** 900 tokens, 15% overlap, heading-aware break points (H1=100, H2=90, code fence=80), code blocks never split. Squared distance decay when choosing break points.
-- **Context annotations are the killer feature for agents.** Label collections/paths with descriptions that travel with search results — gives LLM domain context about what kind of document it found.
-- **MCP server supports both stdio and HTTP.** HTTP mode keeps models loaded in VRAM across requests. Also has a Claude Code plugin.
-- **v2.0 (2026-03-10):** Stable SDK API. Unified `search()` with auto-expansion or pre-expanded typed queries. `intent` parameter disambiguates across the full pipeline.
-- **Collections + collection filtering = the focus mechanism.** One collection per project dir. `-c project` scopes queries. Drop the filter for cross-project. Context annotations make results self-describing.
-- **SDK is clean.** `createStore({ dbPath, config: { collections: {...} } })` → `store.search()` → `store.close()`. TypeBox types exported. Supports inline config, YAML config, or DB-only reopen.
+- **Local-first, zero infrastructure.** Single SQLite file, local models, no API keys, no server process.
+- **Stack match.** TypeScript/Bun — exactly our stack. SDK is straightforward to consume from Bun once linked correctly.
+- **Hybrid search pipeline is sophisticated.** Query expansion → BM25 + vector → fusion → reranking. This makes QMD strong enough to be the deep retrieval layer without us building search ourselves.
+- **Smart markdown chunking is built in.** Heading-aware chunking and code-fence handling mean we do not need custom markdown segmentation for v1.
+- **Context annotations are the highest-leverage feature for agents.** Path-level context gives search results enough domain labeling to be useful in agent workflows.
+- **SDK is good for infrastructure operations.** Collection management, context writes, update/embed, and status are better handled via SDK than shelling out and parsing JSON/text.
+- **Search should still stay CLI-driven for the agent.** The extension does not need to wrap `search()` just because the SDK offers it. `bash` + `qmd query/search/get` is the cleaner integration point for normal agent work.
 
-## OpenViking Architecture
+## QMD Constraints That Shape the Extension Design
 
-- **Virtual filesystem paradigm.** `viking://` URIs organize all context into Resources, Memories, and Skills directories. Agents use `ls`, `tree`, `find`, `read`, `grep` — deterministic operations, not fuzzy queries.
-- **L0/L1/L2 tiered content — the most transferable idea.**
-  - L0 (~100 tokens): one-sentence abstract → used for vector search
-  - L1 (~2k tokens): structured overview with navigation pointers → used for planning
-  - L2 (unlimited): full content → loaded only when needed
-  - Generated bottom-up by LLM after resource ingestion
-  - For code: tree-sitter AST skeletons (Python/JS/TS/Rust/Go/Java/C) instead of LLM — much cheaper
-- **Hierarchical retrieval.** Intent analysis → global vector search → priority-queue recursive drill-down through subdirectories. Score propagation: `0.5 × embedding + 0.5 × parent_score`. Converges when top-k stable for 3 rounds.
-- **6-category memory extraction from sessions:**
-  - User: profile, preferences, entities, events
-  - Agent: cases (problem→solution), patterns (reusable techniques)
-  - Dedup pipeline: vector pre-filter → LLM decides skip/create/merge/delete
-- **Heavyweight.** Python/Go/Rust stack, requires cloud LLM API keys, server process, config files. Not directly adoptable.
+- **Collection names are restricted.** QMD collection names accept only alphanumeric characters, hyphens, and underscores. Raw repo paths cannot be used directly as collection names.
+- **Repo identity and collection key should be treated separately.** The canonical identity can still be the normalized repo root path, while the stored collection key is a deterministic encoding derived from that path.
+- **`createStore()` at the SDK boundary needs explicit options.** The extension should not assume a zero-arg happy path; it must own store creation/config robustly.
+- **`update()` must be scoped intentionally.** Unscoped SDK update behavior risks touching unrelated collections, so `/qmd update` must always resolve and pass the current repo collection explicitly.
 
-## Multi-Project Landscape (this repo as case study)
+## Local Fork & Bun Compatibility
 
-- **~2,000 markdown files across 25+ projects** under `~/git/0xcgn/`
-- **17 projects have AGENTS.md** (49–858 lines each)
-- **agents repo alone:** 143 md files, 9 extensions, 7 skills, 52 doc files, 3 expertise domains, 5 tracks
-- **Scattered .pi directories:** agents (61 files), bip (17), qraiter-elixir (17), pi-mono (9), vault (3)
-- **The real problem:** cross-project pattern recall. When in qraiter-elixir, you can't easily surface decisions from vault or patterns from agents.
+- **Root cause of sqlite-vec failure under Bun:** Apple's system SQLite disables extension loading. Bun must be pointed at Homebrew SQLite via `Database.setCustomSQLite(...)`.
+- **PR #377 is the real Bun fix.** It sets the SQLite dylib path and validates sqlite-vec loading early.
+- **PR #385 fixes secondary install/runtime issues.** It corrects launcher lockfile priority and a cleanup crash around orphaned vectors.
+- **`bun link` is required for SDK access in Bun projects.** `npm link` alone is not enough if the consuming project imports the package in Bun.
+
+## Multi-Project Landscape (why this matters)
+
+- **The real problem is pattern recall across repos.** We already have many markdown-heavy projects and agent-facing docs; the pain is not storing more notes, it is finding the right prior art quickly.
+- **One global index with per-repo bindings is the right compromise.** It preserves cross-project retrieval while still keeping repo-local workflows focused.
+
+## Design Learnings for the QMD Extension
+
+- **The extension should be infrastructure, not a search facade.** Search remains a composition of `bash` + QMD CLI + the skill. The extension handles onboarding, status, freshness, and guidance.
+- **`.pi/qmd.json` must stay small.** If it starts mirroring QMD collection config or contexts, we create a second config system and drift becomes likely.
+- **Deterministic draft before LLM refinement is the right init shape.** Let the extension scan and build a structured draft first; let the model refine with the user rather than inventing the structure from a raw file dump.
+- **Zod should be the runtime authority.** File formats, repo-scan payloads, and confirmed init proposals all need one trustworthy validation system. TypeBox should remain only a Pi registration adapter.
+- **Workflow-scoped tool activation is viable but not magical.** `setActiveTools()` is shared mutable session state, so the design should document that caveat instead of pretending global tool coordination is solved.
+- **Silent non-indexed state is better UX.** A persistent `not indexed` footer is noise. Status should be visible when useful and quiet otherwise.
+
+## OpenViking Architecture (transferable ideas only)
+
+- **The most transferable idea is tiering, not the stack.** L0/L1/L2 and hierarchical retrieval are useful design inspirations, but OpenViking's implementation is too heavyweight for direct adoption here.
+- **Virtual filesystem and deterministic navigation remain valuable inspiration.** They reinforce our preference for file-based working memory and explicit navigation over opaque orchestration.
 
 ## Comparison to Our Current System
 
 | Dimension | Our System (pi) | QMD | OpenViking |
 |-----------|----------------|-----|------------|
-| Knowledge storage | `.pi/expertise/` YAML | SQLite + markdown collections | Virtual filesystem (AGFS + vector) |
-| Content tiers | None (full domains injected) | None (chunks at 900 tokens) | L0/L1/L2 auto-generated |
-| Search | Manual (grep, file reads) | BM25 + vector + RRF + reranking | Hierarchical vector + intent analysis |
-| Memory evolution | Manual `expertise append` | None (pure search engine) | Auto-extraction (6 categories) |
-| Session context | `.pi/tracks/` manual sync | None | Auto-archiving + compression |
+| Knowledge storage | `.pi/expertise/` YAML + `.pi/tracks/` files | SQLite + markdown collections | Virtual filesystem + vector index |
+| Search | Manual (grep, file reads, QMD skill) | BM25 + vector + reranking | Hierarchical vector + intent analysis |
+| Memory evolution | Manual promotion | None by itself | Automatic extraction + dedup |
+| Session context | File-based working memory | None | Built-in session compression/extraction |
 | Stack | TypeScript/Bun | TypeScript/Bun ✅ | Python/Go/Rust ❌ |
-| Infrastructure | Zero (repo files) | Zero (local SQLite + GGUF) | Server + API keys + config |
-| Cost | $0 | $0 | Per-token API costs |
+| Infrastructure | Zero | Zero | Server + API keys + config |
+| Fit for this repo | Good with manual discipline | Strong for retrieval ✅ | Strong ideas, weak fit ❌ |

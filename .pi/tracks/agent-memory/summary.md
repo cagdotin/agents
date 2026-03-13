@@ -6,8 +6,8 @@
 - Track: agent-memory
 - Purpose: Research, evaluate, and integrate agent memory/context management improvements — covering QMD, OpenViking patterns, and enhancements to our expertise/tracks systems
 - Status: active
-- Last synced: 2026-03-13T10:15:17.170Z
-- Session count: 2
+- Last synced: 2026-03-13T12:44:29.103Z
+- Session count: 5
 - Summary version: 1
 
 ## Related paths
@@ -19,32 +19,32 @@
 - docs/
 
 ## Next steps
-- Survey agent memory landscape (Fireship video + deep dives)
-- Deep dive QMD architecture, search pipeline, SDK
-- Deep dive OpenViking architecture, tiering, memory extraction
-- Compare QMD vs OpenViking vs our current system
-- Decide on integration approach
-- Install QMD globally (`npm install -g @tobilu/qmd`)
+- deeper modules
+- path-based repo identity
+- Zod-first validation
+- deterministic onboarding draft
+- repo-scoped update behavior
+- Scaffold `core/`, `domain/`, `extension/`, `docs/`, `__tests__/`
 
 ## Open checklist
-- Add more projects as needed (user-driven, manual)
-- Build `qmd` extension — auto-detect project, default collection filter
-- `/qmd` command for quick search, `/qmd cross` for cross-project
-- `session_start` hook: update if stale, surface relevant results
-- `session_end` hook: re-index if `.pi/` files changed
-- Thin out expertise domains to navigational pointers (L0/L1)
+- Scaffold `core/`, `domain/`, `extension/`, `docs/`, `__tests__/`
+- Add `core/errors.ts`
+- Add `core/types.ts` with **Zod-first** schemas
+- Add `core/qmd-store.ts`
+- Verify SDK import from extension
+- Confirm path-derived collection key encoding
 
 ## Findings
-- **Local-first, zero infrastructure.** Single SQLite file, 3 GGUF models (~2GB total) auto-downloaded. No API keys, no server process needed.
-- **Stack match.** TypeScript/Bun — exactly our stack. SDK: `import { createStore } from '@tobilu/qmd'`.
-- **Hybrid search pipeline is sophisticated.** Query expansion (fine-tuned 1.7B model) → parallel BM25 + vector → RRF fusion (k=60, original query 2× weight, top-rank bonus) → LLM reranking (qwen3-reranker-0.6B) → position-aware blending (rank 1-3: 75% RRF / 25% reranker; rank 11+: 40%/60%).
-- **Smart markdown chunking.** 900 tokens, 15% overlap, heading-aware break points (H1=100, H2=90, code fence=80), code blocks never split. Squared distance decay when choosing break points.
+- **Local-first, zero infrastructure.** Single SQLite file, local models, no API keys, no server process.
+- **Stack match.** TypeScript/Bun — exactly our stack. SDK is straightforward to consume from Bun once linked correctly.
+- **Hybrid search pipeline is sophisticated.** Query expansion → BM25 + vector → fusion → reranking. This makes QMD strong enough to be the deep retrieval layer without us building search ourselves.
+- **Smart markdown chunking is built in.** Heading-aware chunking and code-fence handling mean we do not need custom markdown segmentation for v1.
 
 ## Decisions
-- **Rationale:** Stack alignment (TypeScript/Bun), zero cost, zero infrastructure make QMD the pragmatic choice for searchable agent knowledge. OpenViking's Python/Go/Rust stack and server/API-key requirements make it impractical to adopt directly.
-- **Tradeoff:** We lose OpenViking's L0/L1/L2 tiering and auto memory extraction — but we can build lightweight versions of those patterns into our own expertise/tracks system.
-- **Rationale:** Single index means cross-project search is trivial (drop the `-c` filter). Collections provide per-project focus. Context annotations make results self-describing so agents know what they found.
-- **Rejected alternative:** Per-project indexes (`--index name`). Cleaner separation but makes cross-project queries require multiple index lookups. Not worth the complexity.
+- **Rationale:** QMD matches our stack (TypeScript/Bun), runs locally, requires no server, and gives us strong markdown retrieval without adding infrastructure.
+- **Tradeoff:** We do not get OpenViking's automatic tiering or memory extraction out of the box. Those ideas remain future inputs for expertise/tracks rather than reasons to reject QMD.
+- **Rationale:** A single global index keeps cross-project search possible, while each repository still has one clear binding for focused work.
+- **Rule:** The canonical identity is the normalized repo root path. There is one binding per repo root.
 
 ## Report pulse
-QMD is installed globally and the agents repo is indexed as the first collection. Search quality is validated.
+Research and CLI setup are done. The QMD extension design was reviewed and then tightened around cleaner boundaries before implementation begins.
