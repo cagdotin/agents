@@ -1,6 +1,7 @@
 domain: tracks-extension
-description: Repo-agnostic workstream contexts under `.pi/tracks/`, with deterministic sync, session-local attachment via session traces, closeout behavior, and subcommand-aware slash-command UX.
-last_synced: 2026-03-12T10:12:00Z
+description: Repo-agnostic workstream contexts under `.pi/tracks/`, with deterministic sync, session-local attachment
+  via session traces, closeout behavior, and subcommand-aware slash-command UX.
+last_synced: 2026-03-13T12:44:36.137Z
 scope:
   paths:
     - extensions/tracks/
@@ -16,93 +17,64 @@ keywords:
 aliases: []
 related_domains:
   - extensions-dev
-overview: >-
-  Tracks is an operational working-memory layer for initiatives/workstreams.
-  Each track gives agents a standardized workspace they can resume from on disk
-  instead of replaying chat. A track is NOT a single-task container — it
-  persists across multiple sessions and milestones as long as the broader
-  initiative is alive. `track end` means the workstream is truly complete,
-  paused, or superseded. The extension is intentionally repo-agnostic; it owns
-  only `.pi/tracks/` and session trace entries, with no opinion about the host
-  repository's docs, task systems, or folder layout.
+overview: Tracks is an operational working-memory layer for initiatives/workstreams. Each track gives agents a
+  standardized workspace they can resume from on disk instead of replaying chat. A track is NOT a single-task container
+  — it persists across multiple sessions and milestones as long as the broader initiative is alive. `track end` means
+  the workstream is truly complete, paused, or superseded. The extension is intentionally repo-agnostic; it owns only
+  `.pi/tracks/` and session trace entries, with no opinion about the host repository's docs, task systems, or folder
+  layout.
 gotchas:
-  - >-
-    `summary.md` is derived output. Durable edits belong in the source track
-    files, then `/track sync` regenerates the snapshot.
-  - >-
-    When debugging "wrong track" behavior, do not treat
-    `.pi/tracks/settings.json` as the live authority. Hooks and no-arg track
-    operations must follow the current session's trace state; otherwise parallel
-    Pi sessions can inject, sync, or close the wrong track.
-  - >-
-    `/track` autocomplete suggestions for track names must preserve the active
-    subcommand in the returned value (for example `use my-track`, not just
-    `my-track`). Pi replaces the whole argument tail after `/track`, so
-    slug-only suggestions silently drop the `use`/`status`/`sync`/`end`
-    context in the TUI.
-  - >-
-    Tracks are runtime memory, not source-of-record. If a conclusion matters
-    after closeout, promote it into repo docs, specs, exec plans, or expertise.
-  - >-
-    `settings.json` must use tab indentation to match the repo's Biome formatter
-    config. Biome 2.x does NOT have an `ignore` key under `files`, so you
-    cannot exclude the file — storage writes must produce Biome-compliant JSON.
+  - "`summary.md` is derived output. Durable edits belong in the source track files, then `/track sync` regenerates the
+    snapshot."
+  - When debugging "wrong track" behavior, do not treat `.pi/tracks/settings.json` as the live authority. Hooks and
+    no-arg track operations must follow the current session's trace state; otherwise parallel Pi sessions can inject,
+    sync, or close the wrong track.
+  - "`/track` autocomplete suggestions for track names must preserve the active subcommand in the returned value (for
+    example `use my-track`, not just `my-track`). Pi replaces the whole argument tail after `/track`, so slug-only
+    suggestions silently drop the `use`/`status`/`sync`/`end` context in the TUI."
+  - Tracks are runtime memory, not source-of-record. If a conclusion matters after closeout, promote it into repo docs,
+    specs, exec plans, or expertise.
+  - "`settings.json` must use tab indentation to match the repo's Biome formatter config. Biome 2.x does NOT have an
+    `ignore` key under `files`, so you cannot exclude the file — storage writes must produce Biome-compliant JSON."
+  - Track summary sync appears to pull heavily from the first bullet lists in `tasks.md`. If completed milestones remain
+    as early checklist bullets, `summary.md` can surface stale 'next steps'. Keep `tasks.md` biased toward current open
+    work and express completed background as prose when you want sync output to stay accurate.
 design_decisions:
   - reason: Actions layer consolidates business logic to avoid duplication
-    detail: >-
-      Both the slash command and the LLM tool delegate to shared action
-      functions in `actions.ts`. This eliminated ~310 lines of duplicated
-      logic and fixed a trace-ordering bug in the `end` flow where the two
-      callers emitted traces in opposite order.
+    detail: Both the slash command and the LLM tool delegate to shared action functions in `actions.ts`. This eliminated
+      ~310 lines of duplicated logic and fixed a trace-ordering bug in the `end` flow where the two callers emitted
+      traces in opposite order.
   - reason: Trace instructions are returned, not emitted by actions
-    detail: >-
-      Action functions return `TraceInstruction[]` instead of calling a trace
-      callback directly. This keeps actions pure and testable without mocking
-      the Pi appendEntry API.
+    detail: Action functions return `TraceInstruction[]` instead of calling a trace callback directly. This keeps actions
+      pure and testable without mocking the Pi appendEntry API.
   - reason: Tracks are workstream contexts, not one-shot task folders
-    detail: >-
-      A track should stay open as long as the initiative is still evolving.
-      Completing one milestone does not mean the track should close.
+    detail: A track should stay open as long as the initiative is still evolving. Completing one milestone does not mean the
+      track should close.
   - reason: Repo-agnostic by default
-    detail: >-
-      The extension manages only `.pi/tracks/` plus session trace entries.
-      Templates must not reference project-specific systems, docs, or folder
-      layouts so the extension stays portable across any repository.
+    detail: The extension manages only `.pi/tracks/` plus session trace entries. Templates must not reference
+      project-specific systems, docs, or folder layouts so the extension stays portable across any repository.
   - reason: Templates are the policy surface
-    detail: >-
-      Workspace expectations live in versioned files under
-      `extensions/tracks/templates/` so the contract is visible and editable
-      without hiding policy inside runtime code.
+    detail: Workspace expectations live in versioned files under `extensions/tracks/templates/` so the contract is visible
+      and editable without hiding policy inside runtime code.
   - reason: Deterministic sync over freeform summarization
-    detail: >-
-      The snapshot is rebuilt from canonical track files so repeated syncs stay
-      stable and diffable; v1 avoids LLM-generated summary drift.
+    detail: The snapshot is rebuilt from canonical track files so repeated syncs stay stable and diffable; v1 avoids
+      LLM-generated summary drift.
   - reason: Session-local authority over remembered project state
-    detail: >-
-      Runtime behavior follows the current session's trace state, not the
-      shared settings.json file. Live Pi testing exposed that shared settings
-      let one session hijack another session's context.
+    detail: Runtime behavior follows the current session's trace state, not the shared settings.json file. Live Pi testing
+      exposed that shared settings let one session hijack another session's context.
   - reason: settings.json stores only project-level track selection
-    detail: >-
-      settings.json exists for cross-session continuity (remembering the latest
-      selected track). It should stay minimal — only `active_track`. Session
-      state, milestone data, and track content belong in track folders or
-      session traces, not in settings.
+    detail: settings.json exists for cross-session continuity (remembering the latest selected track). It should stay
+      minimal — only `active_track`. Session state, milestone data, and track content belong in track folders or session
+      traces, not in settings.
   - reason: report.md is a rolling artifact, not closeout-only
-    detail: >-
-      Keeping the report current during work avoids reconstructing everything at
-      shutdown.
+    detail: Keeping the report current during work avoids reconstructing everything at shutdown.
   - reason: No coupling to .pi/todos/ or other extensions
-    detail: >-
-      Tracks own their own `tasks.md` instead of referencing external todo
-      systems. The user is unsure todos will remain the long-term task
-      abstraction, so tracks stay self-contained.
+    detail: Tracks own their own `tasks.md` instead of referencing external todo systems. The user is unsure todos will
+      remain the long-term task abstraction, so tracks stay self-contained.
 codebase_concerns:
-  - >-
-    The custom YAML parser in storage.ts handles only flat key-value pairs and
-    simple string arrays. It does NOT handle nested objects, multi-line block
-    scalars, inline arrays, or comments after values. If metadata ever needs
-    nested structures, switch to a real YAML parser.
+  - The custom YAML parser in storage.ts handles only flat key-value pairs and simple string arrays. It does NOT handle
+    nested objects, multi-line block scalars, inline arrays, or comments after values. If metadata ever needs nested
+    structures, switch to a real YAML parser.
 references:
   - "Business logic for all track actions: extensions/tracks/actions.ts"
   - "Operator-facing behavior and workspace contract: extensions/tracks/README.md"

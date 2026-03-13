@@ -164,11 +164,10 @@ gotchas:
     agents will drift back to chat-only coordination.
   - If track templates mention project-specific docs, workflows, or folder assumptions, the extension stops being
     portable.
-  - QMD (sqlite-vec) is incompatible with Bun's built-in SQLite — must run with `BUN_INSTALL="" qmd ...` to force Node
-    execution. The QMD launcher script at the bin entry checks `$BUN_INSTALL` env var and routes to Bun when set.
-  - 'QMD Bun issue is a known upstream bug with 2 open fix PRs: #377 (use Homebrew SQLite via
-    `Database.setCustomSQLite()` on macOS) and #385 (check `package-lock.json` before `$BUN_INSTALL` in launcher). Once
-    merged, `BUN_INSTALL=""` workaround can be removed. See github.com/tobi/qmd/issues/363.'
+  - 'QMD Bun/sqlite-vec issue is fixed via local fork at `~/git/qmd-fork` (applies upstream PRs #377 and #385).
+    PR #377 calls `Database.setCustomSQLite()` with Homebrew SQLite on macOS so `bun:sqlite` can load sqlite-vec.
+    PR #385 fixes launcher lockfile priority and `cleanupOrphanedVectors()` crash. Requires `brew install sqlite`.
+    Both CLI and SDK work natively under Bun. Switch back to `npm install -g @tobilu/qmd` when upstream merges.'
 references:
   - "Global workflow and enforcement policy: `AGENTS.md`"
   - "Repository docs index and reading order: `docs/README.md`"
