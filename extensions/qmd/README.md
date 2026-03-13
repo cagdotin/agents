@@ -61,9 +61,50 @@ This repo currently expects the local QMD fork to be linked via Bun:
 - local fork: `~/git/qmd-fork`
 - link style: `bun link`
 
+## File layout
+
+```
+extensions/qmd/
+├── index.ts                    # Extension entry point
+├── core/
+│   ├── errors.ts               # Agent-legible typed errors
+│   ├── qmd-store.ts            # SDK wrapper with lazy lifecycle
+│   └── types.ts                # Zod schemas + TypeBox tool params
+├── domain/
+│   ├── freshness.ts            # Git-based markdown freshness
+│   ├── onboarding.ts           # Deterministic init pipeline
+│   └── repo-binding.ts         # Repo root, collection key, marker I/O
+├── extension/
+│   ├── command.ts              # Slash commands, alias, shortcut, panel lifecycle
+│   ├── runtime.ts              # Session hooks, footer, prompt injection
+│   └── tool.ts                 # Workflow-scoped qmd_init tool
+├── ui/
+│   ├── constants.ts            # Panel constants (width, shortcuts, icon)
+│   ├── data.ts                 # Snapshot builder, file tree, helpers
+│   ├── panel.ts                # Interactive TUI panel (overview/files/updating)
+│   └── plain-text.ts           # Non-TUI fallback summary
+├── docs/
+│   ├── architecture.md         # Layer diagram and responsibilities
+│   ├── freshness.md            # Freshness model and footer behavior
+│   ├── onboarding.md           # Init flow steps and caveats
+│   └── panel.md                # Panel states, keyboard shortcuts, data flow
+└── __tests__/
+    ├── core/
+    │   ├── qmd-store.test.ts
+    │   └── types.test.ts
+    ├── domain/
+    │   ├── freshness.test.ts
+    │   ├── onboarding.test.ts
+    │   └── repo-binding.test.ts
+    ├── extension/
+    │   └── runtime.test.ts
+    └── ui/
+        └── data.test.ts
+```
+
 ## Docs
 
-- `docs/architecture.md`
-- `docs/onboarding.md`
-- `docs/freshness.md`
-- `docs/panel.md`
+- `docs/architecture.md` — layers, dependency direction, file responsibilities
+- `docs/onboarding.md` — init flow steps and caveats
+- `docs/freshness.md` — freshness model and footer behavior
+- `docs/panel.md` — panel states, keyboard shortcuts, data flow

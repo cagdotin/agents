@@ -26,18 +26,19 @@ An interactive TUI dashboard for inspecting the QMD index state of the current r
 
 ## Keyboard Shortcuts
 
-| Key | Overview | Files tree |
-|-----|----------|------------|
-| `esc`, `q` | Close panel | Back to overview |
-| `Ctrl+Alt+Q` | Toggle panel | Toggle panel |
-| `u` | Trigger update | — |
-| `i` | Start init (if not indexed) | — |
-| `r` | Refresh snapshot | Refresh snapshot |
-| `j/k`, `↑↓` | Scroll | Move cursor |
-| `enter`, `l`, `→` | Open file tree | Toggle collapse/expand |
-| `h`, `←` | — | Back to overview |
-| `g` / `G` | Top / bottom | Top / bottom |
-| `PageUp/Down` | Page scroll | Page scroll |
+| Key | Overview | Files tree | Updating |
+|-----|----------|------------|----------|
+| `esc`, `q` | Close panel | Back to overview | Cancel |
+| `Ctrl+C` | Close panel | Close panel | Close panel |
+| `Ctrl+Alt+Q` | Toggle panel | Toggle panel | Toggle panel |
+| `u` | Trigger update | — | — |
+| `i` | Start init (if not indexed) | — | — |
+| `r` | Refresh snapshot | Refresh snapshot | — |
+| `j/k`, `↑↓` | Scroll | Move cursor | — |
+| `enter`, `l`, `→` | Open file tree | Toggle collapse/expand | — |
+| `h`, `←` | — | Back to overview | — |
+| `g` / `G` | Top / bottom | Top / bottom | — |
+| `PageUp/Down` | Page scroll | Page scroll | — |
 
 ## File Tree
 
