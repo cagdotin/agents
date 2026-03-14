@@ -1,4 +1,11 @@
-import { get_active_document_paths, get_index_health, get_status, list_contexts } from "../core/qmd-store.js";
+import {
+	get_active_document_paths,
+	get_index_health,
+	get_status,
+	handelize_path,
+	list_contexts,
+	scan_filesystem_paths,
+} from "../core/qmd-store.js";
 import type { FreshnessResult, RepoBindingResult } from "../core/types.js";
 
 // ── Snapshot type ───────────────────────────────────────────
@@ -29,6 +36,9 @@ export interface QmdPanelSnapshot {
 
 	// All indexed file paths (for detail view)
 	indexed_paths: string[];
+
+	// All .md file paths on the filesystem (superset of indexed_paths)
+	filesystem_paths: string[];
 }
 
 // ── Snapshot builder ────────────────────────────────────────
@@ -48,14 +58,20 @@ export async function build_qmd_panel_snapshot(
 
 	// Status: indexed
 	try {
-		const [status, contexts, paths, health] = await Promise.all([
+		const [status, contexts, qmd_paths, health, fs_paths] = await Promise.all([
 			get_status(),
 			list_contexts(),
 			get_active_document_paths(binding.collection_key),
 			get_index_health(),
+			scan_filesystem_paths(binding.repo_root),
 		]);
 
 		const collection = status.collections.find((c) => c.name === binding.collection_key);
+
+		// Build reverse map: handlized → filesystem path
+		// QMD stores handlized paths; we need filesystem paths for the UI
+		const qmd_indexed_set = new Set(qmd_paths);
+		const indexed_fs_paths = fs_paths.filter((fs_p) => qmd_indexed_set.has(handelize_path(fs_p)));
 
 		return {
 			binding_status: "indexed",
@@ -79,7 +95,8 @@ export async function build_qmd_panel_snapshot(
 				.filter((c) => c.collection === binding.collection_key)
 				.map((c) => ({ path: c.path, annotation: c.context })),
 
-			indexed_paths: paths,
+			indexed_paths: indexed_fs_paths,
+			filesystem_paths: fs_paths,
 		};
 	} catch {
 		return empty_snapshot("unavailable", binding.repo_root, "Failed to read QMD store data.");
@@ -113,6 +130,7 @@ function empty_snapshot(
 
 		contexts: [],
 		indexed_paths: [],
+		filesystem_paths: [],
 	};
 }
 
@@ -164,21 +182,39 @@ export function group_paths_by_directory(paths: string[]): Map<string, string[]>
 
 // ── File tree ───────────────────────────────────────────────
 
+export type DirIndexStatus = "all" | "some" | "none";
+
 export interface FileTreeNode {
 	name: string;
 	path: string;
 	is_dir: boolean;
 	children: FileTreeNode[];
 	file_count: number;
+	/** For files: whether the file is in the QMD index */
+	indexed: boolean;
+	/** For dirs: aggregate index status of descendant files */
+	dir_index_status: DirIndexStatus;
 }
 
 /**
  * Build a hierarchical tree from flat file paths.
  * Directories that contain only a single child directory are collapsed
  * into one node (e.g. `docs/exec-plans/active` instead of three levels).
+ *
+ * @param paths All file paths to include in the tree
+ * @param indexed_set Set of paths that are currently indexed in QMD
  */
-export function build_file_tree(paths: string[]): FileTreeNode[] {
-	const root: FileTreeNode = { name: "", path: "", is_dir: true, children: [], file_count: 0 };
+export function build_file_tree(paths: string[], indexed_set?: Set<string>): FileTreeNode[] {
+	const idx = indexed_set ?? new Set<string>();
+	const root: FileTreeNode = {
+		name: "",
+		path: "",
+		is_dir: true,
+		children: [],
+		file_count: 0,
+		indexed: false,
+		dir_index_status: "none",
+	};
 
 	for (const file_path of paths) {
 		const segments = file_path.split("/");
@@ -196,13 +232,23 @@ export function build_file_tree(paths: string[]): FileTreeNode[] {
 					is_dir: false,
 					children: [],
 					file_count: 0,
+					indexed: idx.has(file_path),
+					dir_index_status: "none",
 				});
 			} else {
 				// Directory node — find or create
 				const partial_path = segments.slice(0, i + 1).join("/");
 				let child = current.children.find((c) => c.is_dir && c.path === partial_path);
 				if (!child) {
-					child = { name: seg, path: partial_path, is_dir: true, children: [], file_count: 0 };
+					child = {
+						name: seg,
+						path: partial_path,
+						is_dir: true,
+						children: [],
+						file_count: 0,
+						indexed: false,
+						dir_index_status: "none",
+					};
 					current.children.push(child);
 				}
 				current = child;
@@ -212,6 +258,9 @@ export function build_file_tree(paths: string[]): FileTreeNode[] {
 
 	// Count files recursively
 	count_files(root);
+
+	// Compute dir index status
+	compute_dir_index_status(root);
 
 	// Sort: dirs first (alphabetical), then files (alphabetical)
 	sort_tree(root);
@@ -235,6 +284,33 @@ function count_files(node: FileTreeNode): number {
 	return total;
 }
 
+/** Compute aggregate index status for directories based on descendant files. */
+function compute_dir_index_status(node: FileTreeNode): { indexed: number; total: number } {
+	if (!node.is_dir) {
+		return { indexed: node.indexed ? 1 : 0, total: 1 };
+	}
+
+	let indexed_count = 0;
+	let total_count = 0;
+	for (const child of node.children) {
+		const r = compute_dir_index_status(child);
+		indexed_count += r.indexed;
+		total_count += r.total;
+	}
+
+	if (total_count === 0) {
+		node.dir_index_status = "none";
+	} else if (indexed_count === total_count) {
+		node.dir_index_status = "all";
+	} else if (indexed_count > 0) {
+		node.dir_index_status = "some";
+	} else {
+		node.dir_index_status = "none";
+	}
+
+	return { indexed: indexed_count, total: total_count };
+}
+
 function sort_tree(node: FileTreeNode): void {
 	if (!node.is_dir) return;
 	node.children.sort((a, b) => {
@@ -256,10 +332,29 @@ function collapse_single_child_dirs(node: FileTreeNode): void {
 				child.path = grandchild.path;
 				child.children = grandchild.children;
 				child.file_count = grandchild.file_count;
+				child.dir_index_status = grandchild.dir_index_status;
 			}
 			collapse_single_child_dirs(child);
 		}
 	}
+}
+
+/**
+ * Collect all descendant file paths from a tree node.
+ */
+export function collect_file_paths(node: FileTreeNode): string[] {
+	const paths: string[] = [];
+	function walk(n: FileTreeNode): void {
+		if (!n.is_dir) {
+			paths.push(n.path);
+		} else {
+			for (const child of n.children) {
+				walk(child);
+			}
+		}
+	}
+	walk(node);
+	return paths;
 }
 
 /**

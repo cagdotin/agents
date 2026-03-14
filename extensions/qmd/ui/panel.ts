@@ -2,15 +2,17 @@ import type { Theme } from "@mariozechner/pi-coding-agent";
 import { matchesKey, type TUI, truncateToWidth, visibleWidth } from "@mariozechner/pi-tui";
 import { QMD_PANEL_ICON, QMD_PANEL_SHORTCUT, QMD_PANEL_WIDTH } from "./constants.js";
 import type { FileTreeNode, FlatTreeEntry, QmdPanelSnapshot } from "./data.js";
-import { build_file_tree, flatten_tree, format_relative_time } from "./data.js";
+import { build_file_tree, collect_file_paths, flatten_tree, format_relative_time } from "./data.js";
+import { ToggleState } from "./toggle-state.js";
 
-type PanelView = "overview" | "files" | "updating";
+type PanelView = "overview" | "files" | "updating" | "applying";
 
 export interface QmdPanelCallbacks {
 	get_snapshot: () => Promise<QmdPanelSnapshot>;
 	on_update: () => Promise<void>;
 	on_init: () => void;
 	on_close: () => void;
+	on_toggle_files: (adds: string[], removes: string[]) => Promise<void>;
 }
 
 export async function show_qmd_panel(
@@ -58,6 +60,9 @@ export class QmdPanel {
 	private tree_scroll_offset = 0;
 	private tree_view_height = 0;
 
+	// Toggle state — tracks pending index changes
+	private toggle: ToggleState = new ToggleState([]);
+
 	constructor(
 		tui: TUI,
 		theme: Theme,
@@ -96,7 +101,7 @@ export class QmdPanel {
 		if (this.view === "files") {
 			return this.render_files_view(width);
 		}
-		if (this.view === "updating") {
+		if (this.view === "updating" || this.view === "applying") {
 			return this.render_updating_view(width);
 		}
 		return this.render_overview(width);
@@ -126,7 +131,8 @@ export class QmdPanel {
 		}
 		if (
 			(matchesKey(key_data, "enter") || matchesKey(key_data, "l") || matchesKey(key_data, "right")) &&
-			this.snapshot.indexed_paths.length > 0
+			this.snapshot.binding_status === "indexed" &&
+			this.snapshot.filesystem_paths.length > 0
 		) {
 			this.open_tree_view();
 			return;
@@ -143,6 +149,7 @@ export class QmdPanel {
 			matchesKey(key_data, "h") ||
 			matchesKey(key_data, "left")
 		) {
+			this.toggle.clear();
 			this.view = "overview";
 			this.scroll_offset = 0;
 			this.tui.requestRender();
@@ -152,8 +159,21 @@ export class QmdPanel {
 			this.refresh();
 			return;
 		}
+		// enter / l / right → expand/collapse dirs
 		if (matchesKey(key_data, "enter") || matchesKey(key_data, "l") || matchesKey(key_data, "right")) {
-			this.tree_toggle_current();
+			this.tree_toggle_expand();
+			return;
+		}
+		// space → toggle file/dir index inclusion
+		if (matchesKey(key_data, "space")) {
+			this.tree_toggle_inclusion();
+			return;
+		}
+		// a → apply pending changes
+		if (matchesKey(key_data, "a")) {
+			if (this.toggle.has_pending()) {
+				this.apply_pending_changes();
+			}
 			return;
 		}
 		if (matchesKey(key_data, "j") || matchesKey(key_data, "down")) {
@@ -241,7 +261,8 @@ export class QmdPanel {
 	// ── Tree navigation helpers ─────────────────────────────
 
 	private open_tree_view(): void {
-		this.tree_roots = build_file_tree(this.snapshot.indexed_paths);
+		this.toggle = new ToggleState(this.snapshot.indexed_paths);
+		this.tree_roots = build_file_tree(this.snapshot.filesystem_paths, this.toggle.indexed_set);
 		this.tree_collapsed = new Set();
 		// Start with top-level dirs collapsed for easy navigation
 		for (const root of this.tree_roots) {
@@ -264,7 +285,8 @@ export class QmdPanel {
 		}
 	}
 
-	private tree_toggle_current(): void {
+	/** Expand/collapse a directory node */
+	private tree_toggle_expand(): void {
 		if (this.tree_flat.length === 0) return;
 		const entry = this.tree_flat[this.tree_cursor];
 		if (!entry.node.is_dir) return;
@@ -276,6 +298,43 @@ export class QmdPanel {
 		}
 		this.rebuild_tree_flat();
 		this.tui.requestRender();
+	}
+
+	/** Toggle index inclusion for the current file or all files in a dir */
+	private tree_toggle_inclusion(): void {
+		if (this.tree_flat.length === 0) return;
+		const entry = this.tree_flat[this.tree_cursor];
+		this.toggle.toggle_node(entry.node);
+		this.tui.requestRender();
+	}
+
+	/** Apply pending adds/removes via SDK callbacks */
+	private async apply_pending_changes(): Promise<void> {
+		if (this.updating) return;
+		const adds = [...this.toggle.pending_adds];
+		const removes = [...this.toggle.pending_removes];
+		if (adds.length === 0 && removes.length === 0) return;
+
+		this.updating = true;
+		this.view = "applying";
+		this.update_progress = `${removes.length} to remove, ${adds.length} to add…`;
+		this.tui.requestRender();
+
+		try {
+			await this.callbacks.on_toggle_files(adds, removes);
+			this.snapshot = await this.callbacks.get_snapshot();
+			// Re-open tree view with fresh data
+			this.toggle = new ToggleState(this.snapshot.indexed_paths);
+			this.tree_roots = build_file_tree(this.snapshot.filesystem_paths, this.toggle.indexed_set);
+			this.rebuild_tree_flat();
+			this.view = "files";
+		} catch {
+			this.view = "files";
+		} finally {
+			this.updating = false;
+			this.update_progress = null;
+			this.tui.requestRender();
+		}
 	}
 
 	private tree_move_cursor(delta: number): void {
@@ -443,15 +502,24 @@ export class QmdPanel {
 		const max_h = this.get_max_height();
 		const snap = this.snapshot;
 
+		const pending_count = this.toggle.pending_count();
+
 		// ── header ───────────────────────────────────────────
 		const header: string[] = [];
 		header.push("");
 		const icon = t.fg("accent", QMD_PANEL_ICON);
 		const breadcrumb = ` ${icon} ${t.fg("dim", "QMD Index")} ${t.fg("dim", "›")} ${t.fg("accent", t.bold("Files"))}`;
-		const count_badge = `${t.fg("accent", `${snap.indexed_paths.length}`)} ${t.fg("dim", "files")} `;
+		const indexed_count = snap.indexed_paths.length;
+		const total_count = snap.filesystem_paths.length;
+		const count_badge = `${t.fg("accent", `${indexed_count}`)}${t.fg("dim", "/")}${t.fg("muted", `${total_count}`)} ${t.fg("dim", "indexed")} `;
 		const hgap = Math.max(1, iw - visibleWidth(breadcrumb) - visibleWidth(count_badge));
 		header.push(`${breadcrumb}${" ".repeat(hgap)}${count_badge}`);
-		header.push("");
+		if (pending_count > 0) {
+			const pending_text = `  ${t.fg("warning", `${pending_count} pending`)} ${t.fg("dim", "·")} ${t.fg("accent", "a")} ${t.fg("muted", "to apply")}`;
+			header.push(pending_text);
+		} else {
+			header.push("");
+		}
 		header.push(t.fg("dim", "─".repeat(iw)));
 
 		// ── footer ───────────────────────────────────────────
@@ -460,10 +528,14 @@ export class QmdPanel {
 
 		const hints: string[] = [
 			`${t.fg("accent", "esc")} back`,
-			`${t.fg("accent", "j/k")} navigate`,
-			`${t.fg("accent", "enter")} toggle`,
-			`${t.fg("accent", "r")} refresh`,
+			`${t.fg("accent", "j/k")} nav`,
+			`${t.fg("accent", "space")} toggle`,
+			`${t.fg("accent", "enter")} expand`,
 		];
+
+		if (pending_count > 0) {
+			hints.push(`${t.fg("accent", "a")} apply`);
+		}
 
 		footer.push(`  ${hints.join(t.fg("dim", "  ·  "))}`);
 
@@ -506,12 +578,41 @@ export class QmdPanel {
 		return this.frame_content([...header, ...tree_lines, ...footer], w, iw);
 	}
 
+	/** Get the effective index indicator for a file considering pending state */
+	private file_indicator(file_path: string): { char: string; color: string } {
+		const is_pending_add = this.toggle.pending_adds.has(file_path);
+		const is_pending_remove = this.toggle.pending_removes.has(file_path);
+
+		if (is_pending_add) return { char: "◉", color: "accent" }; // not indexed → pending add
+		if (is_pending_remove) return { char: "◎", color: "warning" }; // indexed → pending remove
+		if (this.toggle.indexed_set.has(file_path)) return { char: "●", color: "accent" }; // indexed, no change
+		return { char: "○", color: "dim" }; // not indexed, no change
+	}
+
+	/** Get the effective aggregate indicator for a directory considering pending state */
+	private dir_indicator(node: FileTreeNode): { char: string; color: string } {
+		const descendant_paths = collect_file_paths(node);
+		if (descendant_paths.length === 0) return { char: "○", color: "dim" };
+
+		let indexed_count = 0;
+		let has_pending = false;
+		for (const p of descendant_paths) {
+			if (this.toggle.is_effectively_indexed(p)) indexed_count++;
+			if (this.toggle.pending_adds.has(p) || this.toggle.pending_removes.has(p)) has_pending = true;
+		}
+
+		const color = has_pending ? "warning" : "accent";
+		if (indexed_count === descendant_paths.length) return { char: "●", color };
+		if (indexed_count > 0) return { char: "◐", color };
+		return { char: "○", color: has_pending ? "warning" : "dim" };
+	}
+
 	private render_tree_line(entry: FlatTreeEntry, iw: number, is_selected: boolean): string {
 		const t = this.theme;
 		const { node, depth, is_last, parent_is_last } = entry;
 
 		// Build tree guide prefix
-		let prefix = "  ";
+		let prefix = " ";
 		for (let d = 0; d < depth; d++) {
 			if (d < parent_is_last.length && parent_is_last[d]) {
 				prefix += "   ";
@@ -527,13 +628,15 @@ export class QmdPanel {
 		let label: string;
 		if (node.is_dir) {
 			const is_collapsed = this.tree_collapsed.has(node.path);
-			const chevron = is_collapsed ? t.fg("accent", "▸") : t.fg("accent", "▾");
+			const chevron = is_collapsed ? "▸" : "▾";
 			const dir_name = is_selected ? t.fg("accent", t.bold(`${node.name}/`)) : t.fg("muted", `${node.name}/`);
 			const count = t.fg("dim", `(${node.file_count})`);
-			label = `${chevron} ${dir_name} ${count}`;
+			const ind = this.dir_indicator(node);
+			label = `${t.fg(ind.color, ind.char)} ${t.fg("accent", chevron)} ${dir_name} ${count}`;
 		} else {
+			const ind = this.file_indicator(node.path);
 			const file_name = is_selected ? t.fg("accent", node.name) : node.name;
-			label = `  ${file_name}`;
+			label = `${t.fg(ind.color, ind.char)} ${file_name}`;
 		}
 
 		const line = `${prefix}${connector}${label}`;
@@ -552,12 +655,15 @@ export class QmdPanel {
 		const iw = w - 2;
 		const snap = this.snapshot;
 
+		const is_applying = this.view === "applying";
+		const badge_label = is_applying ? "applying…" : "updating…";
+
 		const content: string[] = [];
 		content.push("");
 
 		const icon = t.fg("accent", QMD_PANEL_ICON);
 		const title = ` ${icon} ${t.fg("accent", t.bold("QMD Index"))}`;
-		const badge = `${t.fg("warning", "updating…")} `;
+		const badge = `${t.fg("warning", badge_label)} `;
 		const gap = Math.max(1, iw - visibleWidth(title) - visibleWidth(badge) - 1);
 		content.push(`${title}${" ".repeat(gap)}${badge}`);
 		content.push("");
@@ -588,7 +694,8 @@ export class QmdPanel {
 			this.scroll_offset = 0;
 			if (this.view === "files") {
 				// Rebuild tree from new snapshot
-				this.tree_roots = build_file_tree(this.snapshot.indexed_paths);
+				this.toggle = new ToggleState(this.snapshot.indexed_paths);
+				this.tree_roots = build_file_tree(this.snapshot.filesystem_paths, this.toggle.indexed_set);
 				this.rebuild_tree_flat();
 			}
 			this.tui.requestRender();
@@ -657,7 +764,7 @@ export class QmdPanel {
 		if (snap.binding_status === "indexed") {
 			hints.push(`${t.fg("accent", "u")} update`);
 			hints.push(`${t.fg("accent", "r")} refresh`);
-			if (snap.indexed_paths.length > 0) {
+			if (snap.filesystem_paths.length > 0) {
 				hints.push(`${t.fg("accent", "enter")} files`);
 			}
 			if (this.content_lines.length > this.scroll_view_height) {

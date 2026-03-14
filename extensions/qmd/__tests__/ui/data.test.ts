@@ -11,27 +11,42 @@ import {
 
 // ── Mock store ──────────────────────────────────────────────
 
-vi.mock("../../core/qmd-store.js", () => ({
-	get_status: vi.fn(() =>
-		Promise.resolve({
-			totalDocuments: 142,
-			needsEmbedding: 0,
-			hasVectorIndex: true,
-			collections: [{ name: "agents", path: "/repo", pattern: "**/*.md", documentCount: 142 }],
-		}),
-	),
-	list_contexts: vi.fn(() =>
-		Promise.resolve([
-			{ collection: "agents", path: "docs/", context: "Architecture docs" },
-			{ collection: "agents", path: "extensions/", context: "Pi extensions" },
-			{ collection: "other", path: "lib/", context: "Library code" },
-		]),
-	),
-	get_active_document_paths: vi.fn(() =>
-		Promise.resolve(["docs/ARCHITECTURE.md", "docs/QUALITY.md", "extensions/qmd/README.md"]),
-	),
-	get_index_health: vi.fn(() => Promise.resolve({ needs_embedding: 0, total_docs: 142, days_stale: null })),
-}));
+vi.mock("../../core/qmd-store.js", async () => {
+	const actual = await vi.importActual<typeof import("../../core/qmd-store.js")>("../../core/qmd-store.js");
+	return {
+		get_status: vi.fn(() =>
+			Promise.resolve({
+				totalDocuments: 142,
+				needsEmbedding: 0,
+				hasVectorIndex: true,
+				collections: [{ name: "agents", path: "/repo", pattern: "**/*.md", documentCount: 142 }],
+			}),
+		),
+		list_contexts: vi.fn(() =>
+			Promise.resolve([
+				{ collection: "agents", path: "docs/", context: "Architecture docs" },
+				{ collection: "agents", path: "extensions/", context: "Pi extensions" },
+				{ collection: "other", path: "lib/", context: "Library code" },
+			]),
+		),
+		// QMD stores handlized paths (lowercased, cleaned)
+		get_active_document_paths: vi.fn(() =>
+			Promise.resolve(["docs/architecture.md", "docs/quality.md", "extensions/qmd/readme.md"]),
+		),
+		get_index_health: vi.fn(() => Promise.resolve({ needs_embedding: 0, total_docs: 142, days_stale: null })),
+		scan_filesystem_paths: vi.fn(() =>
+			Promise.resolve([
+				"docs/ARCHITECTURE.md",
+				"docs/QUALITY.md",
+				"extensions/qmd/README.md",
+				"README.md",
+				"CHANGELOG.md",
+			]),
+		),
+		// Use real handelize_path so the mapping works correctly in tests
+		handelize_path: actual.handelize_path,
+	};
+});
 
 // ── Helpers ─────────────────────────────────────────────────
 
@@ -87,6 +102,7 @@ describe("build_qmd_panel_snapshot", () => {
 		expect(snap.contexts).toHaveLength(2); // only "agents" collection
 		expect(snap.contexts[0]).toEqual({ path: "docs/", annotation: "Architecture docs" });
 		expect(snap.indexed_paths).toHaveLength(3);
+		expect(snap.filesystem_paths).toHaveLength(5);
 		expect(snap.error_reason).toBeNull();
 	});
 
@@ -119,6 +135,7 @@ describe("build_qmd_panel_snapshot", () => {
 		expect(snap.total_documents).toBe(0);
 		expect(snap.contexts).toEqual([]);
 		expect(snap.indexed_paths).toEqual([]);
+		expect(snap.filesystem_paths).toEqual([]);
 		expect(get_status).not.toHaveBeenCalled();
 	});
 
@@ -259,6 +276,39 @@ describe("build_file_tree", () => {
 		expect(tree[0].name).toBe("a-dir");
 		expect(tree[1].is_dir).toBe(false);
 		expect(tree[1].name).toBe("z-file.md");
+	});
+
+	it("tags nodes with indexed state from provided set", () => {
+		const paths = ["docs/A.md", "docs/B.md", "README.md"];
+		const indexed = new Set(["docs/A.md", "README.md"]);
+		const tree = build_file_tree(paths, indexed);
+
+		// docs dir — some indexed
+		expect(tree[0].is_dir).toBe(true);
+		expect(tree[0].dir_index_status).toBe("some");
+
+		// docs/A.md — indexed
+		expect(tree[0].children[0].indexed).toBe(true);
+		// docs/B.md — not indexed
+		expect(tree[0].children[1].indexed).toBe(false);
+
+		// README.md — indexed
+		expect(tree[1].indexed).toBe(true);
+	});
+
+	it("dir_index_status is 'all' when all files indexed", () => {
+		const paths = ["docs/A.md", "docs/B.md"];
+		const indexed = new Set(["docs/A.md", "docs/B.md"]);
+		const tree = build_file_tree(paths, indexed);
+
+		expect(tree[0].dir_index_status).toBe("all");
+	});
+
+	it("dir_index_status is 'none' when no files indexed", () => {
+		const paths = ["docs/A.md", "docs/B.md"];
+		const tree = build_file_tree(paths, new Set());
+
+		expect(tree[0].dir_index_status).toBe("none");
 	});
 });
 
