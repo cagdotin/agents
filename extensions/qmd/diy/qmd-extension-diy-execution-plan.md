@@ -78,7 +78,26 @@
 - init requires explicit confirmation
 - tool scope does not leak after success/failure
 
-## Milestone 7 — Quality + docs parity
+## Milestone 7 — File tree toggle + dot-path support
+
+- Add `scan_filesystem_paths()` — walk repo for all `.md` files (including dot-dirs)
+- Add `handelize_path()` — normalize filesystem paths to QMD's stored format
+- Add `index_files()` — direct insertion via internal store APIs (bypasses scanner)
+- Add `has_dot_segment()` — detect paths needing `extra_paths` persistence
+- Build `ToggleState` class — pure toggle logic with `pending_adds`/`pending_removes` sets
+- Wire file tree view in panel — filesystem scan overlaid with indexed state
+- Implement `on_toggle_files` callback — `deactivate_document` for removes, `index_files` for adds
+- Maintain `extra_paths` in marker — persist dot-path selections across updates
+- Re-index `extra_paths` after every `update_collection()` in both `run_update` and `execute_init`
+- Add `deactivate_document()` — wraps internal store with handlized path translation
+
+**Done when**
+- Users can toggle file inclusion via space key in file tree
+- Dot-path files persist across `/qmd update`
+- `/qmd init` automatically indexes dot-path files
+- Toggle state is testable independently from panel UI
+
+## Milestone 8 — Quality + docs parity
 
 - Ensure docs match actual command/runtime behavior
 - Add/update README + architecture/onboarding/freshness/panel docs
@@ -97,6 +116,7 @@
 3. runtime + status/update commands
 4. onboarding + tool lifecycle
 5. panel + docs + tests
+6. file tree toggle + dot-path support
 
 ## Guardrails
 

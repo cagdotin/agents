@@ -42,6 +42,24 @@ Implement a repo-local QMD integration that manages indexing **infrastructure an
 - not indexed
 - unavailable
 - updating
+- applying (file toggle changes being applied)
+
+### File tree toggle
+
+The files view shows ALL `.md` files from the filesystem (including dot-directories like `.pi/`), overlaid with indexed state from QMD:
+
+| Indicator | Meaning |
+|-----------|---------|
+| `●` | Indexed (no pending change) |
+| `○` | Not indexed (no pending change) |
+| `◉` | Pending add (will be indexed on apply) |
+| `◎` | Pending remove (will be deactivated on apply) |
+
+- `space` toggles a file or directory's inclusion
+- `enter` expands/collapses directories
+- `a` applies all pending changes (batch operation)
+- Directory toggle: if any descendant is effectively included → remove all; otherwise add all
+- Directories show aggregate indicators (`●` all, `◐` some, `○` none)
 
 ### Runtime behavior
 
@@ -65,14 +83,32 @@ Implement a repo-local QMD integration that manages indexing **infrastructure an
   last_indexed_at: string,
   last_indexed_commit: string,
   created_at: string,
+  extra_paths?: string[],  // dot-path files explicitly added by the user
 }
 ```
+
+`extra_paths` stores filesystem-relative paths with dot-segments (e.g. `.pi/tracks/summary.md`) that the user chose to index. QMD's reindexer skips dot-prefixed path segments, so these must be re-indexed after every `update_collection()` call.
 
 ### Canonical identity
 
 - Canonical repo identity is normalized absolute `repo_root`
 - Collection key is deterministic path-derived encoding
 - One binding per repo root
+
+## 3b) Dot-path file handling
+
+QMD's `reindexCollection` skips dot-prefixed path segments (`dot: false` in fastGlob + explicit hidden filter). This means files under `.pi/`, `.github/`, etc. are invisible to the scanner and get deactivated on every reindex.
+
+**Workaround architecture:**
+
+1. **Direct insertion via internal store APIs** — `insertDocument` / `insertContent` have no dot-path restriction. Use these for targeted file adds.
+2. **Persistent `extra_paths` in marker** — dot-path files the user adds are saved in `.pi/qmd.json`. After every `update_collection()` call, re-index `extra_paths` to restore them.
+3. **Path normalization** — QMD stores "handlized" paths (lowercased, special chars replaced with hyphens, leading dots stripped). The UI uses filesystem paths as canonical keys and translates at the store boundary via `handelize_path()`.
+
+**Touch points that must re-index `extra_paths`:**
+- `/qmd update` (`run_update`)
+- `/qmd init` (`execute_init`) — automatically discovers and indexes all dot-path `.md` files
+- File tree toggle (`on_toggle_files`) — updates `extra_paths` when dot-path files are added/removed
 
 ## 4) Architecture and boundaries
 

@@ -6,8 +6,8 @@
 - Track: agent-memory
 - Purpose: Research, evaluate, and integrate agent memory/context management improvements — covering QMD, OpenViking patterns, and enhancements to our expertise/tracks systems
 - Status: active
-- Last synced: 2026-03-13T16:14:08.005Z
-- Session count: 13
+- Last synced: 2026-03-14T10:06:15.586Z
+- Session count: 14
 - Summary version: 1
 
 ## Related paths
@@ -31,6 +31,7 @@
 - Define v1 design sketch for unified tracks+expert memory plugin (workstream memory + domain memory boundary)
 - Decide promotion flow: session findings → track files → expertise append
 - Validate which OpenViking ideas to adopt next (tiering/promotion/retrieval orchestration) without adopting its runtime stack
+- Create PR to QMD repo: add opt-in `dot` option to `reindexCollection` (e.g. `{ dot?: boolean }`) so dot-path files can be included in the scanner without needing our `extra_paths` workaround. Must not change default behavior (`dot: false`).
 
 ## Findings
 - **Local-first, zero infrastructure.** Single SQLite file, local models, no API keys, no server process.

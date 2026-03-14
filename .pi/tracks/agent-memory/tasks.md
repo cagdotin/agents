@@ -13,6 +13,8 @@ Consolidated memory architecture planning (post-implementation):
 ### QMD stream
 - ✅ v1 extension implemented
 - ✅ TUI panel implemented
+- ✅ File tree toggle (select/unselect files for index inclusion)
+- ✅ Dot-path file indexing with persistence across updates
 - ⏳ pending upstream release with PR #377 + #385
 
 ### Tracks stream (merged from `track-extension`)
@@ -31,6 +33,10 @@ Consolidated memory architecture planning (post-implementation):
 - [ ] Define v1 design sketch for unified tracks+expert memory plugin (workstream memory + domain memory boundary)
 - [ ] Decide promotion flow: session findings → track files → expertise append
 - [ ] Validate which OpenViking ideas to adopt next (tiering/promotion/retrieval orchestration) without adopting its runtime stack
+
+## Upstream
+
+- [ ] Create PR to QMD repo: add opt-in `dot` option to `reindexCollection` (e.g. `{ dot?: boolean }`) so dot-path files can be included in the scanner without needing our `extra_paths` workaround. Must not change default behavior (`dot: false`).
 
 ## Open threads
 
