@@ -1,5 +1,11 @@
 import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
-import { embed_pending, update_collection } from "../core/qmd-store.js";
+import {
+	deactivate_document,
+	embed_pending,
+	has_dot_segment,
+	index_files,
+	update_collection,
+} from "../core/qmd-store.js";
 import type { FreshnessResult, RepoBindingResult } from "../core/types.js";
 import { check_freshness, get_repo_head_commit } from "../domain/freshness.js";
 import { build_draft_proposal, build_init_prompt, scan_repo } from "../domain/onboarding.js";
@@ -85,11 +91,19 @@ export function register_qmd_command(pi: ExtensionAPI, state: QmdExtensionState)
 		if (binding.status !== "indexed") return;
 
 		const update_result = await update_collection(binding.collection_key);
-		if (update_result.needsEmbedding > 0) {
+
+		// Re-index dot-path files that QMD's scanner can't see
+		const existing_marker = await read_repo_marker(binding.repo_root).catch(() => null);
+		const extra = existing_marker?.extra_paths ?? [];
+		if (extra.length > 0) {
+			await index_files(binding.collection_key, binding.repo_root, extra);
+		}
+
+		if (update_result.needsEmbedding > 0 || extra.length > 0) {
 			await embed_pending();
 		}
+
 		const now = new Date().toISOString();
-		const existing_marker = await read_repo_marker(binding.repo_root).catch(() => null);
 		await write_repo_marker(binding.repo_root, {
 			schema_version: 1,
 			repo_root: binding.repo_root,
@@ -97,6 +111,7 @@ export function register_qmd_command(pi: ExtensionAPI, state: QmdExtensionState)
 			last_indexed_at: now,
 			last_indexed_commit: (await get_repo_head_commit(binding.repo_root)) ?? "",
 			created_at: existing_marker?.created_at ?? now,
+			extra_paths: extra.length > 0 ? extra : undefined,
 		});
 
 		await refresh_runtime_state(ctx, state);
@@ -171,6 +186,42 @@ export function register_qmd_command(pi: ExtensionAPI, state: QmdExtensionState)
 					on_init: () => start_init(ctx),
 					on_close: () => {
 						/* replaced by panel */
+					},
+					on_toggle_files: async (adds, removes) => {
+						const binding = await detect_repo_binding(ctx.cwd);
+						if (binding.status !== "indexed") return;
+
+						// Deactivate removed files (fs paths → handlized internally)
+						for (const fs_path of removes) {
+							await deactivate_document(binding.collection_key, fs_path);
+						}
+
+						// Directly index added files (works for dotfiles too)
+						if (adds.length > 0) {
+							await index_files(binding.collection_key, binding.repo_root, adds);
+							await embed_pending();
+						}
+
+						// Update extra_paths in marker — dot-path files need to be
+						// re-indexed after every update_collection() call
+						const existing_marker = await read_repo_marker(binding.repo_root).catch(() => null);
+						const prev_extra = new Set(existing_marker?.extra_paths ?? []);
+						for (const p of adds.filter(has_dot_segment)) prev_extra.add(p);
+						for (const p of removes.filter(has_dot_segment)) prev_extra.delete(p);
+						const extra = [...prev_extra].sort();
+
+						const now = new Date().toISOString();
+						await write_repo_marker(binding.repo_root, {
+							schema_version: 1,
+							repo_root: binding.repo_root,
+							collection_key: binding.collection_key,
+							last_indexed_at: now,
+							last_indexed_commit: (await get_repo_head_commit(binding.repo_root)) ?? "",
+							created_at: existing_marker?.created_at ?? now,
+							extra_paths: extra.length > 0 ? extra : undefined,
+						});
+
+						await refresh_runtime_state(ctx, state);
 					},
 				},
 				initial_snapshot,

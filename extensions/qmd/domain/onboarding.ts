@@ -1,7 +1,15 @@
 import { readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { InvalidInitProposalError } from "../core/errors.js";
-import { add_collection, embed_pending, set_contexts, update_collection } from "../core/qmd-store.js";
+import {
+	add_collection,
+	embed_pending,
+	has_dot_segment,
+	index_files,
+	scan_filesystem_paths,
+	set_contexts,
+	update_collection,
+} from "../core/qmd-store.js";
 import {
 	type ConfirmedInitProposal,
 	type DraftInitProposal,
@@ -284,9 +292,18 @@ export async function execute_init(
 		on_progress?.(`Updating ${info.collection}: ${info.current}/${info.total} ${info.file}`);
 	});
 
+	// Index dot-path files that QMD's scanner skips (e.g. .pi/)
+	const all_fs_paths = await scan_filesystem_paths(proposal.root);
+	const dot_paths = all_fs_paths.filter(has_dot_segment);
+	if (dot_paths.length > 0) {
+		on_progress?.(`Indexing ${dot_paths.length} dot-path file(s) (.pi/, etc.)...`);
+		await index_files(proposal.collection_key, proposal.root, dot_paths);
+	}
+
+	const needs_embedding = update_result.needsEmbedding > 0 || dot_paths.length > 0;
 	let embed_result = null;
-	if (update_result.needsEmbedding > 0) {
-		on_progress?.(`Embedding ${update_result.needsEmbedding} pending document(s)...`);
+	if (needs_embedding) {
+		on_progress?.(`Embedding pending document(s)...`);
 		embed_result = await embed_pending((info) => {
 			on_progress?.(`Embedding ${info.current}/${info.total}${info.collection ? ` (${info.collection})` : ""}`);
 		});
@@ -302,6 +319,7 @@ export async function execute_init(
 		last_indexed_at: now,
 		last_indexed_commit: head_commit ?? "",
 		created_at: existing_marker?.created_at ?? now,
+		extra_paths: dot_paths.length > 0 ? dot_paths : undefined,
 	} as const;
 	await write_repo_marker(proposal.root, marker);
 
