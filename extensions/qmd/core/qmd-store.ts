@@ -1,4 +1,5 @@
-import { mkdir } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { stat as fsStat, mkdir, readdir, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { createStore, type QMDStore } from "@tobilu/qmd";
@@ -10,6 +11,33 @@ import type {
 	QmdIndexStatus,
 	QmdUpdateResult,
 } from "./types.js";
+
+const SKIPPED_DIRECTORIES = new Set([".git", "node_modules", "dist", "build", "coverage", ".next", ".turbo", ".cache"]);
+const SCAN_LIMIT = 6000;
+
+/**
+ * Re-implementation of QMD's internal handelize function.
+ * Normalizes filesystem paths to the format QMD stores in its database.
+ * Must match the behavior of the handelize() in @tobilu/qmd/dist/store.js.
+ */
+export function handelize_path(file_path: string): string {
+	return file_path
+		.toLowerCase()
+		.split("/")
+		.map((segment, idx, arr) => {
+			const is_last = idx === arr.length - 1;
+			if (is_last) {
+				const ext_match = segment.match(/(\.[a-z0-9]+)$/i);
+				const ext = ext_match ? ext_match[1] : "";
+				const name_without_ext = ext ? segment.slice(0, -ext.length) : segment;
+				const cleaned = name_without_ext.replace(/[^a-z0-9$]+/gu, "-").replace(/^-+|-+$/g, "");
+				return cleaned + ext;
+			}
+			return segment.replace(/[^a-z0-9$]+/gu, "-").replace(/^-+|-+$/g, "");
+		})
+		.filter(Boolean)
+		.join("/");
+}
 
 let store_promise: Promise<QMDStore> | null = null;
 
@@ -130,6 +158,10 @@ export async function get_status(): Promise<QmdIndexStatus> {
 	});
 }
 
+/**
+ * Returns handlized paths as stored in the QMD database.
+ * These need to be mapped back to filesystem paths for display.
+ */
 export async function get_active_document_paths(collection_key: string): Promise<string[]> {
 	return with_store(`get active document paths for '${collection_key}'`, async (store) => {
 		return store.internal.getActiveDocumentPaths(collection_key);
@@ -151,4 +183,159 @@ export async function get_index_health(): Promise<QmdIndexHealthInfo> {
 			days_stale: health.daysStale,
 		};
 	});
+}
+
+/**
+ * Deactivate a document using its filesystem-relative path.
+ * Converts to handlized path for the QMD store.
+ */
+export async function deactivate_document(collection_key: string, fs_path: string): Promise<void> {
+	const qmd_path = handelize_path(fs_path);
+	await with_store(`deactivate document '${fs_path}' in '${collection_key}'`, async (store) => {
+		store.internal.deactivateDocument(collection_key, qmd_path);
+	});
+}
+
+/**
+ * Directly index specific files into the QMD store.
+ * Reads each file, hashes content, and inserts via internal store APIs.
+ * Works for any file path including dotfiles that QMD's glob scanner skips.
+ */
+export async function index_files(
+	collection_key: string,
+	repo_root: string,
+	fs_paths: string[],
+): Promise<{ indexed: number; updated: number; skipped: number }> {
+	return with_store(`index ${fs_paths.length} files into '${collection_key}'`, async (store) => {
+		const now = new Date().toISOString();
+		let indexed = 0;
+		let updated = 0;
+		let skipped = 0;
+
+		for (const fs_path of fs_paths) {
+			const absolute_path = path.join(repo_root, fs_path);
+			const qmd_path = handelize_path(fs_path);
+
+			let content: string;
+			try {
+				content = await readFile(absolute_path, "utf-8");
+			} catch {
+				skipped++;
+				continue;
+			}
+
+			if (!content.trim()) {
+				skipped++;
+				continue;
+			}
+
+			// Hash content (same algo as QMD uses internally)
+			const hash = hash_content(content);
+			const title = extract_title(content, fs_path);
+
+			const existing = store.internal.findActiveDocument(collection_key, qmd_path);
+			if (existing) {
+				if (existing.hash === hash) {
+					skipped++;
+				} else {
+					store.internal.insertContent(hash, content, now);
+					let modified_at = now;
+					try {
+						const st = await fsStat(absolute_path);
+						modified_at = st.mtime.toISOString();
+					} catch {
+						// use now
+					}
+					store.internal.updateDocument(existing.id, title, hash, modified_at);
+					updated++;
+				}
+			} else {
+				store.internal.insertContent(hash, content, now);
+				let created_at = now;
+				let modified_at = now;
+				try {
+					const st = await fsStat(absolute_path);
+					created_at = st.birthtime.toISOString();
+					modified_at = st.mtime.toISOString();
+				} catch {
+					// use now
+				}
+				store.internal.insertDocument(collection_key, qmd_path, title, hash, created_at, modified_at);
+				indexed++;
+			}
+		}
+
+		return { indexed, updated, skipped };
+	});
+}
+
+/** Content hash matching QMD's internal hashContent — SHA-256 hex via Node crypto */
+function hash_content(content: string): string {
+	return createHash("sha256").update(content).digest("hex");
+}
+
+/** Extract title matching QMD's internal extractor — first h1 or h2, or filename */
+function extract_title(content: string, filename: string): string {
+	const match = content.match(/^##?\s+(.+)$/m);
+	if (match) return match[1].trim();
+	const base = filename.split("/").pop() ?? filename;
+	return base.replace(/\.mdx?$/i, "");
+}
+
+/** Returns true if any path segment starts with "." (e.g. ".pi/foo.md") */
+export function has_dot_segment(fs_path: string): boolean {
+	return fs_path.split("/").some((seg) => seg.startsWith("."));
+}
+
+function is_markdown_file(file_name: string): boolean {
+	return /\.mdx?$/iu.test(file_name);
+}
+
+function to_posix_relative(repo_root: string, absolute_path: string): string {
+	return path.relative(repo_root, absolute_path).split(path.sep).join("/");
+}
+
+/**
+ * Walk the repo filesystem and return all markdown paths.
+ * Includes dot-prefixed directories (e.g. .pi/) — these are shown in the
+ * file tree so users can opt in to indexing them. QMD's reindexer skips
+ * dot-dirs, so dot-path files are persisted via the marker's `extra_paths`
+ * and re-indexed after every `update_collection()`.
+ * Skips common non-content directories (.git, node_modules, etc.).
+ */
+export async function scan_filesystem_paths(repo_root: string, _glob_pattern?: string): Promise<string[]> {
+	const results: string[] = [];
+	let visited = 0;
+
+	async function walk(directory: string): Promise<void> {
+		if (visited >= SCAN_LIMIT) return;
+
+		let entries: Awaited<ReturnType<typeof readdir>>;
+		try {
+			entries = await readdir(directory, { withFileTypes: true });
+		} catch {
+			return;
+		}
+
+		for (const entry of entries) {
+			if (visited >= SCAN_LIMIT) return;
+			visited += 1;
+
+			const absolute_path = path.join(directory, entry.name);
+
+			if (entry.isDirectory()) {
+				if (SKIPPED_DIRECTORIES.has(entry.name)) continue;
+				await walk(absolute_path);
+				continue;
+			}
+
+			if (entry.isFile() && is_markdown_file(entry.name)) {
+				results.push(to_posix_relative(repo_root, absolute_path));
+			}
+		}
+	}
+
+	await walk(repo_root);
+	results.sort();
+	return results;
 }

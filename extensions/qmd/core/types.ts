@@ -8,6 +8,10 @@ export const qmd_repo_marker_schema = z.object({
 	last_indexed_at: z.string().min(1),
 	last_indexed_commit: z.string(),
 	created_at: z.string().min(1),
+	/** Filesystem paths with dot-segments (e.g. .pi/) that the user explicitly
+	 *  added to the index. QMD's scanner skips dot-dirs, so these need to be
+	 *  re-indexed after every `update_collection()` call. */
+	extra_paths: z.array(z.string()).optional(),
 });
 
 export type QmdRepoMarker = z.infer<typeof qmd_repo_marker_schema>;
