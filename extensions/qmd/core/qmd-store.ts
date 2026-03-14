@@ -148,12 +148,31 @@ export async function get_status(): Promise<QmdIndexStatus> {
 			totalDocuments: status.totalDocuments,
 			needsEmbedding: status.needsEmbedding,
 			hasVectorIndex: status.hasVectorIndex,
-			collections: status.collections.map((collection) => ({
-				name: collection.name,
-				path: collection.path,
-				pattern: collection.pattern,
-				documentCount: collection.documentCount,
-			})),
+			collections: status.collections.map((collection) => {
+				const collection_record = collection as {
+					name: string;
+					path: string | null;
+					pattern: string | null;
+					documents?: number;
+					documentCount?: number;
+					doc_count?: number;
+				};
+				const document_count =
+					typeof collection_record.documents === "number"
+						? collection_record.documents
+						: typeof collection_record.documentCount === "number"
+							? collection_record.documentCount
+							: typeof collection_record.doc_count === "number"
+								? collection_record.doc_count
+								: 0;
+
+				return {
+					name: collection_record.name,
+					path: collection_record.path,
+					pattern: collection_record.pattern,
+					documentCount: document_count,
+				};
+			}),
 		};
 	});
 }

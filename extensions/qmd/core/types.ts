@@ -158,8 +158,8 @@ export interface QmdIndexStatus {
 	hasVectorIndex: boolean;
 	collections: Array<{
 		name: string;
-		path: string;
-		pattern: string;
+		path: string | null;
+		pattern: string | null;
 		documentCount: number;
 	}>;
 }

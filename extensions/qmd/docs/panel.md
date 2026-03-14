@@ -86,6 +86,10 @@ QmdPanel.render()  →  framed TUI lines
 
 The snapshot is a flat, serializable struct with no SDK objects. The panel renders it without knowing where the data came from. Actions (update, init) are injected as callbacks.
 
+Count semantics:
+- `docs` in the overview/index section is the **bound collection's document count** (current repo), not the global QMD total across all collections.
+- Files view badge (`indexed/total`) compares currently indexed markdown paths vs markdown files discovered in this repo.
+
 ## Non-TUI Fallback
 
 When `ctx.hasUI` is false, `/qmd` and `/qp` print a plain-text summary via `build_plain_text_summary()` instead of opening the panel.

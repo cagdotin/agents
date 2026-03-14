@@ -1,7 +1,7 @@
 domain: extensions-dev
 description: Cross-extension conventions for progressive-disclosure docs, schema-first boundary validation, qualitative
   quality reporting, and repo-agnostic task-scoped runtime workspaces.
-last_synced: 2026-03-13T16:29:35.847Z
+last_synced: 2026-03-14T10:09:33.535Z
 scope:
   paths:
     - AGENTS.md
@@ -175,6 +175,9 @@ gotchas:
     calls `Database.setCustomSQLite()` with Homebrew SQLite on macOS so `bun:sqlite` can load sqlite-vec. PR #385 fixes
     launcher lockfile priority and `cleanupOrphanedVectors()` crash. Requires `brew install sqlite`. Both CLI and SDK
     work natively under Bun. Switch back to `npm install -g @tobilu/qmd` when upstream merges."
+  - QMD SDK `store.getStatus()` collection entries expose per-collection file counts as `documents` (not `documentCount`
+    in current builds). Also, `status.totalDocuments` / index-health totals are global across all collections, so UI
+    counters must use the bound collection count (or active paths length) to avoid misleading per-repo panels.
 references:
   - "Global workflow and enforcement policy: `AGENTS.md`"
   - "Repository docs index and reading order: `docs/README.md`"

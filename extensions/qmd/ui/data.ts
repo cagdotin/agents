@@ -84,7 +84,8 @@ export async function build_qmd_panel_snapshot(
 			stale_paths: freshness?.status === "stale" ? freshness.changed_paths : [],
 			stale_count: freshness?.status === "stale" ? freshness.changed_count : 0,
 
-			total_documents: health.total_docs,
+			// Keep this repo-local: use the bound collection's count, not global index total.
+			total_documents: collection?.documentCount ?? qmd_paths.length,
 			needs_embedding: health.needs_embedding,
 			has_vector_index: status.hasVectorIndex,
 			glob_pattern: collection?.pattern ?? null,
