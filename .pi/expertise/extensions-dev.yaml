@@ -1,7 +1,7 @@
 domain: extensions-dev
 description: Cross-extension conventions for progressive-disclosure docs, schema-first boundary validation, qualitative
   quality reporting, and repo-agnostic task-scoped runtime workspaces.
-last_synced: 2026-03-14T10:09:33.535Z
+last_synced: 2026-03-16T11:08:24.635Z
 scope:
   paths:
     - AGENTS.md
@@ -86,6 +86,18 @@ patterns:
     an execution plan, and copyable raw-reference links (including track artifacts). This makes it easy for users to
     copy one directory into another repo and ask any agent to rebuild the plugin without installing the original
     package.
+  - For interactive extension panels, encode mutability as explicit snapshot capability flags (for example
+    `supports_update_action`/`supports_file_toggling`) and render visible `[readonly]` tags from those flags; this keeps
+    policy data-driven, avoids scattered conditional branches, and aligns with representation/least-surprise principles.
+  - For modal TUI selectors that already use letter keys for navigation/actions (`j/k/g` etc.), add a dedicated filter
+    typing mode (enter via `/`, exit via `enter`/`esc`) instead of always-on type-to-filter; this avoids keybinding
+    collisions and keeps muscle memory stable.
+  - For dense selector datasets in TUI overlays, keep list rows intentionally terse (identity + state tags) and move
+    secondary metadata (paths/patterns/counts) into a dedicated details block for the highlighted item; this preserves
+    scanability on narrow terminals while still exposing rich context.
+  - In terminal overlays, shortening helper/hint copy (e.g. `find`, `move`, `clear`) and reducing visual separators can
+    noticeably improve scan rhythm without removing capability; favor one strong divider per section over stacked
+    divider lines.
 design_decisions:
   - reason: Agent-facing docs optimize for context budget
     detail: Top-level docs are overviews, not handbooks. If an agent can infer something quickly from code, tests, repo
@@ -178,6 +190,9 @@ gotchas:
   - QMD SDK `store.getStatus()` collection entries expose per-collection file counts as `documents` (not `documentCount`
     in current builds). Also, `status.totalDocuments` / index-health totals are global across all collections, so UI
     counters must use the bound collection count (or active paths length) to avoid misleading per-repo panels.
+  - When using `ctx.ui.custom` panels with close callbacks injected at runtime, wire the extension's `close_panel`
+    handle to the live callback object (after creation); otherwise lifecycle events like session switch may fail to
+    close overlays because the stored closer remains null.
 references:
   - "Global workflow and enforcement policy: `AGENTS.md`"
   - "Repository docs index and reading order: `docs/README.md`"

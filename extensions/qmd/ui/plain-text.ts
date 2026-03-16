@@ -12,26 +12,43 @@ export function build_plain_text_summary(snapshot: QmdPanelSnapshot): string {
 		return lines.join("\n");
 	}
 
-	if (snapshot.binding_status === "not_indexed") {
+	if (snapshot.binding_status === "not_indexed" && !snapshot.collection_key) {
 		lines.push("QMD Index: not indexed");
 		if (snapshot.repo_root) {
 			lines.push(`repo: ${snapshot.repo_root}`);
+		}
+		if (snapshot.collections.length > 0) {
+			lines.push(`available collections: ${snapshot.collections.length} (use /qmd in TUI to inspect)`);
 		}
 		lines.push("Run /qmd init to onboard this repository.");
 		return lines.join("\n");
 	}
 
-	// Indexed
+	const scope_badge =
+		snapshot.selected_collection_scope === "bound"
+			? "bound"
+			: snapshot.selected_collection_scope === "external"
+				? "external · readonly"
+				: "no selection";
 	const freshness_badge =
-		snapshot.freshness_status === "fresh"
-			? "fresh"
-			: snapshot.freshness_status === "stale"
-				? `${snapshot.stale_count} stale`
-				: "freshness unknown";
+		snapshot.selected_collection_scope !== "bound"
+			? "freshness n/a"
+			: snapshot.freshness_status === "fresh"
+				? "fresh"
+				: snapshot.freshness_status === "stale"
+					? `${snapshot.stale_count} stale`
+					: "freshness unknown";
 
-	lines.push(`QMD Index: indexed · ${freshness_badge}`);
+	lines.push(`QMD Index: ${snapshot.binding_status} · ${scope_badge} · ${freshness_badge}`);
 	lines.push(
-		[snapshot.collection_key, snapshot.glob_pattern, `${snapshot.total_documents} docs`].filter(Boolean).join("  ·  "),
+		[
+			snapshot.collection_key ? `selected: ${snapshot.collection_key}` : null,
+			snapshot.bound_collection_key ? `bound: ${snapshot.bound_collection_key}` : null,
+			snapshot.glob_pattern,
+			`${snapshot.total_documents} docs`,
+		]
+			.filter(Boolean)
+			.join("  ·  "),
 	);
 
 	if (snapshot.last_indexed_at) {
@@ -46,6 +63,27 @@ export function build_plain_text_summary(snapshot: QmdPanelSnapshot): string {
 	lines.push(`documents: ${snapshot.total_documents}`);
 	lines.push(`vector index: ${snapshot.has_vector_index ? "yes" : "no"}`);
 	lines.push(`needs embed: ${snapshot.needs_embedding}`);
+	if (snapshot.read_only_reason) {
+		lines.push(`mode: readonly (${snapshot.read_only_reason})`);
+	}
+
+	if (snapshot.collections.length > 0) {
+		lines.push("");
+		lines.push(`Collections (${snapshot.collections.length}):`);
+		for (const collection of snapshot.collections.slice(0, 12)) {
+			const marker = [
+				collection.key === snapshot.collection_key ? "selected" : null,
+				collection.is_bound_collection ? "bound" : null,
+			]
+				.filter(Boolean)
+				.join(", ");
+			const suffix = marker ? ` [${marker}]` : "";
+			lines.push(`  ${collection.key}${suffix}`);
+		}
+		if (snapshot.collections.length > 12) {
+			lines.push(`  ... +${snapshot.collections.length - 12} more`);
+		}
+	}
 
 	if (snapshot.contexts.length > 0) {
 		lines.push("");

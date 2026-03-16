@@ -8,6 +8,7 @@ import {
 	group_paths_by_directory,
 	wrap_text,
 } from "../../ui/data.js";
+import { build_plain_text_summary } from "../../ui/plain-text.js";
 
 // ── Mock store ──────────────────────────────────────────────
 
@@ -16,10 +17,13 @@ vi.mock("../../core/qmd-store.js", async () => {
 	return {
 		get_status: vi.fn(() =>
 			Promise.resolve({
-				totalDocuments: 142,
+				totalDocuments: 154,
 				needsEmbedding: 0,
 				hasVectorIndex: true,
-				collections: [{ name: "agents", path: "/repo", pattern: "**/*.md", documentCount: 142 }],
+				collections: [
+					{ name: "agents", path: "/repo", pattern: "**/*.md", documentCount: 142 },
+					{ name: "other", path: "/tmp/other", pattern: "notes/**/*.md", documentCount: 12 },
+				],
 			}),
 		),
 		list_contexts: vi.fn(() =>
@@ -30,10 +34,12 @@ vi.mock("../../core/qmd-store.js", async () => {
 			]),
 		),
 		// QMD stores handlized paths (lowercased, cleaned)
-		get_active_document_paths: vi.fn(() =>
-			Promise.resolve(["docs/architecture.md", "docs/quality.md", "extensions/qmd/readme.md"]),
+		get_active_document_paths: vi.fn((collection_key: string) =>
+			collection_key === "other"
+				? Promise.resolve(["notes/ideas.md", "design/decision-log.md"])
+				: Promise.resolve(["docs/architecture.md", "docs/quality.md", "extensions/qmd/readme.md"]),
 		),
-		get_index_health: vi.fn(() => Promise.resolve({ needs_embedding: 0, total_docs: 142, days_stale: null })),
+		get_index_health: vi.fn(() => Promise.resolve({ needs_embedding: 0, total_docs: 154, days_stale: null })),
 		scan_filesystem_paths: vi.fn(() =>
 			Promise.resolve([
 				"docs/ARCHITECTURE.md",
@@ -89,6 +95,10 @@ describe("build_qmd_panel_snapshot", () => {
 		expect(snap.binding_status).toBe("indexed");
 		expect(snap.repo_root).toBe("/repo");
 		expect(snap.collection_key).toBe("agents");
+		expect(snap.bound_collection_key).toBe("agents");
+		expect(snap.selected_collection_scope).toBe("bound");
+		expect(snap.supports_update_action).toBe(true);
+		expect(snap.supports_file_toggling).toBe(true);
 		expect(snap.binding_source).toBe("marker");
 		expect(snap.freshness_status).toBe("fresh");
 		expect(snap.stale_paths).toEqual([]);
@@ -101,8 +111,10 @@ describe("build_qmd_panel_snapshot", () => {
 		expect(snap.last_indexed_commit).toBe("abc1234");
 		expect(snap.contexts).toHaveLength(2); // only "agents" collection
 		expect(snap.contexts[0]).toEqual({ path: "docs/", annotation: "Architecture docs" });
+		expect(snap.collections).toHaveLength(2);
 		expect(snap.indexed_paths).toHaveLength(3);
 		expect(snap.filesystem_paths).toHaveLength(5);
+		expect(snap.file_paths_source).toBe("filesystem");
 		expect(snap.error_reason).toBeNull();
 	});
 
@@ -121,8 +133,31 @@ describe("build_qmd_panel_snapshot", () => {
 		expect(snap.freshness_status).toBeNull();
 	});
 
-	it("not indexed → minimal snapshot", async () => {
-		const { get_status } = await import("../../core/qmd-store.js");
+	it("indexed + external selected collection → readonly external snapshot", async () => {
+		const snap = await build_qmd_panel_snapshot("/repo", indexed_binding(), stale_result, "other");
+
+		expect(snap.collection_key).toBe("other");
+		expect(snap.bound_collection_key).toBe("agents");
+		expect(snap.selected_collection_scope).toBe("external");
+		expect(snap.supports_update_action).toBe(false);
+		expect(snap.supports_file_toggling).toBe(false);
+		expect(snap.freshness_status).toBeNull();
+		expect(snap.stale_count).toBe(0);
+		expect(snap.contexts).toEqual([{ path: "lib/", annotation: "Library code" }]);
+		expect(snap.indexed_paths).toEqual(["notes/ideas.md", "design/decision-log.md"]);
+		expect(snap.filesystem_paths).toEqual(["notes/ideas.md", "design/decision-log.md"]);
+		expect(snap.file_paths_source).toBe("qmd");
+	});
+
+	it("missing selected key falls back to bound collection", async () => {
+		const snap = await build_qmd_panel_snapshot("/repo", indexed_binding(), fresh_result, "does-not-exist");
+
+		expect(snap.collection_key).toBe("agents");
+		expect(snap.selected_collection_scope).toBe("bound");
+		expect(snap.supports_update_action).toBe(true);
+	});
+
+	it("not indexed → falls back to first available external collection", async () => {
 		const binding: RepoBindingResult = {
 			status: "not_indexed",
 			repo_root: "/repo",
@@ -131,12 +166,16 @@ describe("build_qmd_panel_snapshot", () => {
 
 		expect(snap.binding_status).toBe("not_indexed");
 		expect(snap.repo_root).toBe("/repo");
-		expect(snap.collection_key).toBeNull();
-		expect(snap.total_documents).toBe(0);
-		expect(snap.contexts).toEqual([]);
-		expect(snap.indexed_paths).toEqual([]);
-		expect(snap.filesystem_paths).toEqual([]);
-		expect(get_status).not.toHaveBeenCalled();
+		expect(snap.collection_key).toBe("agents");
+		expect(snap.bound_collection_key).toBeNull();
+		expect(snap.selected_collection_scope).toBe("external");
+		expect(snap.supports_update_action).toBe(false);
+		expect(snap.supports_file_toggling).toBe(false);
+		expect(snap.total_documents).toBe(142);
+		expect(snap.contexts).toHaveLength(2);
+		expect(snap.indexed_paths).toEqual(["docs/architecture.md", "docs/quality.md", "extensions/qmd/readme.md"]);
+		expect(snap.filesystem_paths).toEqual(["docs/architecture.md", "docs/quality.md", "extensions/qmd/readme.md"]);
+		expect(snap.file_paths_source).toBe("qmd");
 	});
 
 	it("unavailable → error reason captured", async () => {
@@ -160,6 +199,15 @@ describe("build_qmd_panel_snapshot", () => {
 
 		expect(snap.binding_status).toBe("unavailable");
 		expect(snap.error_reason).toBe("Failed to read QMD store data.");
+	});
+
+	it("plain-text summary marks readonly external selection", async () => {
+		const snap = await build_qmd_panel_snapshot("/repo", indexed_binding(), fresh_result, "other");
+		const summary = build_plain_text_summary(snap);
+
+		expect(summary).toContain("external · readonly");
+		expect(summary).toContain("mode: readonly");
+		expect(summary).toContain("[selected]");
 	});
 });
 

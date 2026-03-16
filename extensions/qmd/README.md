@@ -10,8 +10,10 @@ Repo-local QMD infrastructure for Pi.
 - Injects short guidance so the agent knows when to use `qmd query/search/get` via `bash`
 - Provides an interactive TUI panel (`/qmd`, `/qp`, `Ctrl+Alt+Q`) showing:
   - Binding status, freshness, document count, contexts, stale files
-  - File browser for all indexed documents
-  - In-panel update (`u` key) and init (`i` key) actions
+  - Collection selector (`c`) with quick filter (`/`) to switch between all known QMD collections
+  - File browser for selected collection details
+  - In-panel update (`u`, bound only) and init (`i`) actions
+  - Readonly tagging for external collection selections
 - Provides subcommands: `/qmd status`, `/qmd update`, `/qmd init`
 
 ## What it does not do
@@ -30,7 +32,7 @@ The extension owns infra and workflow. The agent still uses the QMD CLI directly
 ## Commands
 
 ### `/qmd` (no args) · `/qp` · `Ctrl+Alt+Q`
-Opens the QMD index dashboard panel. Shows binding status, freshness, index stats, path contexts, and stale files in an interactive TUI overlay. See `docs/panel.md` for keyboard shortcuts and panel states.
+Opens the QMD index dashboard panel. Defaults to the current repo's bound collection, and supports switching to any known collection via the in-panel selector (`c`). External selections are shown in readonly mode. See `docs/panel.md` for keyboard shortcuts and panel states.
 
 When `hasUI` is false, prints a plain-text summary instead.
 
@@ -81,7 +83,7 @@ extensions/qmd/
 ├── ui/
 │   ├── constants.ts            # Panel constants (width, shortcuts, icon)
 │   ├── data.ts                 # Snapshot builder, file tree, helpers
-│   ├── panel.ts                # Interactive TUI panel (overview/files/updating)
+│   ├── panel.ts                # Interactive TUI panel (overview/collections/files/updating)
 │   └── plain-text.ts           # Non-TUI fallback summary
 ├── diy/
 │   ├── README.md               # How to copy/paste this blueprint into another repo

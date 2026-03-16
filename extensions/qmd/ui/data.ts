@@ -10,20 +10,38 @@ import type { FreshnessResult, RepoBindingResult } from "../core/types.js";
 
 // ── Snapshot type ───────────────────────────────────────────
 
+export type QmdSelectionScope = "bound" | "external" | "none";
+
+export interface QmdCollectionSummary {
+	key: string;
+	repo_root: string | null;
+	glob_pattern: string | null;
+	doc_count: number;
+	is_bound_collection: boolean;
+}
+
 export interface QmdPanelSnapshot {
 	// Binding
 	binding_status: "indexed" | "not_indexed" | "unavailable";
 	repo_root: string | null;
-	collection_key: string | null;
+	collection_key: string | null; // currently selected collection
+	bound_collection_key: string | null;
+	selected_collection_scope: QmdSelectionScope;
+	supports_update_action: boolean;
+	supports_file_toggling: boolean;
+	read_only_reason: string | null;
 	binding_source: "marker" | "store" | null;
 	error_reason: string | null;
 
-	// Freshness
+	// Collection catalog
+	collections: QmdCollectionSummary[];
+
+	// Freshness (bound collection only)
 	freshness_status: "fresh" | "stale" | "unknown" | null;
 	stale_paths: string[];
 	stale_count: number;
 
-	// Index stats
+	// Index stats (selected collection + global health)
 	total_documents: number;
 	needs_embedding: number;
 	has_vector_index: boolean;
@@ -31,14 +49,13 @@ export interface QmdPanelSnapshot {
 	last_indexed_at: string | null;
 	last_indexed_commit: string | null;
 
-	// Contexts
+	// Contexts (selected collection)
 	contexts: Array<{ path: string; annotation: string }>;
 
-	// All indexed file paths (for detail view)
+	// Selected file paths for detail view (filesystem for bound, QMD paths for external)
 	indexed_paths: string[];
-
-	// All .md file paths on the filesystem (superset of indexed_paths)
 	filesystem_paths: string[];
+	file_paths_source: "filesystem" | "qmd" | "none";
 }
 
 // ── Snapshot builder ────────────────────────────────────────
@@ -47,57 +64,83 @@ export async function build_qmd_panel_snapshot(
 	_cwd: string,
 	binding: RepoBindingResult,
 	freshness: FreshnessResult | undefined,
+	selected_collection_key?: string,
 ): Promise<QmdPanelSnapshot> {
 	if (binding.status === "unavailable") {
 		return empty_snapshot("unavailable", binding.repo_root ?? null, binding.reason);
 	}
 
-	if (binding.status === "not_indexed") {
-		return empty_snapshot("not_indexed", binding.repo_root, null);
-	}
-
-	// Status: indexed
 	try {
-		const [status, contexts, qmd_paths, health, fs_paths] = await Promise.all([
-			get_status(),
-			list_contexts(),
-			get_active_document_paths(binding.collection_key),
-			get_index_health(),
-			scan_filesystem_paths(binding.repo_root),
-		]);
+		const [status, contexts, health] = await Promise.all([get_status(), list_contexts(), get_index_health()]);
 
-		const collection = status.collections.find((c) => c.name === binding.collection_key);
+		const bound_collection_key = binding.status === "indexed" ? binding.collection_key : null;
+		const collections: QmdCollectionSummary[] = status.collections.map((collection) => ({
+			key: collection.name,
+			repo_root: collection.path,
+			glob_pattern: collection.pattern,
+			doc_count: collection.documentCount,
+			is_bound_collection: collection.name === bound_collection_key,
+		}));
 
-		// Build reverse map: handlized → filesystem path
-		// QMD stores handlized paths; we need filesystem paths for the UI
-		const qmd_indexed_set = new Set(qmd_paths);
-		const indexed_fs_paths = fs_paths.filter((fs_p) => qmd_indexed_set.has(handelize_path(fs_p)));
+		const resolved_selected_key = resolve_selected_collection_key(
+			selected_collection_key,
+			bound_collection_key,
+			collections,
+		);
+		const selected_collection = collections.find((collection) => collection.key === resolved_selected_key) ?? null;
+		const selected_scope = resolve_selection_scope(resolved_selected_key, bound_collection_key);
+
+		const qmd_paths = resolved_selected_key ? await get_active_document_paths(resolved_selected_key) : [];
+
+		let indexed_paths: string[] = [];
+		let filesystem_paths: string[] = [];
+		let file_paths_source: QmdPanelSnapshot["file_paths_source"] = "none";
+
+		if (selected_scope === "bound" && binding.status === "indexed") {
+			const fs_paths = await scan_filesystem_paths(binding.repo_root);
+			const qmd_indexed_set = new Set(qmd_paths);
+			indexed_paths = fs_paths.filter((fs_path) => qmd_indexed_set.has(handelize_path(fs_path)));
+			filesystem_paths = fs_paths;
+			file_paths_source = "filesystem";
+		} else if (selected_scope === "external" && resolved_selected_key) {
+			indexed_paths = [...qmd_paths];
+			filesystem_paths = [...qmd_paths];
+			file_paths_source = "qmd";
+		}
 
 		return {
-			binding_status: "indexed",
+			binding_status: binding.status,
 			repo_root: binding.repo_root,
-			collection_key: binding.collection_key,
-			binding_source: binding.source,
+			collection_key: resolved_selected_key,
+			bound_collection_key,
+			selected_collection_scope: selected_scope,
+			supports_update_action: selected_scope === "bound",
+			supports_file_toggling: selected_scope === "bound",
+			read_only_reason:
+				selected_scope === "external" ? "Selected collection is read-only outside the bound repository." : null,
+			binding_source: binding.status === "indexed" ? binding.source : null,
 			error_reason: null,
 
-			freshness_status: freshness?.status ?? null,
-			stale_paths: freshness?.status === "stale" ? freshness.changed_paths : [],
-			stale_count: freshness?.status === "stale" ? freshness.changed_count : 0,
+			collections,
 
-			// Keep this repo-local: use the bound collection's count, not global index total.
-			total_documents: collection?.documentCount ?? qmd_paths.length,
+			freshness_status: selected_scope === "bound" ? (freshness?.status ?? null) : null,
+			stale_paths: selected_scope === "bound" && freshness?.status === "stale" ? freshness.changed_paths : [],
+			stale_count: selected_scope === "bound" && freshness?.status === "stale" ? freshness.changed_count : 0,
+
+			total_documents: selected_collection?.doc_count ?? qmd_paths.length,
 			needs_embedding: health.needs_embedding,
 			has_vector_index: status.hasVectorIndex,
-			glob_pattern: collection?.pattern ?? null,
-			last_indexed_at: binding.marker?.last_indexed_at ?? null,
-			last_indexed_commit: binding.marker?.last_indexed_commit ?? null,
+			glob_pattern: selected_collection?.glob_pattern ?? null,
+			last_indexed_at: selected_scope === "bound" ? (binding.marker?.last_indexed_at ?? null) : null,
+			last_indexed_commit: selected_scope === "bound" ? (binding.marker?.last_indexed_commit ?? null) : null,
 
 			contexts: contexts
-				.filter((c) => c.collection === binding.collection_key)
-				.map((c) => ({ path: c.path, annotation: c.context })),
+				.filter((context) => context.collection === resolved_selected_key)
+				.map((context) => ({ path: context.path, annotation: context.context })),
 
-			indexed_paths: indexed_fs_paths,
-			filesystem_paths: fs_paths,
+			indexed_paths,
+			filesystem_paths,
+			file_paths_source,
 		};
 	} catch {
 		return empty_snapshot("unavailable", binding.repo_root, "Failed to read QMD store data.");
@@ -105,6 +148,32 @@ export async function build_qmd_panel_snapshot(
 }
 
 // ── Helpers ─────────────────────────────────────────────────
+
+function resolve_selected_collection_key(
+	explicit_key: string | undefined,
+	bound_key: string | null,
+	collections: QmdCollectionSummary[],
+): string | null {
+	if (explicit_key && collections.some((collection) => collection.key === explicit_key)) {
+		return explicit_key;
+	}
+
+	if (bound_key && collections.some((collection) => collection.key === bound_key)) {
+		return bound_key;
+	}
+
+	return collections[0]?.key ?? null;
+}
+
+function resolve_selection_scope(selected_key: string | null, bound_key: string | null): QmdSelectionScope {
+	if (!selected_key) {
+		return "none";
+	}
+	if (bound_key && selected_key === bound_key) {
+		return "bound";
+	}
+	return "external";
+}
 
 function empty_snapshot(
 	status: "not_indexed" | "unavailable",
@@ -115,8 +184,15 @@ function empty_snapshot(
 		binding_status: status,
 		repo_root,
 		collection_key: null,
+		bound_collection_key: null,
+		selected_collection_scope: "none",
+		supports_update_action: false,
+		supports_file_toggling: false,
+		read_only_reason: null,
 		binding_source: null,
 		error_reason,
+
+		collections: [],
 
 		freshness_status: null,
 		stale_paths: [],
@@ -132,6 +208,7 @@ function empty_snapshot(
 		contexts: [],
 		indexed_paths: [],
 		filesystem_paths: [],
+		file_paths_source: "none",
 	};
 }
 

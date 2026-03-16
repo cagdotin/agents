@@ -174,58 +174,57 @@ export function register_qmd_command(pi: ExtensionAPI, state: QmdExtensionState)
 		panel_open = true;
 
 		try {
-			await show_qmd_panel(
-				ctx,
-				{
-					get_snapshot: async () => {
-						const fresh = await get_binding_and_freshness(ctx.cwd);
-						await refresh_runtime_state(ctx, state);
-						return build_qmd_panel_snapshot(ctx.cwd, fresh.binding, fresh.freshness);
-					},
-					on_update: () => run_update(ctx),
-					on_init: () => start_init(ctx),
-					on_close: () => {
-						/* replaced by panel */
-					},
-					on_toggle_files: async (adds, removes) => {
-						const binding = await detect_repo_binding(ctx.cwd);
-						if (binding.status !== "indexed") return;
-
-						// Deactivate removed files (fs paths → handlized internally)
-						for (const fs_path of removes) {
-							await deactivate_document(binding.collection_key, fs_path);
-						}
-
-						// Directly index added files (works for dotfiles too)
-						if (adds.length > 0) {
-							await index_files(binding.collection_key, binding.repo_root, adds);
-							await embed_pending();
-						}
-
-						// Update extra_paths in marker — dot-path files need to be
-						// re-indexed after every update_collection() call
-						const existing_marker = await read_repo_marker(binding.repo_root).catch(() => null);
-						const prev_extra = new Set(existing_marker?.extra_paths ?? []);
-						for (const p of adds.filter(has_dot_segment)) prev_extra.add(p);
-						for (const p of removes.filter(has_dot_segment)) prev_extra.delete(p);
-						const extra = [...prev_extra].sort();
-
-						const now = new Date().toISOString();
-						await write_repo_marker(binding.repo_root, {
-							schema_version: 1,
-							repo_root: binding.repo_root,
-							collection_key: binding.collection_key,
-							last_indexed_at: now,
-							last_indexed_commit: (await get_repo_head_commit(binding.repo_root)) ?? "",
-							created_at: existing_marker?.created_at ?? now,
-							extra_paths: extra.length > 0 ? extra : undefined,
-						});
-
-						await refresh_runtime_state(ctx, state);
-					},
+			const panel_callbacks = {
+				get_snapshot: async (selected_collection_key?: string) => {
+					const fresh = await get_binding_and_freshness(ctx.cwd);
+					await refresh_runtime_state(ctx, state);
+					return build_qmd_panel_snapshot(ctx.cwd, fresh.binding, fresh.freshness, selected_collection_key);
 				},
-				initial_snapshot,
-			);
+				on_update: () => run_update(ctx),
+				on_init: () => start_init(ctx),
+				on_close: () => {
+					/* replaced by panel */
+				},
+				on_toggle_files: async (adds: string[], removes: string[]) => {
+					const binding = await detect_repo_binding(ctx.cwd);
+					if (binding.status !== "indexed") return;
+
+					// Deactivate removed files (fs paths → handlized internally)
+					for (const fs_path of removes) {
+						await deactivate_document(binding.collection_key, fs_path);
+					}
+
+					// Directly index added files (works for dotfiles too)
+					if (adds.length > 0) {
+						await index_files(binding.collection_key, binding.repo_root, adds);
+						await embed_pending();
+					}
+
+					// Update extra_paths in marker — dot-path files need to be
+					// re-indexed after every update_collection() call
+					const existing_marker = await read_repo_marker(binding.repo_root).catch(() => null);
+					const prev_extra = new Set(existing_marker?.extra_paths ?? []);
+					for (const p of adds.filter(has_dot_segment)) prev_extra.add(p);
+					for (const p of removes.filter(has_dot_segment)) prev_extra.delete(p);
+					const extra = [...prev_extra].sort();
+
+					const now = new Date().toISOString();
+					await write_repo_marker(binding.repo_root, {
+						schema_version: 1,
+						repo_root: binding.repo_root,
+						collection_key: binding.collection_key,
+						last_indexed_at: now,
+						last_indexed_commit: (await get_repo_head_commit(binding.repo_root)) ?? "",
+						created_at: existing_marker?.created_at ?? now,
+						extra_paths: extra.length > 0 ? extra : undefined,
+					});
+
+					await refresh_runtime_state(ctx, state);
+				},
+			};
+
+			close_panel = () => panel_callbacks.on_close();
+			await show_qmd_panel(ctx, panel_callbacks, initial_snapshot);
 		} catch {
 			const snapshot = await build_qmd_panel_snapshot(ctx.cwd, binding, freshness);
 			ctx.ui.notify("QMD panel failed to render.", "warning");

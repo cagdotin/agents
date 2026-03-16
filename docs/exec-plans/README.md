@@ -40,6 +40,7 @@ Use `skills/plan` for both artifact types.
 
 ## Current active plans
 
+- [[docs/exec-plans/active/2026-03-16-qmd-multi-collection-selector]] — repo-first QMD panel with in-panel collection switching and external read-only inspection
 - [[docs/exec-plans/active/2026-03-12-tracks-extension-workstream-lifecycle-v2]] — milestone 2: workstream lifecycle semantics, richer deterministic summaries, and runtime-state formatter hygiene
 - [[docs/exec-plans/active/2026-03-11-tracks-extension-minimal-v1]] — minimal task-scoped track workspaces with local AGENTS.md, snapshots, and closeout flow
 - [[docs/exec-plans/active/2026-03-07-session-stats-extension]] — session stats panel (pending live verification)
