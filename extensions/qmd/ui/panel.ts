@@ -7,7 +7,7 @@ import {
 	QMD_PANEL_WIDTH,
 	QMD_SIDEBAR_INNER_WIDTH,
 } from "./constants.js";
-import type { FileTreeNode, FlatTreeEntry, QmdCollectionSummary, QmdPanelSnapshot } from "./data.js";
+import type { FileTreeNode, FlatTreeEntry, QmdCollectionSummary, QmdPanelSnapshot, QmdSearchResult } from "./data.js";
 import { build_file_tree, collect_file_paths, flatten_tree, format_relative_time } from "./data.js";
 import { ToggleState } from "./toggle-state.js";
 
@@ -17,6 +17,9 @@ export interface QmdPanelCallbacks {
 	on_init: () => void;
 	on_close: () => void;
 	on_toggle_files: (adds: string[], removes: string[]) => Promise<void>;
+	on_embed: () => Promise<void>;
+	on_search_lex: (query: string, collection: string) => Promise<QmdSearchResult[]>;
+	on_search_hybrid: (query: string, collection: string) => Promise<QmdSearchResult[]>;
 }
 
 export async function show_qmd_panel(

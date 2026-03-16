@@ -8,6 +8,72 @@ import {
 } from "../core/qmd-store.js";
 import type { FreshnessResult, RepoBindingResult } from "../core/types.js";
 
+// ── Search result type ───────────────────────────────────────
+
+export interface QmdSearchResult {
+	file: string;
+	display_path: string;
+	title: string;
+	score: number;
+	snippet: string;
+	docid: string;
+	source: "lex" | "hybrid";
+}
+
+export function normalize_lex_result(
+	result: { filepath: string; displayPath: string; title: string; score: number; body?: string; docid: string },
+	_collection: string,
+): QmdSearchResult {
+	return {
+		file: result.filepath,
+		display_path: strip_virtual_prefix(result.displayPath || result.filepath),
+		title: result.title,
+		score: result.score,
+		snippet: clean_snippet(result.body ?? ""),
+		docid: result.docid,
+		source: "lex",
+	};
+}
+
+export function normalize_hybrid_result(result: {
+	file: string;
+	displayPath: string;
+	title: string;
+	score: number;
+	bestChunk: string;
+	docid: string;
+}): QmdSearchResult {
+	return {
+		file: result.file,
+		display_path: strip_virtual_prefix(result.displayPath || result.file),
+		title: result.title,
+		score: result.score,
+		snippet: clean_snippet(result.bestChunk ?? ""),
+		docid: result.docid,
+		source: "hybrid",
+	};
+}
+
+function strip_virtual_prefix(path: string): string {
+	// Strip qmd://collection/ prefix if present
+	const match = path.match(/^qmd:\/\/[^/]+\/(.+)$/);
+	if (match) return match[1];
+	return path;
+}
+
+function clean_snippet(text: string): string {
+	// Strip @@ diff headers
+	let cleaned = text.replace(/@@\s*-?\d+(?:,\d+)?\s*(?:\+\d+(?:,\d+)?)?\s*@@/g, "");
+	// Collapse multiple blank lines
+	cleaned = cleaned.replace(/\n{3,}/g, "\n\n");
+	cleaned = cleaned.trim();
+	// Truncate to ~200 chars
+	if (cleaned.length > 200) {
+		cleaned = `…${cleaned.slice(0, 197)}…`;
+	}
+	return cleaned;
+}
+
 // ── Snapshot type ───────────────────────────────────────────
 
 export type QmdSelectionScope = "bound" | "external" | "none";

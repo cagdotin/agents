@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { stat as fsStat, mkdir, readdir, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { createStore, type QMDStore } from "@tobilu/qmd";
+import { createStore, type HybridQueryResult, type QMDStore, type SearchResult } from "@tobilu/qmd";
 import { QmdUnavailableError } from "./errors.js";
 import type {
 	QmdCollectionRecord,
@@ -285,6 +285,20 @@ export async function index_files(
 		}
 
 		return { indexed, updated, skipped };
+	});
+}
+
+// ── Search wrappers ─────────────────────────────────────────
+
+export async function search_lex(query: string, collection: string, limit = 20): Promise<SearchResult[]> {
+	return with_store("search (lex)", async (store) => {
+		return store.searchLex(query, { collection, limit });
+	});
+}
+
+export async function search_hybrid(query: string, collection: string, limit = 20): Promise<HybridQueryResult[]> {
+	return with_store("search (hybrid)", async (store) => {
+		return store.search({ query, collection, limit });
 	});
 }
 
