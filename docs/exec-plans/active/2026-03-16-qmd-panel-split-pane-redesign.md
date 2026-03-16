@@ -28,7 +28,7 @@ Redesign the QMD TUI panel from a sequential drill-in model (overview → collec
 - [x] Milestone 4: Files view in main pane
 - [x] Milestone 5: Search SDK wrappers
 - [x] Milestone 6: Search view — input and lex results
-- [ ] Milestone 7: Search view — hybrid mode and polish
+- [x] Milestone 7: Search view — hybrid mode and polish
 - [ ] Milestone 8: Footer, docs, and cleanup
 
 ## Surprises & Discoveries
