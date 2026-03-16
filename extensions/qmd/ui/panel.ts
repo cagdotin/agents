@@ -736,11 +736,25 @@ export class QmdPanel {
 			}
 			content.push("");
 		} else if (!this.selected_collection_key) {
-			// "All" selected — global health
+			// "All" selected or no collection — global health
 			const icon = t.fg("accent", QMD_PANEL_ICON);
 			const badge = this.status_badge(snap);
 			content.push(` ${icon} ${t.fg("accent", t.bold("QMD Index"))}  ${badge}`);
 			content.push("");
+
+			// Show init prompt when this repo is not indexed
+			if (snap.binding_status === "not_indexed") {
+				if (snap.repo_root) {
+					content.push(` ${t.fg("muted", snap.repo_root)}`);
+				}
+				content.push("");
+				content.push(` ${t.fg("warning", "This repository is not indexed by QMD.")}`);
+				content.push(
+					` ${t.fg("muted", "Press")} ${t.fg("accent", "i")} ${t.fg("muted", "to run /qmd init and onboard this repo.")}`,
+				);
+				content.push("");
+			}
+
 			if (snap.collections.length > 0) {
 				content.push(` ${t.fg("muted", `${snap.collections.length} collections`)}`);
 				let total_docs = 0;
@@ -748,8 +762,8 @@ export class QmdPanel {
 				content.push(` ${t.fg("muted", `${total_docs} total documents`)}`);
 				content.push(` ${t.fg("muted", `needs embed:`)} ${snap.needs_embedding}`);
 				content.push(` ${t.fg("muted", `vector index:`)} ${snap.has_vector_index ? "✓" : "✗"}`);
-			} else {
-				content.push(` ${t.fg("muted", "No collections. Press i to init.")}`);
+			} else if (snap.binding_status !== "not_indexed") {
+				content.push(` ${t.fg("muted", "No collections found.")}`);
 			}
 			content.push("");
 		} else {
@@ -1033,6 +1047,7 @@ export class QmdPanel {
 			hints.push(`${t.fg("accent", "j/k")} nav`);
 			hints.push(`${t.fg("accent", "enter")} select`);
 			if (this.snapshot.supports_update_action) hints.push(`${t.fg("accent", "u")} update`);
+			if (this.snapshot.binding_status === "not_indexed") hints.push(`${t.fg("accent", "i")} init`);
 		} else if (this.main_view === "overview") {
 			hints.push(`${t.fg("accent", "tab")} switch`);
 			if (this.selected_collection_key && this.snapshot.filesystem_paths.length > 0) {
@@ -1042,6 +1057,7 @@ export class QmdPanel {
 				hints.push(`${t.fg("accent", "s")} search`);
 			}
 			if (this.snapshot.supports_update_action) hints.push(`${t.fg("accent", "u")} update`);
+			if (this.snapshot.binding_status === "not_indexed") hints.push(`${t.fg("accent", "i")} init`);
 			hints.push(`${t.fg("accent", "r")} refresh`);
 		} else if (this.main_view === "files") {
 			hints.push(`${t.fg("accent", "tab")} switch`);
