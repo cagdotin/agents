@@ -124,13 +124,6 @@ export class QmdPanel {
 			return;
 		}
 
-		// Tab toggles focus
-		if (matchesKey(key_data, "tab")) {
-			this.focused_pane = this.focused_pane === "sidebar" ? "main" : "sidebar";
-			this.tui.requestRender();
-			return;
-		}
-
 		// Route to focused pane
 		if (this.focused_pane === "sidebar") {
 			this.handle_sidebar_input(key_data);
@@ -217,8 +210,10 @@ export class QmdPanel {
 			return;
 		}
 
-		if (matchesKey(key_data, "enter")) {
+		if (matchesKey(key_data, "enter") || matchesKey(key_data, "right") || matchesKey(key_data, "l")) {
 			this.select_sidebar_entry();
+			this.focused_pane = "main";
+			this.tui.requestRender();
 			return;
 		}
 
@@ -252,7 +247,7 @@ export class QmdPanel {
 	}
 
 	private handle_main_overview_input(key_data: string): void {
-		if (matchesKey(key_data, "escape")) {
+		if (matchesKey(key_data, "escape") || matchesKey(key_data, "left") || matchesKey(key_data, "h")) {
 			this.focused_pane = "sidebar";
 			this.tui.requestRender();
 			return;
@@ -295,10 +290,15 @@ export class QmdPanel {
 	}
 
 	private handle_main_files_input(key_data: string): void {
-		if (matchesKey(key_data, "escape") || matchesKey(key_data, "h") || matchesKey(key_data, "left")) {
+		if (matchesKey(key_data, "escape")) {
 			this.toggle.clear();
 			this.main_view = "overview";
 			this.overview_scroll_offset = 0;
+			this.tui.requestRender();
+			return;
+		}
+		if (matchesKey(key_data, "h") || matchesKey(key_data, "left")) {
+			this.focused_pane = "sidebar";
 			this.tui.requestRender();
 			return;
 		}
@@ -342,6 +342,12 @@ export class QmdPanel {
 
 	private handle_main_search_input(key_data: string): void {
 		if (this.search_focus === "input") {
+			// Left arrow from input → sidebar (h is a typed char, so only arrow key)
+			if (matchesKey(key_data, "left")) {
+				this.focused_pane = "sidebar";
+				this.tui.requestRender();
+				return;
+			}
 			if (matchesKey(key_data, "escape")) {
 				if (this.search_query.length > 0) {
 					this.search_query = "";
@@ -358,8 +364,9 @@ export class QmdPanel {
 				this.execute_search();
 				return;
 			}
-			if (matchesKey(key_data, "tab") && this.search_results.length > 0) {
+			if (matchesKey(key_data, "down") && this.search_results.length > 0) {
 				this.search_focus = "results";
+				this.search_cursor = 0;
 				this.tui.requestRender();
 				return;
 			}
@@ -392,7 +399,18 @@ export class QmdPanel {
 		}
 
 		// search_focus === "results"
-		if (matchesKey(key_data, "escape") || matchesKey(key_data, "tab")) {
+		if (matchesKey(key_data, "h") || matchesKey(key_data, "left")) {
+			this.focused_pane = "sidebar";
+			this.tui.requestRender();
+			return;
+		}
+		if (matchesKey(key_data, "escape") || matchesKey(key_data, "up")) {
+			// If cursor is at top and pressing up, go back to input
+			if (matchesKey(key_data, "up") && this.search_cursor > 0) {
+				this.search_cursor--;
+				this.tui.requestRender();
+				return;
+			}
 			this.search_focus = "input";
 			this.tui.requestRender();
 			return;
@@ -404,9 +422,12 @@ export class QmdPanel {
 			}
 			return;
 		}
-		if (matchesKey(key_data, "k") || matchesKey(key_data, "up")) {
+		if (matchesKey(key_data, "k")) {
 			if (this.search_cursor > 0) {
 				this.search_cursor--;
+				this.tui.requestRender();
+			} else {
+				this.search_focus = "input";
 				this.tui.requestRender();
 			}
 			return;
@@ -1042,14 +1063,13 @@ export class QmdPanel {
 		const hints: string[] = [];
 
 		if (this.focused_pane === "sidebar") {
-			hints.push(`${t.fg("accent", "tab")} switch`);
+			hints.push(`${t.fg("accent", "→/l")} detail`);
 			hints.push(`${t.fg("accent", "/")} filter`);
 			hints.push(`${t.fg("accent", "j/k")} nav`);
-			hints.push(`${t.fg("accent", "enter")} select`);
 			if (this.snapshot.supports_update_action) hints.push(`${t.fg("accent", "u")} update`);
 			if (this.snapshot.binding_status === "not_indexed") hints.push(`${t.fg("accent", "i")} init`);
 		} else if (this.main_view === "overview") {
-			hints.push(`${t.fg("accent", "tab")} switch`);
+			hints.push(`${t.fg("accent", "←/h")} collections`);
 			if (this.selected_collection_key && this.snapshot.filesystem_paths.length > 0) {
 				hints.push(`${t.fg("accent", "f")} files`);
 			}
@@ -1060,23 +1080,23 @@ export class QmdPanel {
 			if (this.snapshot.binding_status === "not_indexed") hints.push(`${t.fg("accent", "i")} init`);
 			hints.push(`${t.fg("accent", "r")} refresh`);
 		} else if (this.main_view === "files") {
-			hints.push(`${t.fg("accent", "tab")} switch`);
+			hints.push(`${t.fg("accent", "←/h")} collections`);
 			if (this.snapshot.supports_file_toggling) hints.push(`${t.fg("accent", "space")} toggle`);
 			if (this.toggle.has_pending()) hints.push(`${t.fg("accent", "a")} apply`);
 			hints.push(`${t.fg("accent", "enter")} expand`);
 			hints.push(`${t.fg("accent", "esc")} back`);
 		} else if (this.main_view === "search") {
 			if (this.search_focus === "input") {
-				hints.push(`${t.fg("accent", "tab")} results`);
+				hints.push(`${t.fg("accent", "←")} collections`);
 				hints.push(`${t.fg("accent", "ctrl+t")} mode`);
 				hints.push(`${t.fg("accent", "enter")} search`);
 				hints.push(`${t.fg("accent", "esc")} back`);
 			} else {
-				hints.push(`${t.fg("accent", "tab")} input`);
+				hints.push(`${t.fg("accent", "←/h")} collections`);
 				hints.push(`${t.fg("accent", "j/k")} nav`);
 				hints.push(`${t.fg("accent", "enter")} copy`);
 				hints.push(`${t.fg("accent", "y")} yank`);
-				hints.push(`${t.fg("accent", "esc")} back`);
+				hints.push(`${t.fg("accent", "esc")} input`);
 			}
 		}
 
