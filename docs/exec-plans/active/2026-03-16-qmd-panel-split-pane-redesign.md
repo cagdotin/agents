@@ -29,7 +29,7 @@ Redesign the QMD TUI panel from a sequential drill-in model (overview → collec
 - [x] Milestone 5: Search SDK wrappers
 - [x] Milestone 6: Search view — input and lex results
 - [x] Milestone 7: Search view — hybrid mode and polish
-- [ ] Milestone 8: Footer, docs, and cleanup
+- [x] Milestone 8: Footer, docs, and cleanup
 
 ## Surprises & Discoveries
 
@@ -63,7 +63,15 @@ Redesign the QMD TUI panel from a sequential drill-in model (overview → collec
 
 ## Outcomes & Retrospective
 
-(Fill in after completion.)
+All 8 milestones completed successfully. The implementation went faster than planned because milestones 1-4 (frame, focus, overview, files) were natural to implement as a single cohesive rewrite rather than incremental additions. Similarly, milestones 6-7 (search input + hybrid) shipped together since hybrid mode support was trivial once the search UI existed.
+
+### Key metrics
+- `panel.ts`: ~760 lines (was ~680, net +80 despite adding search and sidebar)
+- `data.ts`: +60 lines for `QmdSearchResult` type and normalizers
+- `qmd-store.ts`: +12 lines for search SDK wrappers
+- All 655 existing tests pass unchanged
+- `toggle-state.ts` untouched as required
+- `plain-text.ts` untouched as required
 
 ---
 

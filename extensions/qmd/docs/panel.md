@@ -1,6 +1,6 @@
 # QMD Panel
 
-An interactive TUI dashboard for inspecting the QMD index state of the current repository, with an in-panel collection selector for cross-collection browsing.
+A split-pane TUI dashboard for inspecting and searching the QMD index. Opens as a wide overlay with a persistent collection sidebar (left) and a context-sensitive main pane (right).
 
 ## Access
 
@@ -13,106 +13,177 @@ An interactive TUI dashboard for inspecting the QMD index state of the current r
 | `/qmd update` | Run update from command line (unchanged) |
 | `/qmd init` | Start onboarding flow (unchanged) |
 
-## Panel States
+## Layout
 
-| State | Badge | What's shown |
-|-------|-------|-------------|
-| Bound + fresh | `indexed ✓` | Selected bound collection summary, index stats, contexts |
-| Bound + stale | `indexed · N stale` | Bound summary + stale file section |
-| External selected | `external · readonly` | Selected external collection summary + readonly tag |
-| Not indexed + no selection | `not indexed` | Repo root, init hint, collection hint (if available) |
-| Collections view | `Collections` | All known collections with selected/bound tags |
-| Unavailable | `unavailable` | Error reason |
-| Updating/Applying | `updating…` / `applying…` | Progress |
+```
+╭─ Collections ────────┬─ agents ───────────────────────────────────╮
+│                       │                                            │
+│  ▸ All (4)            │  ◈ agents                                  │
+│    agents       ● 142 │  ┌────────────────────────────────────┐    │
+│    blog           38  │  │ agents (bound) · **/*.md · 142 docs │    │
+│    notes          21  │  │ fresh ✓ · indexed 2h ago · a3f91d2  │    │
+│    dotfiles        7  │  └────────────────────────────────────┘    │
+│                       │                                            │
+│                       │  ── Index ────────────────────────────────  │
+│                       │      documents     142                     │
+│                       │      vector index  ✓                       │
+│                       │                                            │
+├───────────────────────┴────────────────────────────────────────────┤
+│  tab switch · / filter · j/k nav · enter select     agents · 2/4  │
+╰────────────────────────────────────────────────────────────────────╯
+```
 
-## Collection selector view
+- **Width**: 90% of terminal, min 90 columns, max height 80%
+- **Sidebar**: Fixed 24-char inner width. Always visible.
+- **Main pane**: Fills remaining width. Three views: overview, files, search.
+- **Footer**: Full width, context-sensitive shortcuts.
 
-Press `c` from overview or files to open the selector.
+## Focus Model
 
-- Shows all known collections from the QMD store
-- Marks the panel-active entry with `[selected]`
-- Marks the current repo binding with `[bound]`
-- Uses a low-density list (key + tags) plus a dedicated details block for the highlighted row
-- Shows a scope strip (`[bound]` / `[external readonly]`) for orientation
-- Press `/` to enter filter typing mode (`enter` to finish, `ctrl+u` to clear)
-- `enter` (outside typing mode) switches the active collection and returns to overview
-- External selections are intentionally readonly in this phase
+`tab` switches focus between sidebar and main pane. The focused pane has accent-colored border labels; the unfocused pane has dim labels.
+
+### Esc Cascade
+
+`esc` resolves the most local state first:
+
+1. Sidebar filter active → clear filter
+2. Search with text → clear text
+3. Search with empty → back to overview
+4. Files view → back to overview
+5. Otherwise → close panel
+
+## Sidebar
+
+Always shows all QMD collections:
+
+- **All (N)**: Synthetic entry at the top. Shows global health when selected.
+- **Collection entries**: Name, `●` bound marker, doc count (right-aligned).
+- **`/`**: Enter filter mode — type to filter collections by name.
+- **`j/k`**: Navigate. **`enter`**: Select collection → main pane updates.
+
+## Main Pane Views
+
+### Overview (default)
+
+Shows collection details when a specific collection is selected:
+- Collection info card (name, pattern, doc count, freshness)
+- Index section (documents, vector index, needs embed, collections)
+- Contexts section (path + annotation)
+- Stale files section (bound only)
+
+When "All" is selected: shows global index health (total docs, collections, embedding status).
+
+### Files (`f` or `enter` from overview)
+
+NERDTree-style collapsible file tree. Available only when a specific collection is selected.
+
+- `space` toggles file/dir index inclusion (bound only)
+- `a` applies pending changes
+- `enter` expands/collapses directories
+- `esc` returns to overview
+
+### Search (`s` or `/` from overview)
+
+Interactive search within the selected collection. Available only when a specific collection is selected.
+
+- **Debounced lex search**: Results appear ~200ms after keystroke
+- **`enter`**: Triggers full search using the active mode (lex or hybrid)
+- **`ctrl+t`**: Cycles search mode between `lex` and `hybrid`
+- **`tab`**: Toggles between input and results focus
+- **Results**: Path + score %, title, snippet
+- **`enter`/`y` on result**: Copies file path to clipboard
 
 ## Keyboard Shortcuts
 
-| Key | Overview | Collections | Files tree | Updating |
-|-----|----------|-------------|------------|----------|
-| `esc`, `q` | Close panel | Back to overview | Back to overview | Cancel |
-| `Ctrl+C` | Close panel | Close panel | Close panel | Close panel |
-| `Ctrl+Alt+Q` | Toggle panel | Toggle panel | Toggle panel | Toggle panel |
-| `c` | Open collections view | — | Open collections view | — |
-| `u` | Trigger update (bound only) | — | — | — |
-| `i` | Start init (if repo not indexed) | — | — | — |
-| `r` | Refresh snapshot | Refresh snapshot | Refresh snapshot | — |
-| `/` | — | Enter filter typing mode | — | — |
-| `j/k`, `↑↓` | Scroll | Move cursor | Move cursor | — |
-| `enter`, `l`, `→` | Open file tree | Select collection (or finish filter typing) | Toggle collapse/expand | — |
-| `h`, `←` | — | Back to overview / exit filter mode | Back to overview | — |
-| `backspace` | — | Delete filter character (typing mode) | — | — |
-| `ctrl+u` | — | Clear filter (typing mode) | — | — |
-| `space` | — | — | Toggle file/dir inclusion (bound only) | — |
-| `a` | — | — | Apply pending changes (bound only) | — |
-| `g` / `G` | Top / bottom | Top / bottom | Top / bottom | — |
-| `PageUp/Down` | Page scroll | Page scroll | Page scroll | — |
+### Global
+
+| Key | Action |
+|-----|--------|
+| `q` | Close panel |
+| `Ctrl+C` | Close panel |
+| `Ctrl+Alt+Q` | Toggle panel |
+| `tab` | Switch focus between sidebar and main pane |
+
+### Sidebar (when focused)
+
+| Key | Action |
+|-----|--------|
+| `j/k`, `↑↓` | Navigate collections |
+| `enter` | Select collection |
+| `/` | Enter filter mode |
+| `g/G` | Jump to top/bottom |
+| `u` | Update index (bound only) |
+| `r` | Refresh snapshot |
+| `i` | Start init (if not indexed) |
+| `esc` | Clear filter or close panel |
+
+### Main — Overview
+
+| Key | Action |
+|-----|--------|
+| `f`, `enter` | Open file tree |
+| `s`, `/` | Open search |
+| `u` | Update index (bound only) |
+| `r` | Refresh snapshot |
+| `j/k` | Scroll content |
+| `esc` | Switch focus to sidebar |
+
+### Main — Files
+
+| Key | Action |
+|-----|--------|
+| `j/k` | Navigate tree |
+| `enter` | Expand/collapse directory |
+| `space` | Toggle file/dir inclusion (bound only) |
+| `a` | Apply pending changes |
+| `esc`, `h` | Back to overview |
+
+### Main — Search (input focused)
+
+| Key | Action |
+|-----|--------|
+| Type | Debounced lex search |
+| `enter` | Execute search (active mode) |
+| `ctrl+t` | Cycle mode (lex ↔ hybrid) |
+| `tab` | Focus results |
+| `ctrl+u` | Clear query |
+| `esc` | Clear text or back to overview |
+
+### Main — Search (results focused)
+
+| Key | Action |
+|-----|--------|
+| `j/k` | Navigate results |
+| `enter`, `y` | Copy file path to clipboard |
+| `tab`, `esc` | Focus input |
 
 ## File Tree
 
-The files view is a NERDTree-style collapsible tree.
-
-- **Bound selection**: built from a filesystem scan of all `.md` files (including dot-directories like `.pi/`), overlaid with indexed state from QMD.
-- **External selection**: built from indexed QMD paths only and shown in **readonly** mode.
-
-### Structure
-- Directories show `▸` (collapsed) or `▾` (expanded) with file counts
-- Single-child directory chains are collapsed (e.g. `docs/exec-plans/active`)
-- Directories start collapsed for easy top-level navigation
-- `enter` toggles collapse/expand on directories
-- Tree lines (`├──`, `└──`, `│`) show hierarchy
-
-### Index toggle indicators
+Same NERDTree-style tree as before. See the index toggle indicators table:
 
 | Indicator | Meaning |
 |-----------|---------|
 | `●` | Indexed, no pending change |
 | `○` | Not indexed, no pending change |
-| `◉` | Pending add (will be indexed on apply) |
-| `◎` | Pending remove (will be deactivated on apply) |
+| `◉` | Pending add |
+| `◎` | Pending remove |
 
-Directories show aggregate indicators: `●` (all descendants indexed), `◐` (some), `○` (none).
-
-### Toggle behavior (bound selection only)
-- `space` toggles a single file or all files in a directory
-- Directory toggle: if any descendant is effectively included → remove all; otherwise add all
-- Changes are batched in `pending_adds`/`pending_removes` — not applied immediately
-- `a` applies all pending changes (deactivates removes, indexes adds, embeds)
-- Toggling back to original state clears the pending entry (no-op on apply)
-- For external selections, toggles are disabled and the panel displays `[readonly]`
-
-### Dot-path file persistence
-QMD's reindexer skips dot-prefixed path segments. Files under `.pi/`, `.github/`, etc. are indexed via direct store insertion and persisted in the marker's `extra_paths` field. After every `update_collection()`, `extra_paths` are re-indexed automatically.
+Directories show aggregate indicators: `●` all, `◐` some, `○` none.
 
 ## Data Flow
 
 ```
 detect_repo_binding() + check_freshness()
         ↓
-build_qmd_panel_snapshot()  →  QmdPanelSnapshot (flat struct)
+build_qmd_panel_snapshot()  →  QmdPanelSnapshot
         ↓
-QmdPanel.render()  →  framed TUI lines
+QmdPanel.render()  →  split-pane TUI (sidebar + main)
+        ↓
+callbacks: get_snapshot, on_update, on_search_lex, on_search_hybrid, ...
 ```
 
-The snapshot is a flat, serializable struct with no SDK objects. The panel renders it without knowing where the data came from. Actions (update, init) are injected as callbacks.
-
-Count semantics:
-- `docs` in overview is the **selected collection's** document count.
-- `needs embed` remains global QMD index health.
-- Files view badge (`indexed/total`) uses filesystem paths for bound selection, and indexed QMD paths for external readonly selection.
+The snapshot is a flat struct. Search callbacks are wired in `command.ts` and delegate to `qmd-store.ts` SDK wrappers.
 
 ## Non-TUI Fallback
 
-When `ctx.hasUI` is false, `/qmd` and `/qp` print a plain-text summary via `build_plain_text_summary()` instead of opening the panel.
+When `ctx.hasUI` is false, `/qmd` prints a plain-text summary via `build_plain_text_summary()`.

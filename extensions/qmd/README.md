@@ -8,12 +8,13 @@ Repo-local QMD infrastructure for Pi.
 - Tracks repo freshness via `.pi/qmd.json`
 - Adds a quiet footer for indexed repos only
 - Injects short guidance so the agent knows when to use `qmd query/search/get` via `bash`
-- Provides an interactive TUI panel (`/qmd`, `/qp`, `Ctrl+Alt+Q`) showing:
-  - Binding status, freshness, document count, contexts, stale files
-  - Collection selector (`c`) with quick filter (`/`) to switch between all known QMD collections
-  - File browser for selected collection details
+- Provides an interactive split-pane TUI panel (`/qmd`, `/qp`, `Ctrl+Alt+Q`) with:
+  - Persistent collection sidebar (left) — always visible, navigate with `j/k`, filter with `/`
+  - Context-sensitive main pane (right) — overview, files, or search view
+  - Interactive search with debounced lex results and hybrid mode (`ctrl+t`)
+  - File browser with NERDTree-style tree and index toggle
   - In-panel update (`u`, bound only) and init (`i`) actions
-  - Readonly tagging for external collection selections
+  - `tab` switches focus between sidebar and main pane
 - Provides subcommands: `/qmd status`, `/qmd update`, `/qmd init`
 
 ## What it does not do
@@ -32,7 +33,7 @@ The extension owns infra and workflow. The agent still uses the QMD CLI directly
 ## Commands
 
 ### `/qmd` (no args) · `/qp` · `Ctrl+Alt+Q`
-Opens the QMD index dashboard panel. Defaults to the current repo's bound collection, and supports switching to any known collection via the in-panel selector (`c`). External selections are shown in readonly mode. See `docs/panel.md` for keyboard shortcuts and panel states.
+Opens the QMD index dashboard as a split-pane panel. Left pane shows all collections; right pane shows overview, files, or search for the selected collection. Use `tab` to switch focus, `s` to search, `f` for files. See `docs/panel.md` for full keyboard shortcuts and layout.
 
 When `hasUI` is false, prints a plain-text summary instead.
 
@@ -83,7 +84,7 @@ extensions/qmd/
 ├── ui/
 │   ├── constants.ts            # Panel constants (width, shortcuts, icon)
 │   ├── data.ts                 # Snapshot builder, file tree, helpers
-│   ├── panel.ts                # Interactive TUI panel (overview/collections/files/updating)
+│   ├── panel.ts                # Split-pane TUI panel (sidebar + main: overview/files/search)
 │   └── plain-text.ts           # Non-TUI fallback summary
 ├── diy/
 │   ├── README.md               # How to copy/paste this blueprint into another repo
