@@ -73,11 +73,31 @@ export function register_runtime(pi: ExtensionAPI, state: QmdExtensionState): vo
 		const prompt_parts: string[] = [];
 
 		if (state.last_binding?.status === "indexed") {
+			const ck = state.last_binding.collection_key;
 			prompt_parts.push(
-				"This repository is indexed by QMD.",
-				`Use \`qmd query -c ${state.last_binding.collection_key} "question"\` via bash when you need conceptual search, prior decisions, or design context.`,
-				"Use rg/grep for exact strings.",
-				"Refer to skills/qmd/SKILL.md for the full reference.",
+				`This repository is indexed by QMD (collection: \`${ck}\`).`,
+				"",
+				"**Use QMD before rg/grep when:**",
+				"- Starting unfamiliar work — search before reading random files",
+				"- Checking for prior decisions — find out *why* something was designed a certain way",
+				"- Looking for patterns — discover how other parts of the codebase handle similar problems",
+				"- Finding related specs/plans — locate relevant docs you don't know exist",
+				"- Searching for concepts — when you know *what* you need but not *where* it lives or what it's called",
+				"",
+				"**Use rg/grep instead** when you know the exact string, variable name, or file path.",
+				"",
+				"Quick reference:",
+				"```bash",
+				`# Semantic search (best quality — expansion + BM25 + vector + reranking)`,
+				`qmd query -c ${ck} "your question here"`,
+				"",
+				"# Keyword search (fast, no LLM, good for known terms)",
+				`qmd search "exact keywords" -c ${ck}`,
+				"",
+				"# Get a specific document",
+				`qmd get "path/to/file.md"`,
+				"```",
+				"Refer to `skills/qmd/SKILL.md` for advanced usage (structured queries, intent, output formats).",
 			);
 		}
 

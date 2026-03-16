@@ -1,6 +1,6 @@
 ---
 name: qmd
-description: "Search markdown knowledge bases, notes, and documentation using QMD. Use proactively when you need to discover prior decisions, design patterns, specs, or how something works — not just when the user explicitly asks to search."
+description: "Search this repo's markdown docs, specs, plans, and notes using QMD semantic search. Load this skill BEFORE starting unfamiliar work, looking for prior decisions, checking for existing patterns, or finding related specs — any time you know what you need but not where it lives."
 ---
 
 # QMD - Quick Markdown Search
@@ -9,13 +9,22 @@ Local, on-device hybrid search engine for markdown content. Combines BM25 full-t
 
 ## When to Use This
 
-**Reach for qmd proactively** — don't wait for the user to ask. Use it when:
+**Use QMD before `rg` in these specific situations:**
 
-- You need to understand how something was designed or why a decision was made
-- You're looking for prior art, patterns, or conventions in the repo
-- You know *what* you need but not *where* it lives
-- `rg`/`grep` would require knowing exact strings you don't have
-- You want to find related specs, exec-plans, or resource summaries
+1. **Before starting unfamiliar work** — search for existing context before reading random files.
+   `qmd query -c agents "how does the panel extension work"`
+
+2. **Before proposing a design change** — find prior decisions and rationale.
+   `qmd query -c agents "why was the overlay width changed to 90%"`
+
+3. **Before creating a new utility or pattern** — check if something similar already exists.
+   `qmd query -c agents "shared utility for file tree rendering"`
+
+4. **When looking for related specs or plans** — find docs you don't know exist.
+   `qmd query -c agents "specs about tracks extension lifecycle"`
+
+5. **When you know the concept but not the location** — semantic search finds what `rg` can't.
+   `qmd query -c agents "how do extensions handle error states"`
 
 **Use `rg`/`grep` instead** when you know the exact string, variable name, or file path.
 

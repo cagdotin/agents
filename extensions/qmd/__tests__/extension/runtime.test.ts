@@ -68,7 +68,8 @@ describe("runtime hooks", () => {
 		expect(ctx.statuses.get("qmd")).toBe("qmd: indexed ✓");
 
 		const result = await pi.trigger("before_agent_start", { systemPrompt: "base" }, ctx);
-		expect(result.systemPrompt).toContain("This repository is indexed by QMD.");
+		expect(result.systemPrompt).toContain("This repository is indexed by QMD (collection: `p_demo`).");
 		expect(result.systemPrompt).toContain("qmd query -c p_demo");
+		expect(result.systemPrompt).toContain("**Use QMD before rg/grep when:**");
 	});
 });
