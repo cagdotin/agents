@@ -6,7 +6,7 @@
 - Track: agent-memory
 - Purpose: Research, evaluate, and integrate agent memory/context management improvements — covering QMD, OpenViking patterns, and enhancements to our expertise/tracks systems
 - Status: active
-- Last synced: 2026-03-16T15:19:29.338Z
+- Last synced: 2026-03-16T15:34:19.735Z
 - Session count: 17
 - Summary version: 1
 
@@ -27,7 +27,6 @@
 - ✅ TUI panel implemented
 
 ## Open checklist
-- **QMD panel split-pane redesign** (8 milestones) — `docs/exec-plans/active/2026-03-16-qmd-panel-split-pane-redesign.md`
 - Implement tracks milestone 2 from `docs/specs/2026-03-12-tracks-extension-workstream-lifecycle-v2.md`
 - Define v1 design sketch for unified tracks+expert memory plugin (workstream memory + domain memory boundary)
 - Decide promotion flow: session findings → track files → expertise append

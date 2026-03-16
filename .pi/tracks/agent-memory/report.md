@@ -91,28 +91,33 @@ Full review of `extensions/qmd/` — all 11 source files, 6 test files, 3 docs, 
 3. Declare `@tobilu/qmd` in `package.json` or document more visibly
 4. De-duplicate `resolve_repo_root` call in `write_repo_marker`
 
-## QMD TUI Panel — shipped
+## QMD TUI Panel — split-pane redesign shipped
 
-7. **TUI panel implemented**
-   - `extensions/qmd/ui/panel.ts` — `QmdPanel` class with overview, files, and updating views
-   - `extensions/qmd/ui/data.ts` — `QmdPanelSnapshot` builder, file tree construction, helpers
-   - `extensions/qmd/ui/constants.ts` — panel constants (width, shortcuts, icon)
-   - `extensions/qmd/ui/plain-text.ts` — non-TUI fallback summary
-   - `extensions/qmd/docs/panel.md` — panel behavior documentation
+7. **Split-pane panel redesign implemented** (replaces the old sequential drill-in panel)
+   - `extensions/qmd/ui/panel.ts` — rewritten with split-pane frame, sidebar, focus model, search view
+   - `extensions/qmd/ui/data.ts` — added `QmdSearchResult` type, normalizers for lex/vector/hybrid results
+   - `extensions/qmd/core/qmd-store.ts` — added `search_lex()`, `search_vector()`, `search_hybrid()` SDK wrappers
+   - `extensions/qmd/extension/command.ts` — wired search + embed callbacks
+   - `extensions/qmd/docs/panel.md` — rewritten for new layout and search docs
 
 8. **Panel features**
-   - Three views: overview (index stats, freshness, contexts, stale files), files (NERDTree-style collapsible tree), updating (progress)
-   - Accessible via `/qmd` (no args), `/qp` alias, `Ctrl+Alt+Q` shortcut
-   - Vi-style navigation: `j/k`, `g/G`, `PageUp/Down`, `enter` to drill in, `esc`/`q` to go back
-   - `u` triggers in-panel update, `i` starts init for non-indexed repos
-   - `r` refreshes the snapshot without closing the panel
+   - **Split-pane layout**: persistent collection sidebar (left, 24-char) + main pane (right, fills remaining)
+   - **Three main views**: overview, files (NERDTree tree), search
+   - **Three search modes**: hybrid (full LLM pipeline, default), lex (BM25 keyword), vector (embedding similarity). Cycle with `ctrl+t`
+   - **Google-style search**: type query, press enter, results appear with auto-focus
+   - **Arrow-key pane navigation**: `←/h` → sidebar, `→/l` → main pane. No tab.
+   - **Init prompt**: non-indexed repos show warning + `i` hint prominently
+   - Accessible via `/qmd`, `/qp`, `Ctrl+Alt+Q`
+   - `q` closes from most views but not from search (typing q is common in queries)
+   - `esc` cascades: clear filter → clear search text → back to overview → close
    - Graceful fallback: non-TUI environments get plain-text summary
-   - File tree collapses single-child directory chains (e.g. `docs/exec-plans/active`)
 
 9. **Panel implementation learnings**
-   - `QMDStore.internal.getActiveDocumentPaths(key)` is the low-level API — not exposed on the high-level store
-   - Overview, file browser, and update views are tightly coupled — implemented together in M4–M6 rather than sequentially
+   - Milestones 1–4 (frame, focus, overview, files) shipped as a single cohesive rewrite — natural to implement together
+   - Milestones 6–7 (search + hybrid) also shipped together — hybrid support was trivial once search UI existed
+   - `QMDStore` now has `searchLex()`, `searchVector()`, and `search()` (hybrid) on the high-level API
    - Snapshot is flat and serializable — panel renders without understanding binding/freshness discriminated unions
+   - Debounced lex-on-keystroke was removed after user feedback — Google-style enter-to-search is more intuitive
 
 ## Still worth checking later
 

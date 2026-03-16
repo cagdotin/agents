@@ -1,7 +1,7 @@
 domain: extensions-dev
 description: Cross-extension conventions for progressive-disclosure docs, schema-first boundary validation, qualitative
   quality reporting, and repo-agnostic task-scoped runtime workspaces.
-last_synced: 2026-03-16T11:08:24.635Z
+last_synced: 2026-03-16T15:34:34.463Z
 scope:
   paths:
     - AGENTS.md
@@ -98,6 +98,10 @@ patterns:
   - In terminal overlays, shortening helper/hint copy (e.g. `find`, `move`, `clear`) and reducing visual separators can
     noticeably improve scan rhythm without removing capability; favor one strong divider per section over stacked
     divider lines.
+  - 'QMD panel split-pane TUI: compose two columns by rendering sidebar lines and main pane lines independently, then
+    merging line-by-line with separator chars. Use `pad_to_width` + `truncateToWidth` on every line. Overlay uses
+    `width: "90%"` with `minWidth` for responsive sizing. Arrow keys (←/→) and vim keys (h/l) for spatial pane
+    navigation is more intuitive than tab for split-pane layouts.'
 design_decisions:
   - reason: Agent-facing docs optimize for context budget
     detail: Top-level docs are overviews, not handbooks. If an agent can infer something quickly from code, tests, repo
@@ -193,6 +197,9 @@ gotchas:
   - When using `ctx.ui.custom` panels with close callbacks injected at runtime, wire the extension's `close_panel`
     handle to the live callback object (after creation); otherwise lifecycle events like session switch may fail to
     close overlays because the stored closer remains null.
+  - "QMD SDK search API: `store.searchLex()` (BM25), `store.searchVector()` (embedding), `store.search()` (full hybrid
+    with LLM reranking). All async. The `searchFTS` function on the raw store is the old API — use the QMDStore methods
+    instead. `HybridQueryResult` has `bestChunk` field for snippets; `SearchResult` has `body`."
 references:
   - "Global workflow and enforcement policy: `AGENTS.md`"
   - "Repository docs index and reading order: `docs/README.md`"

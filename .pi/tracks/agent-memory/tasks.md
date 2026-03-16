@@ -15,12 +15,13 @@ Consolidated memory architecture planning (post-implementation):
 - ✅ TUI panel implemented
 - ✅ File tree toggle (select/unselect files for index inclusion)
 - ✅ Dot-path file indexing with persistence across updates
+- ✅ **Panel split-pane redesign — shipped**
+  - Split-pane layout: persistent sidebar (left) + main pane (right)
+  - Interactive search with 3 modes: hybrid, lex, vector
+  - Arrow key / vim navigation between panes
+  - Init prompt for non-indexed repos
+  - All 8 milestones complete
 - ⏳ pending upstream release with PR #377 + #385
-- ⏳ **Panel split-pane redesign** — spec + exec plan created, 8 milestones
-  - Spec: `docs/specs/2026-03-16-qmd-panel-split-pane-redesign.md`
-  - Plan: `docs/exec-plans/active/2026-03-16-qmd-panel-split-pane-redesign.md`
-  - Incorporates TUI search from `workstreams/qmd-tui-search.md` (milestones 5-7)
-  - Inspired by [LazyQMD](https://github.com/AlexZeitler/lazyqmd)
 
 ### Tracks stream (merged from `track-extension`)
 - ✅ minimal tracks extension implemented
@@ -34,7 +35,7 @@ Consolidated memory architecture planning (post-implementation):
 
 ## Current tasks
 
-- [ ] **QMD panel split-pane redesign** (8 milestones) — `docs/exec-plans/active/2026-03-16-qmd-panel-split-pane-redesign.md`
+- [x] **QMD panel split-pane redesign** (8 milestones) — complete
 - [ ] Implement tracks milestone 2 from `docs/specs/2026-03-12-tracks-extension-workstream-lifecycle-v2.md`
 - [ ] Define v1 design sketch for unified tracks+expert memory plugin (workstream memory + domain memory boundary)
 - [ ] Decide promotion flow: session findings → track files → expertise append
@@ -60,6 +61,7 @@ Consolidated memory architecture planning (post-implementation):
 ## Done
 
 - QMD extension v1 + TUI panel shipped and validated.
+- **QMD panel split-pane redesign shipped.** Persistent sidebar, 3 main views (overview/files/search), 3 search modes (hybrid/lex/vector), arrow-key pane navigation, init prompt for non-indexed repos. All 8 milestones complete.
 - Expert extension simplification shipped and validated.
 - Tracks minimal extension shipped and validated.
 - Former `track-extension` and `expert-extension-rework` tracks consolidated into this track's `workstreams/` folder.
