@@ -74,6 +74,16 @@ export class QmdPanel {
 	private tree_cursor = 0;
 	private tree_scroll_offset = 0;
 
+	// ── Search state ────────────────────────────────────────
+	private search_query = "";
+	private search_results: QmdSearchResult[] = [];
+	private search_loading = false;
+	private search_cursor = 0;
+	private search_scroll_offset = 0;
+	private search_mode: "lex" | "hybrid" = "lex";
+	private search_focus: "input" | "results" = "input";
+	private search_debounce_timer: ReturnType<typeof setTimeout> | null = null;
+
 	// ── Toggle state ────────────────────────────────────────
 	private toggle: ToggleState = new ToggleState([]);
 
@@ -232,12 +242,24 @@ export class QmdPanel {
 			this.handle_main_overview_input(key_data);
 		} else if (this.main_view === "files") {
 			this.handle_main_files_input(key_data);
+		} else if (this.main_view === "search") {
+			this.handle_main_search_input(key_data);
 		}
 	}
 
 	private handle_main_overview_input(key_data: string): void {
 		if (matchesKey(key_data, "escape")) {
 			this.focused_pane = "sidebar";
+			this.tui.requestRender();
+			return;
+		}
+		if ((matchesKey(key_data, "s") || get_printable_char(key_data) === "/") && this.selected_collection_key) {
+			this.main_view = "search";
+			this.search_query = "";
+			this.search_results = [];
+			this.search_focus = "input";
+			this.search_cursor = 0;
+			this.search_scroll_offset = 0;
 			this.tui.requestRender();
 			return;
 		}
@@ -310,6 +332,134 @@ export class QmdPanel {
 			this.refresh();
 			return;
 		}
+	}
+
+	// ── Search input ────────────────────────────────────────
+
+	private handle_main_search_input(key_data: string): void {
+		if (this.search_focus === "input") {
+			if (matchesKey(key_data, "escape")) {
+				if (this.search_query.length > 0) {
+					this.search_query = "";
+					this.search_results = [];
+					this.tui.requestRender();
+					return;
+				}
+				this.main_view = "overview";
+				this.overview_scroll_offset = 0;
+				this.tui.requestRender();
+				return;
+			}
+			if (matchesKey(key_data, "enter")) {
+				this.execute_search();
+				return;
+			}
+			if (matchesKey(key_data, "tab") && this.search_results.length > 0) {
+				this.search_focus = "results";
+				this.tui.requestRender();
+				return;
+			}
+			if (matchesKey(key_data, "ctrl+t")) {
+				this.search_mode = this.search_mode === "lex" ? "hybrid" : "lex";
+				this.tui.requestRender();
+				return;
+			}
+			if (matchesKey(key_data, "backspace")) {
+				if (this.search_query.length > 0) {
+					this.search_query = this.search_query.slice(0, -1);
+					this.schedule_lex_search();
+				}
+				this.tui.requestRender();
+				return;
+			}
+			if (matchesKey(key_data, "ctrl+u")) {
+				this.search_query = "";
+				this.search_results = [];
+				this.tui.requestRender();
+				return;
+			}
+			// Don't accept printable chars during hybrid loading
+			if (this.search_loading && this.search_mode === "hybrid") return;
+			const ch = get_printable_char(key_data);
+			if (ch) {
+				this.search_query += ch;
+				this.schedule_lex_search();
+				this.tui.requestRender();
+			}
+			return;
+		}
+
+		// search_focus === "results"
+		if (matchesKey(key_data, "escape") || matchesKey(key_data, "tab")) {
+			this.search_focus = "input";
+			this.tui.requestRender();
+			return;
+		}
+		if (matchesKey(key_data, "j") || matchesKey(key_data, "down")) {
+			if (this.search_cursor < this.search_results.length - 1) {
+				this.search_cursor++;
+				this.tui.requestRender();
+			}
+			return;
+		}
+		if (matchesKey(key_data, "k") || matchesKey(key_data, "up")) {
+			if (this.search_cursor > 0) {
+				this.search_cursor--;
+				this.tui.requestRender();
+			}
+			return;
+		}
+		if (matchesKey(key_data, "enter") || matchesKey(key_data, "y")) {
+			const result = this.search_results[this.search_cursor];
+			if (result) {
+				this.copy_to_clipboard(result.display_path);
+			}
+			return;
+		}
+	}
+
+	private schedule_lex_search(): void {
+		if (this.search_debounce_timer) clearTimeout(this.search_debounce_timer);
+		if (!this.search_query.trim() || !this.selected_collection_key) {
+			this.search_results = [];
+			this.tui.requestRender();
+			return;
+		}
+		this.search_debounce_timer = setTimeout(async () => {
+			this.search_loading = true;
+			this.tui.requestRender();
+			try {
+				this.search_results = await this.callbacks.on_search_lex(this.search_query, this.selected_collection_key!);
+			} catch {
+				this.search_results = [];
+			}
+			this.search_loading = false;
+			this.search_cursor = 0;
+			this.search_scroll_offset = 0;
+			this.tui.requestRender();
+		}, 200);
+	}
+
+	private async execute_search(): Promise<void> {
+		if (!this.search_query.trim() || !this.selected_collection_key) return;
+		this.search_loading = true;
+		this.tui.requestRender();
+		try {
+			const callback = this.search_mode === "hybrid" ? this.callbacks.on_search_hybrid : this.callbacks.on_search_lex;
+			this.search_results = await callback(this.search_query, this.selected_collection_key);
+		} catch {
+			this.search_results = [];
+		} finally {
+			this.search_loading = false;
+			this.search_cursor = 0;
+			this.search_scroll_offset = 0;
+			this.tui.requestRender();
+		}
+	}
+
+	private copy_to_clipboard(text: string): void {
+		const { exec } = require("node:child_process") as typeof import("node:child_process");
+		exec(`printf '%s' ${JSON.stringify(text)} | pbcopy`);
 	}
 
 	// ── Overview scroll ─────────────────────────────────────
@@ -532,6 +682,10 @@ export class QmdPanel {
 		}
 		this.main_view = "overview";
 		this.overview_scroll_offset = 0;
+		// Clear search state when switching collections
+		this.search_query = "";
+		this.search_results = [];
+		this.search_loading = false;
 		this.refresh();
 	}
 
@@ -558,12 +712,14 @@ export class QmdPanel {
 	private render_main_pane(width: number, height: number): string[] {
 		if (this.main_view === "overview") return this.render_main_overview(width, height);
 		if (this.main_view === "files") return this.render_main_files(width, height);
+		if (this.main_view === "search") return this.render_main_search(width, height);
 		return this.render_main_overview(width, height);
 	}
 
 	private get_main_pane_label(): string {
 		const name = this.selected_collection_key ?? "Overview";
 		if (this.main_view === "files") return `${name} › Files`;
+		if (this.main_view === "search") return `${name} › Search`;
 		return name;
 	}
 
@@ -716,6 +872,118 @@ export class QmdPanel {
 		return all_lines.slice(0, height).map((line) => truncateToWidth(line, width));
 	}
 
+	// ── Search ──────────────────────────────────────────────
+
+	private render_main_search(width: number, height: number): string[] {
+		const t = this.theme;
+		const iw = width - 1;
+
+		const lines: string[] = [];
+
+		// Header line: Search: {collection} ─── {mode}
+		const mode_color = this.search_mode === "hybrid" ? "warning" : "accent";
+		const mode_label = t.fg(mode_color, this.search_mode);
+		const coll_name = display_key(this.selected_collection_key ?? "", 20);
+		const header_left = ` ${t.fg("muted", "Search:")} ${t.fg("accent", coll_name)} `;
+		const header_right = ` ${mode_label} `;
+		const header_fill = Math.max(0, iw - visibleWidth(header_left) - visibleWidth(header_right));
+		lines.push(truncateToWidth(`${header_left}${t.fg("dim", "─".repeat(header_fill))}${header_right}`, iw));
+
+		// Input line
+		const cursor_char = this.search_focus === "input" ? "█" : "";
+		lines.push(truncateToWidth(` ${t.fg("accent", ">")} ${this.search_query}${cursor_char}`, iw));
+
+		// Separator
+		lines.push(t.fg("dim", "─".repeat(iw)));
+
+		// Results area
+		const results_area_h = Math.max(1, height - lines.length);
+
+		if (this.search_loading) {
+			lines.push(` ${t.fg("muted", `Searching… (${this.search_mode})`)}`);
+		} else if (this.search_results.length === 0) {
+			if (this.search_query.trim()) {
+				lines.push(` ${t.fg("dim", "No results")}`);
+			} else {
+				lines.push(` ${t.fg("dim", "Type to search")}`);
+			}
+		} else {
+			// Summary
+			const summary = ` ${t.fg("accent", `${this.search_results.length}`)} ${t.fg("dim", `results · ${this.search_results[0]?.source ?? this.search_mode}`)}`;
+			lines.push(summary);
+			lines.push("");
+
+			// Build result entries (each takes 4 lines: path+score, title, snippet, blank)
+			const result_lines: Array<{ line: string; result_idx: number }> = [];
+			for (let i = 0; i < this.search_results.length; i++) {
+				const r = this.search_results[i];
+				const is_selected = this.search_focus === "results" && i === this.search_cursor;
+				const marker = is_selected ? t.fg("accent", "▸") : " ";
+				const score = `${Math.round(r.score * 100)}%`;
+				const path_max = iw - 6 - score.length;
+				const path_display = display_key(r.display_path, Math.max(8, path_max));
+				const path_vis = visibleWidth(path_display);
+				const score_gap = Math.max(1, iw - 4 - path_vis - score.length);
+
+				const path_styled = is_selected ? t.fg("accent", t.bold(path_display)) : path_display;
+				result_lines.push({
+					line: ` ${marker} ${path_styled}${" ".repeat(score_gap)}${t.fg("dim", score)}`,
+					result_idx: i,
+				});
+
+				if (r.title) {
+					result_lines.push({
+						line: `   ${t.fg("muted", truncateToWidth(r.title, iw - 4))}`,
+						result_idx: i,
+					});
+				}
+				if (r.snippet) {
+					const snip_lines = r.snippet.split("\n").slice(0, 2);
+					for (const sl of snip_lines) {
+						result_lines.push({
+							line: `   ${t.fg("dim", truncateToWidth(sl, iw - 4))}`,
+							result_idx: i,
+						});
+					}
+				}
+				result_lines.push({ line: "", result_idx: i });
+			}
+
+			// Scroll results
+			const available = results_area_h - 2; // subtract summary + blank
+			if (available > 0 && result_lines.length > available) {
+				// Find the first line of the selected result
+				const first_selected_line = result_lines.findIndex((rl) => rl.result_idx === this.search_cursor);
+				if (first_selected_line >= 0) {
+					if (first_selected_line < this.search_scroll_offset) {
+						this.search_scroll_offset = first_selected_line;
+					} else if (first_selected_line >= this.search_scroll_offset + available) {
+						this.search_scroll_offset = first_selected_line - available + 4; // show a few lines of context
+					}
+				}
+				this.search_scroll_offset = Math.max(0, Math.min(this.search_scroll_offset, result_lines.length - available));
+				const visible_result_lines = result_lines.slice(
+					this.search_scroll_offset,
+					this.search_scroll_offset + available,
+				);
+				for (const rl of visible_result_lines) {
+					lines.push(truncateToWidth(rl.line, iw));
+				}
+			} else {
+				for (const rl of result_lines.slice(0, available > 0 ? available : result_lines.length)) {
+					lines.push(truncateToWidth(rl.line, iw));
+				}
+			}
+		}
+
+		// Pad to height
+		while (lines.length < height) {
+			lines.push("");
+		}
+
+		return lines.slice(0, height).map((line) => truncateToWidth(line, width));
+	}
+
 	// ── Updating view ───────────────────────────────────────
 
 	private render_updating_view(width: number): string[] {
@@ -773,6 +1041,9 @@ export class QmdPanel {
 			if (this.selected_collection_key && this.snapshot.filesystem_paths.length > 0) {
 				hints.push(`${t.fg("accent", "f")} files`);
 			}
+			if (this.selected_collection_key) {
+				hints.push(`${t.fg("accent", "s")} search`);
+			}
 			if (this.snapshot.supports_update_action) hints.push(`${t.fg("accent", "u")} update`);
 			hints.push(`${t.fg("accent", "r")} refresh`);
 		} else if (this.main_view === "files") {
@@ -781,6 +1052,19 @@ export class QmdPanel {
 			if (this.toggle.has_pending()) hints.push(`${t.fg("accent", "a")} apply`);
 			hints.push(`${t.fg("accent", "enter")} expand`);
 			hints.push(`${t.fg("accent", "esc")} back`);
+		} else if (this.main_view === "search") {
+			if (this.search_focus === "input") {
+				hints.push(`${t.fg("accent", "tab")} results`);
+				hints.push(`${t.fg("accent", "ctrl+t")} mode`);
+				hints.push(`${t.fg("accent", "enter")} search`);
+				hints.push(`${t.fg("accent", "esc")} back`);
+			} else {
+				hints.push(`${t.fg("accent", "tab")} input`);
+				hints.push(`${t.fg("accent", "j/k")} nav`);
+				hints.push(`${t.fg("accent", "enter")} copy`);
+				hints.push(`${t.fg("accent", "y")} yank`);
+				hints.push(`${t.fg("accent", "esc")} back`);
+			}
 		}
 
 		const hint_text = ` ${hints.join(t.fg("dim", " · "))}`;
