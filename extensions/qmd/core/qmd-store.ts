@@ -296,6 +296,12 @@ export async function search_lex(query: string, collection: string, limit = 20):
 	});
 }
 
+export async function search_vector(query: string, collection: string, limit = 20): Promise<SearchResult[]> {
+	return with_store("search (vector)", async (store) => {
+		return store.searchVector(query, { collection, limit });
+	});
+}
+
 export async function search_hybrid(query: string, collection: string, limit = 20): Promise<HybridQueryResult[]> {
 	return with_store("search (hybrid)", async (store) => {
 		return store.search({ query, collection, limit });

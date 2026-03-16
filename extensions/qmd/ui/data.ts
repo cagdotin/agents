@@ -35,6 +35,21 @@ export function normalize_lex_result(
 	};
 }
 
+export function normalize_vector_result(
+	result: { filepath: string; displayPath: string; title: string; score: number; body?: string; docid: string },
+	_collection: string,
+): QmdSearchResult {
+	return {
+		file: result.filepath,
+		display_path: strip_virtual_prefix(result.displayPath || result.filepath),
+		title: result.title,
+		score: result.score,
+		snippet: clean_snippet(result.body ?? ""),
+		docid: result.docid,
+		source: "hybrid", // display as hybrid since it's vector-based
+	};
+}
+
 export function normalize_hybrid_result(result: {
 	file: string;
 	displayPath: string;

@@ -2,8 +2,8 @@
 	"schema_version": 1,
 	"repo_root": "/Users/cgn/git/0xcgn/agents",
 	"collection_key": "agents",
-	"last_indexed_at": "2026-03-14T10:11:03.500Z",
-	"last_indexed_commit": "3401a347bfc22585bd36d334c82e09d6eb32de43",
+	"last_indexed_at": "2026-03-16T15:08:06.895Z",
+	"last_indexed_commit": "c83f467f9462ae7b1afa530793af0f236343327a",
 	"created_at": "2026-03-13T13:33:00.492Z",
 	"extra_paths": [
 		".pi/todos/add-quality-trend-tracking-monthly-snapshots-and-regression-detection.md",

@@ -19,6 +19,7 @@ export interface QmdPanelCallbacks {
 	on_toggle_files: (adds: string[], removes: string[]) => Promise<void>;
 	on_embed: () => Promise<void>;
 	on_search_lex: (query: string, collection: string) => Promise<QmdSearchResult[]>;
+	on_search_vector: (query: string, collection: string) => Promise<QmdSearchResult[]>;
 	on_search_hybrid: (query: string, collection: string) => Promise<QmdSearchResult[]>;
 }
 
@@ -53,7 +54,7 @@ export class QmdPanel {
 	private snapshot: QmdPanelSnapshot;
 
 	// ── Focus & view state ──────────────────────────────────
-	private focused_pane: "sidebar" | "main" = "sidebar";
+	private focused_pane: "sidebar" | "main" = "main";
 	private main_view: "overview" | "files" | "search" = "overview";
 	private updating = false;
 	private update_progress: string | null = null;
@@ -80,9 +81,8 @@ export class QmdPanel {
 	private search_loading = false;
 	private search_cursor = 0;
 	private search_scroll_offset = 0;
-	private search_mode: "lex" | "hybrid" = "lex";
+	private search_mode: "lex" | "vector" | "hybrid" = "hybrid";
 	private search_focus: "input" | "results" = "input";
-	private search_debounce_timer: ReturnType<typeof setTimeout> | null = null;
 
 	// ── Toggle state ────────────────────────────────────────
 	private toggle: ToggleState = new ToggleState([]);
@@ -115,7 +115,11 @@ export class QmdPanel {
 			this.done();
 			return;
 		}
-		if (matchesKey(key_data, "q") && !this.sidebar_filter_editing) {
+		if (
+			matchesKey(key_data, "q") &&
+			!this.sidebar_filter_editing &&
+			!(this.main_view === "search" && this.focused_pane === "main")
+		) {
 			this.done();
 			return;
 		}
@@ -360,14 +364,13 @@ export class QmdPanel {
 				return;
 			}
 			if (matchesKey(key_data, "ctrl+t")) {
-				this.search_mode = this.search_mode === "lex" ? "hybrid" : "lex";
+				this.cycle_search_mode();
 				this.tui.requestRender();
 				return;
 			}
 			if (matchesKey(key_data, "backspace")) {
 				if (this.search_query.length > 0) {
 					this.search_query = this.search_query.slice(0, -1);
-					this.schedule_lex_search();
 				}
 				this.tui.requestRender();
 				return;
@@ -378,12 +381,11 @@ export class QmdPanel {
 				this.tui.requestRender();
 				return;
 			}
-			// Don't accept printable chars during hybrid loading
-			if (this.search_loading && this.search_mode === "hybrid") return;
+			// Don't accept input while searching
+			if (this.search_loading) return;
 			const ch = get_printable_char(key_data);
 			if (ch) {
 				this.search_query += ch;
-				this.schedule_lex_search();
 				this.tui.requestRender();
 			}
 			return;
@@ -418,26 +420,10 @@ export class QmdPanel {
 		}
 	}
 
-	private schedule_lex_search(): void {
-		if (this.search_debounce_timer) clearTimeout(this.search_debounce_timer);
-		if (!this.search_query.trim() || !this.selected_collection_key) {
-			this.search_results = [];
-			this.tui.requestRender();
-			return;
-		}
-		this.search_debounce_timer = setTimeout(async () => {
-			this.search_loading = true;
-			this.tui.requestRender();
-			try {
-				this.search_results = await this.callbacks.on_search_lex(this.search_query, this.selected_collection_key!);
-			} catch {
-				this.search_results = [];
-			}
-			this.search_loading = false;
-			this.search_cursor = 0;
-			this.search_scroll_offset = 0;
-			this.tui.requestRender();
-		}, 200);
+	private cycle_search_mode(): void {
+		const modes: Array<"lex" | "vector" | "hybrid"> = ["hybrid", "lex", "vector"];
+		const idx = modes.indexOf(this.search_mode);
+		this.search_mode = modes[(idx + 1) % modes.length];
 	}
 
 	private async execute_search(): Promise<void> {
@@ -445,8 +431,19 @@ export class QmdPanel {
 		this.search_loading = true;
 		this.tui.requestRender();
 		try {
-			const callback = this.search_mode === "hybrid" ? this.callbacks.on_search_hybrid : this.callbacks.on_search_lex;
+			let callback: (query: string, collection: string) => Promise<QmdSearchResult[]>;
+			if (this.search_mode === "hybrid") {
+				callback = this.callbacks.on_search_hybrid;
+			} else if (this.search_mode === "vector") {
+				callback = this.callbacks.on_search_vector;
+			} else {
+				callback = this.callbacks.on_search_lex;
+			}
 			this.search_results = await callback(this.search_query, this.selected_collection_key);
+			// Auto-focus results if we got any
+			if (this.search_results.length > 0) {
+				this.search_focus = "results";
+			}
 		} catch {
 			this.search_results = [];
 		} finally {
@@ -881,7 +878,7 @@ export class QmdPanel {
 		const lines: string[] = [];
 
 		// Header line: Search: {collection} ─── {mode}
-		const mode_color = this.search_mode === "hybrid" ? "warning" : "accent";
+		const mode_color = this.search_mode === "hybrid" ? "accent" : this.search_mode === "vector" ? "warning" : "dim";
 		const mode_label = t.fg(mode_color, this.search_mode);
 		const coll_name = display_key(this.selected_collection_key ?? "", 20);
 		const header_left = ` ${t.fg("muted", "Search:")} ${t.fg("accent", coll_name)} `;
@@ -905,7 +902,7 @@ export class QmdPanel {
 			if (this.search_query.trim()) {
 				lines.push(` ${t.fg("dim", "No results")}`);
 			} else {
-				lines.push(` ${t.fg("dim", "Type to search")}`);
+				lines.push(` ${t.fg("dim", "Type a query and press enter to search")}`);
 			}
 		} else {
 			// Summary

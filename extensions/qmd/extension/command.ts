@@ -6,6 +6,7 @@ import {
 	index_files,
 	search_hybrid,
 	search_lex,
+	search_vector,
 	update_collection,
 } from "../core/qmd-store.js";
 import type { FreshnessResult, RepoBindingResult } from "../core/types.js";
@@ -19,7 +20,12 @@ import {
 	write_repo_marker,
 } from "../domain/repo-binding.js";
 import { QMD_PANEL_ALIAS, QMD_PANEL_SHORTCUT } from "../ui/constants.js";
-import { build_qmd_panel_snapshot, normalize_hybrid_result, normalize_lex_result } from "../ui/data.js";
+import {
+	build_qmd_panel_snapshot,
+	normalize_hybrid_result,
+	normalize_lex_result,
+	normalize_vector_result,
+} from "../ui/data.js";
 import { show_qmd_panel } from "../ui/panel.js";
 import { build_plain_text_summary } from "../ui/plain-text.js";
 import { type QmdExtensionState, refresh_runtime_state } from "./runtime.js";
@@ -194,6 +200,10 @@ export function register_qmd_command(pi: ExtensionAPI, state: QmdExtensionState)
 				on_search_lex: async (query: string, collection: string) => {
 					const raw = await search_lex(query, collection);
 					return raw.map((r) => normalize_lex_result(r, collection));
+				},
+				on_search_vector: async (query: string, collection: string) => {
+					const raw = await search_vector(query, collection);
+					return raw.map((r) => normalize_vector_result(r, collection));
 				},
 				on_search_hybrid: async (query: string, collection: string) => {
 					const raw = await search_hybrid(query, collection);
