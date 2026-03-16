@@ -16,6 +16,11 @@ Consolidated memory architecture planning (post-implementation):
 - ✅ File tree toggle (select/unselect files for index inclusion)
 - ✅ Dot-path file indexing with persistence across updates
 - ⏳ pending upstream release with PR #377 + #385
+- ⏳ **Panel split-pane redesign** — spec + exec plan created, 8 milestones
+  - Spec: `docs/specs/2026-03-16-qmd-panel-split-pane-redesign.md`
+  - Plan: `docs/exec-plans/active/2026-03-16-qmd-panel-split-pane-redesign.md`
+  - Incorporates TUI search from `workstreams/qmd-tui-search.md` (milestones 5-7)
+  - Inspired by [LazyQMD](https://github.com/AlexZeitler/lazyqmd)
 
 ### Tracks stream (merged from `track-extension`)
 - ✅ minimal tracks extension implemented
@@ -29,6 +34,7 @@ Consolidated memory architecture planning (post-implementation):
 
 ## Current tasks
 
+- [ ] **QMD panel split-pane redesign** (8 milestones) — `docs/exec-plans/active/2026-03-16-qmd-panel-split-pane-redesign.md`
 - [ ] Implement tracks milestone 2 from `docs/specs/2026-03-12-tracks-extension-workstream-lifecycle-v2.md`
 - [ ] Define v1 design sketch for unified tracks+expert memory plugin (workstream memory + domain memory boundary)
 - [ ] Decide promotion flow: session findings → track files → expertise append

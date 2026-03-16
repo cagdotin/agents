@@ -9,9 +9,18 @@ Research, evaluate, and integrate agent memory/context management improvements �
 1. `summary.md` — current compressed snapshot.
 2. `tasks.md` — active tasks, milestones, and next steps across all memory streams.
 3. `workstreams/` — consolidated stream notes from former `track-extension` and `expert-extension-rework` tracks.
-4. `specs/qmd-extension-v1.md` — QMD extension v1 design spec.
+4. `workstreams/qmd-tui-search.md` — TUI search exploration (design brainstorm, incorporated into panel redesign).
+5. `specs/qmd-extension-v1.md` — QMD extension v1 design spec.
 5. `exec-plans/qmd-extension-v1.md` — QMD extension v1 execution plan.
 6. `references.md` — curated reading path when more context is needed.
+
+### Active: QMD Panel Split-Pane Redesign
+
+- **Spec:** `docs/specs/2026-03-16-qmd-panel-split-pane-redesign.md`
+- **Implementation spec:** `docs/specs/2026-03-16-qmd-panel-split-pane-implementation.md` ← **start here for implementation**
+- **Plan:** `docs/exec-plans/active/2026-03-16-qmd-panel-split-pane-redesign.md`
+- **Prior exploration:** `workstreams/qmd-tui-search.md` (search design, now folded into milestones 5-7)
+- **Inspiration:** [LazyQMD](https://github.com/AlexZeitler/lazyqmd) — persistent sidebar, search modes, collection management
 
 ## File guide
 

@@ -6,4 +6,8 @@ export const QMD_PANEL_SHORTCUT = "ctrl+alt+q";
 
 export const QMD_PANEL_ICON = "◈";
 
-export const QMD_PANEL_WIDTH = 80;
+export const QMD_PANEL_WIDTH = "90%";
+
+export const QMD_PANEL_MIN_WIDTH = 90;
+
+export const QMD_SIDEBAR_INNER_WIDTH = 24;
