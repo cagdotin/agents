@@ -209,6 +209,10 @@ export function register_qmd_command(pi: ExtensionAPI, state: QmdExtensionState)
 					const raw = await search_hybrid(query, collection);
 					return raw.map((r) => normalize_hybrid_result(r));
 				},
+				on_get_document: async (virtual_path: string) => {
+					const { get_document_content } = await import("../core/qmd-store.js");
+					return get_document_content(virtual_path);
+				},
 				on_toggle_files: async (adds: string[], removes: string[]) => {
 					const binding = await detect_repo_binding(ctx.cwd);
 					if (binding.status !== "indexed") return;

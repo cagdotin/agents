@@ -21,6 +21,7 @@ export interface QmdPanelCallbacks {
 	on_search_lex: (query: string, collection: string) => Promise<QmdSearchResult[]>;
 	on_search_vector: (query: string, collection: string) => Promise<QmdSearchResult[]>;
 	on_search_hybrid: (query: string, collection: string) => Promise<QmdSearchResult[]>;
+	on_get_document: (virtual_path: string) => Promise<{ content: string; title: string } | null>;
 }
 
 export async function show_qmd_panel(
@@ -55,7 +56,7 @@ export class QmdPanel {
 
 	// ── Focus & view state ──────────────────────────────────
 	private focused_pane: "sidebar" | "main" = "main";
-	private main_view: "overview" | "files" | "search" = "overview";
+	private main_view: "overview" | "files" | "search" | "preview" = "overview";
 	private updating = false;
 	private update_progress: string | null = null;
 
@@ -83,6 +84,16 @@ export class QmdPanel {
 	private search_scroll_offset = 0;
 	private search_mode: "lex" | "vector" | "hybrid" = "hybrid";
 	private search_focus: "input" | "results" = "input";
+
+	// ── Preview state ───────────────────────────────────────
+	private preview_content: string[] = [];
+	private preview_raw_lines: string[] = [];
+	private preview_scroll_offset = 0;
+	private preview_path = "";
+	private preview_target_line = 0;
+	private preview_loading = false;
+	private preview_focused = false;
+	private preview_generation = 0;
 
 	// ── Toggle state ────────────────────────────────────────
 	private toggle: ToggleState = new ToggleState([]);
@@ -118,7 +129,7 @@ export class QmdPanel {
 		if (
 			matchesKey(key_data, "q") &&
 			!this.sidebar_filter_editing &&
-			!(this.main_view === "search" && this.focused_pane === "main")
+			!((this.main_view === "search" || this.main_view === "preview") && this.focused_pane === "main")
 		) {
 			this.done();
 			return;
@@ -241,6 +252,13 @@ export class QmdPanel {
 			this.handle_main_overview_input(key_data);
 		} else if (this.main_view === "files") {
 			this.handle_main_files_input(key_data);
+		} else if (this.main_view === "preview") {
+			// 3-column mode: route to preview or search based on focus
+			if (this.preview_focused) {
+				this.handle_main_preview_input(key_data);
+			} else {
+				this.handle_main_search_input(key_data);
+			}
 		} else if (this.main_view === "search") {
 			this.handle_main_search_input(key_data);
 		}
@@ -352,6 +370,13 @@ export class QmdPanel {
 				if (this.search_query.length > 0) {
 					this.search_query = "";
 					this.search_results = [];
+					this.close_preview_if_open();
+					this.tui.requestRender();
+					return;
+				}
+				// Empty query: close preview first, then overview
+				if (this.main_view === "preview") {
+					this.close_preview_if_open();
 					this.tui.requestRender();
 					return;
 				}
@@ -385,6 +410,7 @@ export class QmdPanel {
 			if (matchesKey(key_data, "ctrl+u")) {
 				this.search_query = "";
 				this.search_results = [];
+				this.close_preview_if_open();
 				this.tui.requestRender();
 				return;
 			}
@@ -405,9 +431,9 @@ export class QmdPanel {
 			return;
 		}
 		if (matchesKey(key_data, "escape") || matchesKey(key_data, "up")) {
-			// If cursor is at top and pressing up, go back to input
 			if (matchesKey(key_data, "up") && this.search_cursor > 0) {
 				this.search_cursor--;
+				this.auto_update_preview();
 				this.tui.requestRender();
 				return;
 			}
@@ -418,6 +444,7 @@ export class QmdPanel {
 		if (matchesKey(key_data, "j") || matchesKey(key_data, "down")) {
 			if (this.search_cursor < this.search_results.length - 1) {
 				this.search_cursor++;
+				this.auto_update_preview();
 				this.tui.requestRender();
 			}
 			return;
@@ -425,6 +452,7 @@ export class QmdPanel {
 		if (matchesKey(key_data, "k")) {
 			if (this.search_cursor > 0) {
 				this.search_cursor--;
+				this.auto_update_preview();
 				this.tui.requestRender();
 			} else {
 				this.search_focus = "input";
@@ -432,13 +460,39 @@ export class QmdPanel {
 			}
 			return;
 		}
-		if (matchesKey(key_data, "enter") || matchesKey(key_data, "y")) {
+		if (matchesKey(key_data, "enter") || matchesKey(key_data, "l") || matchesKey(key_data, "right")) {
+			const result = this.search_results[this.search_cursor];
+			if (result) {
+				if (this.main_view === "preview") {
+					// Already in 3-col: just focus the preview pane
+					this.preview_focused = true;
+					this.tui.requestRender();
+				} else {
+					this.open_preview(result);
+				}
+			}
+			return;
+		}
+		if (matchesKey(key_data, "y")) {
 			const result = this.search_results[this.search_cursor];
 			if (result) {
 				this.copy_to_clipboard(result.display_path);
 			}
 			return;
 		}
+	}
+
+	private close_preview_if_open(): void {
+		if (this.main_view === "preview") {
+			this.main_view = "search";
+			this.preview_focused = false;
+		}
+	}
+
+	private auto_update_preview(): void {
+		if (this.main_view !== "preview") return;
+		const result = this.search_results[this.search_cursor];
+		if (result) this.open_preview(result, false);
 	}
 
 	private cycle_search_mode(): void {
@@ -461,12 +515,20 @@ export class QmdPanel {
 				callback = this.callbacks.on_search_lex;
 			}
 			this.search_results = await callback(this.search_query, this.selected_collection_key);
-			// Auto-focus results if we got any
 			if (this.search_results.length > 0) {
 				this.search_focus = "results";
+				// Auto-update preview with first result if in 3-col mode
+				if (this.main_view === "preview") {
+					const first = this.search_results[0];
+					if (first) this.open_preview(first, false);
+				}
+			} else if (this.main_view === "preview") {
+				// No results: close preview
+				this.close_preview_if_open();
 			}
 		} catch {
 			this.search_results = [];
+			this.close_preview_if_open();
 		} finally {
 			this.search_loading = false;
 			this.search_cursor = 0;
@@ -517,49 +579,108 @@ export class QmdPanel {
 		const t = this.theme;
 		const w = Math.max(QMD_PANEL_MIN_WIDTH, width);
 		const sidebar_w = QMD_SIDEBAR_INNER_WIDTH;
-		const main_w = w - sidebar_w - 3; // 2 outer │ + 1 separator │
 		const max_h = this.get_max_height();
 		// body_h = max_h - top border(1) - footer_sep(1) - footer(1) - bottom border(1)
 		const body_h = Math.max(4, max_h - 4);
+		const bdr = (s: string) => t.fg("borderMuted", s);
 
-		// Render pane contents
+		const is_three_col = this.main_view === "preview";
+
+		// ── Column widths ───────────────────────────────────
+		let main_w = 0;
+		let search_w = 0;
+		let preview_w = 0;
+
+		if (is_three_col) {
+			// 4 border columns: │sidebar│search│preview│
+			const combined = w - sidebar_w - 4;
+			search_w = Math.max(30, Math.floor(combined * 0.38));
+			preview_w = combined - search_w;
+		} else {
+			// 3 border columns: │sidebar│main│
+			main_w = w - sidebar_w - 3;
+		}
+
+		// ── Render pane contents ────────────────────────────
 		const sidebar_lines = this.render_sidebar(sidebar_w, body_h);
-		const main_lines = this.render_main_pane(main_w, body_h);
+		let main_lines: string[] = [];
+		let search_lines: string[] = [];
+		let preview_lines: string[] = [];
+
+		if (is_three_col) {
+			search_lines = this.render_main_search(search_w, body_h);
+			preview_lines = this.render_main_preview(preview_w, body_h);
+		} else {
+			main_lines = this.render_main_pane(main_w, body_h);
+		}
 
 		// ── Top border ──────────────────────────────────────
 		const sb_label_text = "Collections";
-		const sb_label = this.focused_pane === "sidebar" ? t.fg("accent", sb_label_text) : t.fg("dim", sb_label_text);
-		const main_label_text = this.get_main_pane_label();
-		const main_label = this.focused_pane === "main" ? t.fg("accent", main_label_text) : t.fg("dim", main_label_text);
-
-		const bdr = (s: string) => t.fg("borderMuted", s);
-
-		// ╭─ Collections ─┬─ {name} ─╮
+		const sb_focused = this.focused_pane === "sidebar";
+		const sb_label = sb_focused ? t.fg("accent", sb_label_text) : t.fg("dim", sb_label_text);
 		const sb_label_vis = visibleWidth(sb_label_text);
-		const main_label_vis = visibleWidth(main_label_text);
-		const sb_fill = Math.max(0, sidebar_w - sb_label_vis - 2); // 2 for "─ " before label and " " after
-		const main_fill = Math.max(0, main_w - main_label_vis - 2);
-		const top_border = truncateToWidth(
-			`${bdr("╭─")} ${sb_label} ${bdr("─".repeat(sb_fill))}${bdr("┬─")} ${main_label} ${bdr("─".repeat(main_fill))}${bdr("╮")}`,
-			w,
-		);
+		const sb_fill = Math.max(0, sidebar_w - sb_label_vis - 2);
+
+		let top_border: string;
+		let footer_inner_w: number;
+
+		if (is_three_col) {
+			const search_label_text = `${display_key(this.selected_collection_key ?? "", 16)} › Search`;
+			const preview_label_text = "Preview";
+			const search_is_focused = this.focused_pane === "main" && !this.preview_focused;
+			const preview_is_focused = this.focused_pane === "main" && this.preview_focused;
+			const search_label = search_is_focused ? t.fg("accent", search_label_text) : t.fg("dim", search_label_text);
+			const preview_label = preview_is_focused ? t.fg("accent", preview_label_text) : t.fg("dim", preview_label_text);
+			const search_label_vis = visibleWidth(search_label_text);
+			const preview_label_vis = visibleWidth(preview_label_text);
+			const search_fill = Math.max(0, search_w - search_label_vis - 2);
+			const preview_fill = Math.max(0, preview_w - preview_label_vis - 2);
+			top_border = truncateToWidth(
+				`${bdr("╭─")} ${sb_label} ${bdr("─".repeat(sb_fill))}${bdr("┬─")} ${search_label} ${bdr("─".repeat(search_fill))}${bdr("┬─")} ${preview_label} ${bdr("─".repeat(preview_fill))}${bdr("╮")}`,
+				w,
+			);
+			footer_inner_w = sidebar_w + search_w + preview_w + 2;
+		} else {
+			const main_label_text = this.get_main_pane_label();
+			const main_label = this.focused_pane === "main" ? t.fg("accent", main_label_text) : t.fg("dim", main_label_text);
+			const main_label_vis = visibleWidth(main_label_text);
+			const main_fill = Math.max(0, main_w - main_label_vis - 2);
+			top_border = truncateToWidth(
+				`${bdr("╭─")} ${sb_label} ${bdr("─".repeat(sb_fill))}${bdr("┬─")} ${main_label} ${bdr("─".repeat(main_fill))}${bdr("╮")}`,
+				w,
+			);
+			footer_inner_w = sidebar_w + main_w + 1;
+		}
 
 		// ── Body lines ──────────────────────────────────────
 		const body: string[] = [];
 		for (let i = 0; i < body_h; i++) {
 			const sl = pad_to_width(truncateToWidth(sidebar_lines[i] ?? "", sidebar_w), sidebar_w);
-			const ml = pad_to_width(truncateToWidth(main_lines[i] ?? "", main_w), main_w);
-			body.push(truncateToWidth(`${bdr("│")}${sl}${bdr("│")}${ml}${bdr("│")}`, w));
+			if (is_three_col) {
+				const srch = pad_to_width(truncateToWidth(search_lines[i] ?? "", search_w), search_w);
+				const prev = pad_to_width(truncateToWidth(preview_lines[i] ?? "", preview_w), preview_w);
+				body.push(truncateToWidth(`${bdr("│")}${sl}${bdr("│")}${srch}${bdr("│")}${prev}${bdr("│")}`, w));
+			} else {
+				const ml = pad_to_width(truncateToWidth(main_lines[i] ?? "", main_w), main_w);
+				body.push(truncateToWidth(`${bdr("│")}${sl}${bdr("│")}${ml}${bdr("│")}`, w));
+			}
 		}
 
 		// ── Footer separator ────────────────────────────────
-		const footer_sep = truncateToWidth(
-			`${bdr("├")}${bdr("─".repeat(sidebar_w))}${bdr("┴")}${bdr("─".repeat(main_w))}${bdr("┤")}`,
-			w,
-		);
+		let footer_sep: string;
+		if (is_three_col) {
+			footer_sep = truncateToWidth(
+				`${bdr("├")}${bdr("─".repeat(sidebar_w))}${bdr("┴")}${bdr("─".repeat(search_w))}${bdr("┴")}${bdr("─".repeat(preview_w))}${bdr("┤")}`,
+				w,
+			);
+		} else {
+			footer_sep = truncateToWidth(
+				`${bdr("├")}${bdr("─".repeat(sidebar_w))}${bdr("┴")}${bdr("─".repeat(main_w))}${bdr("┤")}`,
+				w,
+			);
+		}
 
 		// ── Footer content ──────────────────────────────────
-		const footer_inner_w = sidebar_w + main_w + 1; // +1 for the separator column
 		const footer_text = this.render_footer(footer_inner_w);
 		const footer_line = truncateToWidth(
 			`${bdr("│")}${pad_to_width(truncateToWidth(footer_text, footer_inner_w), footer_inner_w)}${bdr("│")}`,
@@ -700,10 +821,13 @@ export class QmdPanel {
 		}
 		this.main_view = "overview";
 		this.overview_scroll_offset = 0;
-		// Clear search state when switching collections
+		// Clear search and preview state when switching collections
 		this.search_query = "";
 		this.search_results = [];
 		this.search_loading = false;
+		this.preview_focused = false;
+		this.preview_content = [];
+		this.preview_raw_lines = [];
 		this.refresh();
 	}
 
@@ -731,6 +855,7 @@ export class QmdPanel {
 		if (this.main_view === "overview") return this.render_main_overview(width, height);
 		if (this.main_view === "files") return this.render_main_files(width, height);
 		if (this.main_view === "search") return this.render_main_search(width, height);
+		// preview is rendered as part of 3-column layout in render()
 		return this.render_main_overview(width, height);
 	}
 
@@ -738,6 +863,7 @@ export class QmdPanel {
 		const name = this.selected_collection_key ?? "Overview";
 		if (this.main_view === "files") return `${name} › Files`;
 		if (this.main_view === "search") return `${name} › Search`;
+		// preview label is built directly in render() for 3-column layout
 		return name;
 	}
 
@@ -1085,6 +1211,25 @@ export class QmdPanel {
 			if (this.toggle.has_pending()) hints.push(`${t.fg("accent", "a")} apply`);
 			hints.push(`${t.fg("accent", "enter")} expand`);
 			hints.push(`${t.fg("accent", "esc")} back`);
+		} else if (this.main_view === "preview") {
+			if (this.preview_focused) {
+				hints.push(`${t.fg("accent", "←/h")} results`);
+				hints.push(`${t.fg("accent", "j/k")} scroll`);
+				hints.push(`${t.fg("accent", "g/G")} top/bottom`);
+				hints.push(`${t.fg("accent", "y")} copy path`);
+				hints.push(`${t.fg("accent", "esc")} results`);
+			} else if (this.search_focus === "input") {
+				hints.push(`${t.fg("accent", "←")} collections`);
+				hints.push(`${t.fg("accent", "ctrl+t")} mode`);
+				hints.push(`${t.fg("accent", "enter")} search`);
+				hints.push(`${t.fg("accent", "esc")} close preview`);
+			} else {
+				hints.push(`${t.fg("accent", "←/h")} collections`);
+				hints.push(`${t.fg("accent", "j/k")} nav`);
+				hints.push(`${t.fg("accent", "→/l")} preview`);
+				hints.push(`${t.fg("accent", "y")} copy path`);
+				hints.push(`${t.fg("accent", "esc")} input`);
+			}
 		} else if (this.main_view === "search") {
 			if (this.search_focus === "input") {
 				hints.push(`${t.fg("accent", "←")} collections`);
@@ -1094,8 +1239,8 @@ export class QmdPanel {
 			} else {
 				hints.push(`${t.fg("accent", "←/h")} collections`);
 				hints.push(`${t.fg("accent", "j/k")} nav`);
-				hints.push(`${t.fg("accent", "enter")} copy`);
-				hints.push(`${t.fg("accent", "y")} yank`);
+				hints.push(`${t.fg("accent", "enter")} preview`);
+				hints.push(`${t.fg("accent", "y")} copy path`);
 				hints.push(`${t.fg("accent", "esc")} input`);
 			}
 		}
@@ -1189,6 +1334,269 @@ export class QmdPanel {
 		if (clamped === this.tree_cursor) return;
 		this.tree_cursor = clamped;
 		this.tui.requestRender();
+	}
+
+	// ═══════════════════════════════════════════════════════════
+	// Preview
+	// ═══════════════════════════════════════════════════════════
+
+	private async open_preview(result: QmdSearchResult, focus_preview = true): Promise<void> {
+		const gen = ++this.preview_generation;
+		this.preview_loading = true;
+		this.preview_path = result.display_path;
+		this.main_view = "preview";
+		if (focus_preview) this.preview_focused = true;
+		this.tui.requestRender();
+
+		try {
+			const doc = await this.callbacks.on_get_document(result.file);
+			if (gen !== this.preview_generation) return; // stale request
+			if (!doc) {
+				this.preview_raw_lines = ["", " Document not found."];
+				this.preview_content = this.preview_raw_lines;
+				this.preview_target_line = 0;
+			} else {
+				this.preview_raw_lines = doc.content.split("\n");
+				this.preview_target_line = this.find_match_line(this.preview_raw_lines, result.snippet, this.search_query);
+				this.preview_content = this.render_markdown_lines(this.preview_raw_lines);
+			}
+		} catch {
+			if (gen !== this.preview_generation) return;
+			this.preview_raw_lines = ["", " Failed to load document."];
+			this.preview_content = this.preview_raw_lines;
+			this.preview_target_line = 0;
+		}
+
+		this.preview_loading = false;
+		this.preview_scroll_offset = Math.max(0, this.preview_target_line - 5);
+		this.tui.requestRender();
+	}
+
+	private find_match_line(lines: string[], snippet: string, query: string): number {
+		if (snippet) {
+			const clean = snippet.replace(/^…/, "").replace(/…$/, "").trim();
+			const first_line = clean.split("\n")[0]?.trim();
+			if (first_line && first_line.length > 10) {
+				for (let i = 0; i < lines.length; i++) {
+					if (lines[i].includes(first_line)) return i;
+				}
+				const short = first_line.slice(0, 40);
+				for (let i = 0; i < lines.length; i++) {
+					if (lines[i].includes(short)) return i;
+				}
+			}
+		}
+
+		if (query) {
+			const terms = query
+				.toLowerCase()
+				.split(/\s+/)
+				.filter((t) => t.length > 2);
+			if (terms.length > 0) {
+				let best_line = 0;
+				let best_score = 0;
+				for (let i = 0; i < lines.length; i++) {
+					const lower = lines[i].toLowerCase();
+					let score = 0;
+					for (const term of terms) {
+						if (lower.includes(term)) score++;
+					}
+					if (score > best_score) {
+						best_score = score;
+						best_line = i;
+					}
+				}
+				if (best_score > 0) return best_line;
+			}
+		}
+
+		return 0;
+	}
+
+	private render_markdown_lines(raw_lines: string[]): string[] {
+		const t = this.theme;
+		const styled: string[] = [];
+		let in_code_block = false;
+		let code_lang = "";
+
+		for (const line of raw_lines) {
+			if (line.trimStart().startsWith("```")) {
+				in_code_block = !in_code_block;
+				if (in_code_block) {
+					code_lang = line.trimStart().slice(3).trim();
+					styled.push(t.fg("dim", ` ${"─".repeat(3)} ${code_lang || "code"} ${"─".repeat(10)}`));
+				} else {
+					styled.push(t.fg("dim", ` ${"─".repeat(16)}`));
+					code_lang = "";
+				}
+				continue;
+			}
+
+			if (in_code_block) {
+				styled.push(` ${t.fg("muted", line)}`);
+				continue;
+			}
+
+			const h1 = line.match(/^# (.+)/);
+			if (h1) {
+				styled.push(` ${t.fg("accent", t.bold(h1[1]))}`);
+				continue;
+			}
+			const h2 = line.match(/^## (.+)/);
+			if (h2) {
+				styled.push(` ${t.fg("accent", h2[1])}`);
+				continue;
+			}
+			const h3 = line.match(/^### (.+)/);
+			if (h3) {
+				styled.push(` ${t.fg("warning", h3[1])}`);
+				continue;
+			}
+			const h4_plus = line.match(/^#{4,}\s+(.+)/);
+			if (h4_plus) {
+				styled.push(` ${t.fg("muted", t.bold(h4_plus[1]))}`);
+				continue;
+			}
+
+			if (/^[-*_]{3,}\s*$/.test(line.trim())) {
+				styled.push(t.fg("dim", " ─────────────────────"));
+				continue;
+			}
+
+			const ul = line.match(/^(\s*)[*\-+]\s+(.+)/);
+			if (ul) {
+				const indent = ul[1];
+				styled.push(` ${indent}${t.fg("accent", "•")} ${this.style_inline_markdown(ul[2])}`);
+				continue;
+			}
+
+			const ol = line.match(/^(\s*)(\d+)\.\s+(.+)/);
+			if (ol) {
+				const indent = ol[1];
+				styled.push(` ${indent}${t.fg("dim", `${ol[2]}.`)} ${this.style_inline_markdown(ol[3])}`);
+				continue;
+			}
+
+			if (line.trimStart().startsWith("> ")) {
+				const content = line.replace(/^\s*>\s?/, "");
+				styled.push(` ${t.fg("dim", "│")} ${t.fg("muted", content)}`);
+				continue;
+			}
+
+			if (line.trim() === "") {
+				styled.push("");
+				continue;
+			}
+
+			styled.push(` ${this.style_inline_markdown(line)}`);
+		}
+
+		return styled;
+	}
+
+	private style_inline_markdown(text: string): string {
+		const t = this.theme;
+
+		let result = text.replace(/`([^`]+)`/g, (_match, code: string) => t.fg("muted", code));
+		result = result.replace(/\*\*([^*]+)\*\*/g, (_match, bold: string) => t.bold(bold));
+		result = result.replace(/__([^_]+)__/g, (_match, bold: string) => t.bold(bold));
+		result = result.replace(/\*([^*]+)\*/g, (_match, italic: string) => t.fg("dim", italic));
+		result = result.replace(/_([^_]+)_/g, (_match, italic: string) => t.fg("dim", italic));
+		result = result.replace(
+			/\[([^\]]+)\]\(([^)]+)\)/g,
+			(_match, link_text: string, url: string) => `${t.fg("accent", link_text)} ${t.fg("dim", `(${url})`)}`,
+		);
+
+		return result;
+	}
+
+	private render_main_preview(width: number, height: number): string[] {
+		const t = this.theme;
+		const iw = width - 1;
+
+		if (this.preview_loading) {
+			const lines: string[] = ["", ` ${t.fg("muted", "Loading…")}`];
+			while (lines.length < height) lines.push("");
+			return lines;
+		}
+
+		const content = this.preview_content;
+		const total = content.length;
+
+		const path_display = display_key(this.preview_path, iw - 20);
+		const pos_info = `${this.preview_scroll_offset + 1}–${Math.min(this.preview_scroll_offset + height - 2, total)}/${total}`;
+		const header_left = ` ${t.fg("accent", path_display)}`;
+		const header_right = `${t.fg("dim", pos_info)} `;
+		const header_gap = Math.max(1, iw - visibleWidth(header_left) - visibleWidth(header_right));
+		const header = truncateToWidth(`${header_left}${" ".repeat(header_gap)}${header_right}`, iw);
+
+		const sep = t.fg("dim", "─".repeat(iw));
+
+		const body_h = Math.max(1, height - 2);
+		const max_scroll = Math.max(0, total - body_h);
+		this.preview_scroll_offset = Math.max(0, Math.min(this.preview_scroll_offset, max_scroll));
+
+		const visible = content.slice(this.preview_scroll_offset, this.preview_scroll_offset + body_h);
+
+		const target_in_view = this.preview_target_line - this.preview_scroll_offset;
+
+		const body_lines: string[] = [];
+		for (let i = 0; i < body_h; i++) {
+			const line = visible[i] ?? "";
+			if (i === target_in_view && this.preview_target_line > 0) {
+				body_lines.push(truncateToWidth(`${t.fg("accent", "▸")}${line}`, iw));
+			} else {
+				body_lines.push(truncateToWidth(` ${line}`, iw));
+			}
+		}
+
+		return [header, sep, ...body_lines].slice(0, height).map((l) => truncateToWidth(l, width));
+	}
+
+	private handle_main_preview_input(key_data: string): void {
+		// Back to search results (keep preview visible in 3-col)
+		if (matchesKey(key_data, "escape") || matchesKey(key_data, "h") || matchesKey(key_data, "left")) {
+			this.preview_focused = false;
+			this.search_focus = "results";
+			this.tui.requestRender();
+			return;
+		}
+
+		if (matchesKey(key_data, "j") || matchesKey(key_data, "down")) {
+			this.preview_scroll_offset++;
+			this.tui.requestRender();
+			return;
+		}
+		if (matchesKey(key_data, "k") || matchesKey(key_data, "up")) {
+			this.preview_scroll_offset = Math.max(0, this.preview_scroll_offset - 1);
+			this.tui.requestRender();
+			return;
+		}
+		if (matchesKey(key_data, "g") || matchesKey(key_data, "home")) {
+			this.preview_scroll_offset = 0;
+			this.tui.requestRender();
+			return;
+		}
+		if (matchesKey(key_data, "shift+g") || matchesKey(key_data, "end")) {
+			this.preview_scroll_offset = Math.max(0, this.preview_content.length - 10);
+			this.tui.requestRender();
+			return;
+		}
+		if (matchesKey(key_data, "ctrl+d") || matchesKey(key_data, "pagedown")) {
+			this.preview_scroll_offset += 20;
+			this.tui.requestRender();
+			return;
+		}
+		if (matchesKey(key_data, "ctrl+u") || matchesKey(key_data, "pageup")) {
+			this.preview_scroll_offset = Math.max(0, this.preview_scroll_offset - 20);
+			this.tui.requestRender();
+			return;
+		}
+
+		if (matchesKey(key_data, "y")) {
+			this.copy_to_clipboard(this.preview_path);
+			return;
+		}
 	}
 
 	// ═══════════════════════════════════════════════════════════

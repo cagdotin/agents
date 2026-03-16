@@ -288,6 +288,16 @@ export async function index_files(
 	});
 }
 
+// ── Document content ────────────────────────────────────────
+
+export async function get_document_content(virtual_path: string): Promise<{ content: string; title: string } | null> {
+	return with_store("get document content", async (store) => {
+		const doc = store.internal.findDocument(virtual_path, { includeBody: true });
+		if (!doc || "error" in doc) return null;
+		return { content: doc.body ?? "", title: doc.title };
+	});
+}
+
 // ── Search wrappers ─────────────────────────────────────────
 
 export async function search_lex(query: string, collection: string, limit = 20): Promise<SearchResult[]> {
