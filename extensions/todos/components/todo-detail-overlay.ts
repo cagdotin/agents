@@ -1,5 +1,5 @@
 import { getMarkdownTheme, type Theme } from "@mariozechner/pi-coding-agent";
-import { getEditorKeybindings, Markdown, type TUI, truncateToWidth, visibleWidth } from "@mariozechner/pi-tui";
+import { getKeybindings, Markdown, type TUI, truncateToWidth, visibleWidth } from "@mariozechner/pi-tui";
 import { is_todo_closed } from "../helpers.js";
 import type { TodoOverlayAction, TodoRecord } from "../types.js";
 
@@ -27,28 +27,28 @@ export class TodoDetailOverlayComponent {
 	}
 
 	handleInput(key_data: string): void {
-		const kb = getEditorKeybindings();
-		if (kb.matches(key_data, "selectCancel")) {
+		const kb = getKeybindings();
+		if (kb.matches(key_data, "tui.select.cancel")) {
 			this.on_action("back");
 			return;
 		}
-		if (kb.matches(key_data, "selectConfirm")) {
+		if (kb.matches(key_data, "tui.select.confirm")) {
 			this.on_action("work");
 			return;
 		}
-		if (kb.matches(key_data, "selectUp")) {
+		if (kb.matches(key_data, "tui.select.up")) {
 			this.scroll_by(-1);
 			return;
 		}
-		if (kb.matches(key_data, "selectDown")) {
+		if (kb.matches(key_data, "tui.select.down")) {
 			this.scroll_by(1);
 			return;
 		}
-		if (kb.matches(key_data, "selectPageUp")) {
+		if (kb.matches(key_data, "tui.select.pageUp")) {
 			this.scroll_by(-this.view_height || -1);
 			return;
 		}
-		if (kb.matches(key_data, "selectPageDown")) {
+		if (kb.matches(key_data, "tui.select.pageDown")) {
 			this.scroll_by(this.view_height || 1);
 			return;
 		}

@@ -2,7 +2,7 @@ import { DynamicBorder, type Theme } from "@mariozechner/pi-coding-agent";
 import {
 	Container,
 	type Focusable,
-	getEditorKeybindings,
+	getKeybindings,
 	Input,
 	Key,
 	matchesKey,
@@ -165,25 +165,25 @@ export class TodoSelectorComponent extends Container implements Focusable {
 	}
 
 	handleInput(key_data: string): void {
-		const kb = getEditorKeybindings();
-		if (kb.matches(key_data, "selectUp")) {
+		const kb = getKeybindings();
+		if (kb.matches(key_data, "tui.select.up")) {
 			if (this.filtered_todos.length === 0) return;
 			this.selected_index = this.selected_index === 0 ? this.filtered_todos.length - 1 : this.selected_index - 1;
 			this.update_list();
 			return;
 		}
-		if (kb.matches(key_data, "selectDown")) {
+		if (kb.matches(key_data, "tui.select.down")) {
 			if (this.filtered_todos.length === 0) return;
 			this.selected_index = this.selected_index === this.filtered_todos.length - 1 ? 0 : this.selected_index + 1;
 			this.update_list();
 			return;
 		}
-		if (kb.matches(key_data, "selectConfirm")) {
+		if (kb.matches(key_data, "tui.select.confirm")) {
 			const selected = this.filtered_todos[this.selected_index];
 			if (selected) this.on_select_callback(selected);
 			return;
 		}
-		if (kb.matches(key_data, "selectCancel")) {
+		if (kb.matches(key_data, "tui.select.cancel")) {
 			this.on_cancel_callback();
 			return;
 		}

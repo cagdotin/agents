@@ -8,8 +8,8 @@ export function getAgentDir(): string {
 	return "/tmp/mock-agent-dir";
 }
 
-export function keyHint(key: string): string {
-	return `[${key}]`;
+export function keyHint(keybinding: string, description: string): string {
+	return `[${keybinding}: ${description}]`;
 }
 
 // Type re-exports (no-op at runtime, TypeScript handles these)

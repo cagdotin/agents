@@ -146,5 +146,5 @@ export function render_todo_detail(theme: Theme, todo: TodoRecord, expanded: boo
 }
 
 export function append_expand_hint(theme: Theme, text: string): string {
-	return `${text}\n${theme.fg("dim", `(${keyHint("expandTools", "to expand")})`)}`;
+	return `${text}\n${theme.fg("dim", `(${keyHint("app.tools.expand", "to expand")})`)}`;
 }
