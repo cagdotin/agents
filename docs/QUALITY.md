@@ -26,6 +26,7 @@ This scorecard tracks maintainability and readiness of this package for day-to-d
 | `extensions/damage-control` | 3 | Good | Default-on guardrails for YOLO mode with layered rules (bundled + global + nearest project); keep tuning false-positive/false-negative balance |
 | `extensions/session-stats` | 3 | Good | In-session observability panel with tool call charts, detail drill-downs, file timeline mode, and model history |
 | `extensions/tmux` | 3 | Good | Unified tmux integration (notify + pane title); documented |
+| `extensions/cmux` | 3 | Good | Auto-detects cmux environment and injects skill for topology/browser/markdown control |
 | Skills (`skills/*`) | 3 | Good | Consistent SKILL format and clear purpose |
 | Mechanical validation | 4 | Excellent | `bun run check` gates Biome + docs + boundary invariants + Vitest; Lefthook pre-commit runs all four in parallel |
 | Automated testing | 3 | Good | Tier 1 and Tier 2 are in use with shared mocks; Tier 3 runtime-heavy testing is still deferred |
