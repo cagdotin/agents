@@ -1,0 +1,12 @@
+name: design-review-loop
+purpose: "Design and build a visual design review loop — agent finishes FE implementation, browser opens with review overlay, human annotates elements with feedback, agent receives structured feedback and iterates. Works locally (cmux + ephemeral server) and remotely (ODE + persistent service)."
+status: active
+created_at: "2026-03-17T15:25:16.585Z"
+updated_at: "2026-03-17T15:26:11.499Z"
+last_synced_at: "2026-03-17T15:26:11.499Z"
+session_count: 1
+summary_version: 1
+related_paths:
+  - extensions/
+  - skills/
+  - packages/
