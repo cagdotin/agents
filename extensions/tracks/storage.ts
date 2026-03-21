@@ -70,7 +70,7 @@ export async function ensure_track_settings_file(tracks_dir: string): Promise<vo
 	await ensure_tracks_dir(tracks_dir);
 	const settings_path = get_track_settings_path(tracks_dir);
 	if (!existsSync(settings_path)) {
-		await fs.writeFile(settings_path, `${JSON.stringify({}, null, 2)}\n`, "utf8");
+		await fs.writeFile(settings_path, `${JSON.stringify({}, null, "\t")}\n`, "utf8");
 	}
 }
 
@@ -96,7 +96,7 @@ export async function write_track_settings(tracks_dir: string, settings: TrackSe
 	await ensure_tracks_dir(tracks_dir);
 	const settings_path = get_track_settings_path(tracks_dir);
 	const next_settings = settings.active_track ? { active_track: settings.active_track } : {};
-	await fs.writeFile(settings_path, `${JSON.stringify(next_settings, null, 2)}\n`, "utf8");
+	await fs.writeFile(settings_path, `${JSON.stringify(next_settings, null, "\t")}\n`, "utf8");
 }
 
 export async function set_active_track(tracks_dir: string, slug: string): Promise<void> {
