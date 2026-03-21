@@ -45,6 +45,11 @@ System-of-record knowledge base for humans and agents.
 
 Validation and automation run through `bun run`.
 
+### `.graveyard/`
+
+Retired code kept for reference. See `.graveyard/extensions/README.md` for what
+was removed and why.
+
 ### `.pi/`
 
 Runtime state managed by extensions, not source code. Notably:
