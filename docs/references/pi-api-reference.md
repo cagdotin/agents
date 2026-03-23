@@ -162,7 +162,7 @@ For Pi core libs imported by extensions/skills, keep them in `peerDependencies` 
 - Tool + command + TUI flow: `extensions/todos/`, `extensions/tracks/`
 - LLM extraction flow with loader: `extensions/answer/`
 - Multi-hook stateful extension + message renderer: `extensions/expert/`
-- Panel + footer status: `extensions/damage-control/`, `extensions/session-stats/`
+- Panel + footer status: `extensions/session-stats/`
 - Simple event-only extension: `extensions/tmux/notify.ts`
 
 ---

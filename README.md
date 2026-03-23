@@ -6,22 +6,27 @@ Shared skills, extensions, themes, and documentation for coding agents.
 
 ```
 agents/
-├── AGENTS.md            # Global operating notes (short map)
+├── AGENTS.md              # Global operating notes (short map)
 ├── docs/
-│   ├── ARCHITECTURE.md  # Repository architecture + boundaries
-│   ├── QUALITY.md       # Quality scorecard + prioritized gaps
-│   ├── specs/           # Implementation specs for planned/complex work
-│   ├── references/      # Internal quick references (Pi API, etc.)
-│   └── resources/       # External resource captures (articles/videos)
-├── extensions/          # Pi extensions
+│   ├── ARCHITECTURE.md    # Repository architecture + boundaries
+│   ├── DESIGN-PRINCIPLES.md # Design principles from research
+│   ├── QUALITY.md         # Quality scorecard + prioritized gaps
+│   ├── CONTRIBUTING-DOCS.md # Rules for documentation work
+│   ├── TESTING.md         # Testing model and boundaries
+│   ├── specs/             # Implementation specs for planned/complex work
+│   ├── exec-plans/        # Active/completed execution plans
+│   └── references/        # Internal quick references (Pi API, etc.)
+├── extensions/            # Pi extensions
 │   ├── answer/
-│   ├── damage-control/
+│   ├── cmux/
 │   ├── expert/
+│   ├── qmd/
 │   ├── session-stats/
+│   ├── tmux/
 │   ├── todos/
-│   └── tmux/
-├── skills/              # Agent skills (SKILL.md based)
-└── pi-themes/           # Pi theme JSON files
+│   └── tracks/
+├── skills/                # Agent skills (SKILL.md based)
+└── pi-themes/             # Pi theme JSON files
 ```
 
 ## Setup

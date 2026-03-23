@@ -36,7 +36,7 @@ principles. If it intentionally diverges, document the reasoning.
 | `exec-plans/` | Active/completed execution plans + debt tracker | Medium — plans are living documents |
 | `specs/` | Implementation specs for planned/complex work | Medium — created per feature, archived after |
 | `references/` | Internal quick references (Pi API, etc.) | Medium — update when APIs change |
-| `resources/` | Curated external resources with frontmatter | Append-only — capture, review, apply |
+| `DESIGN-PRINCIPLES.md` | Design principles distilled from research | Medium — update when new principles emerge |
 
 ---
 
@@ -106,8 +106,9 @@ valuable part is the "In practice" section. What does this principle mean for
 Docs are validated by `bun run check:docs` (runs `scripts/validate-docs.ts`).
 This checks:
 
-- Frontmatter presence and required fields on resources
-- README existence in extension directories
+- `docs/DESIGN-PRINCIPLES.md` exists
+- SKILL.md frontmatter on skills
+- README existence and quality in extension directories
 
 This runs as part of `bun run check` and is enforced by the Lefthook pre-commit hook.
 If you add a new doc category that should be validated, update the script.
@@ -131,16 +132,14 @@ Removing docs requires the same care as removing code. Before deleting:
 
 1. **Check references.** Search for the document name across the repo (AGENTS.md,
    ARCHITECTURE.md, expertise files, other docs). Update or remove references.
-2. **Check resources index.** If removing a resource, remove its entry from
-   `resources/README.md` index.
-3. **Explain why.** The commit message should state why the doc is being removed
+2. **Explain why.** The commit message should state why the doc is being removed
    (outdated, merged into another doc, superseded, etc.).
 
 ---
 
 ## Adding a New Doc Category
 
-If existing categories (`exec-plans`, `specs`, `references`, `resources`) don't fit:
+If existing categories (`exec-plans`, `specs`, `references`) don't fit:
 
 1. Create the directory under `docs/`.
 2. Add a `README.md` that explains the category's purpose and any schemas.
