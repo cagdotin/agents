@@ -26,28 +26,11 @@ beforeEach(async () => {
 });
 
 async function write_valid_repo_fixture(repo_dir: string): Promise<void> {
-	await mkdir(path.join(repo_dir, "docs", "resources"), { recursive: true });
+	await mkdir(path.join(repo_dir, "docs"), { recursive: true });
 	await mkdir(path.join(repo_dir, "skills", "plan"), { recursive: true });
 	await mkdir(path.join(repo_dir, "extensions", "demo"), { recursive: true });
 
-	await writeFile(
-		path.join(repo_dir, "docs", "resources", "sample.md"),
-		`---
-title: Sample Resource
-type: article
-source: web
-url: https://example.com/resource
-author: Example Author
-date_captured: 2026-03-07
-tags:
-  - agents
-status: reviewed
-description: Sample description
----
-
-# Sample
-`,
-	);
+	await writeFile(path.join(repo_dir, "docs", "DESIGN-PRINCIPLES.md"), "# Design Principles\n");
 
 	await writeFile(
 		path.join(repo_dir, "skills", "plan", "SKILL.md"),
@@ -93,46 +76,13 @@ describe("scripts/validate-docs.ts", () => {
 		expect(result.stdout).toContain("Documentation validation passed");
 	});
 
-	it("reports invalid resource frontmatter yaml", async () => {
+	it("reports missing DESIGN-PRINCIPLES.md", async () => {
 		await write_valid_repo_fixture(test_dir);
-		await writeFile(
-			path.join(test_dir, "docs", "resources", "sample.md"),
-			`---
-title: "broken
-tags:
-  - good
----
-`,
-		);
+		await rm(path.join(test_dir, "docs", "DESIGN-PRINCIPLES.md"));
 
 		const result = run_validator(test_dir);
 		expect(result.status).toBe(1);
-		expect(result.stderr).toContain("invalid frontmatter YAML");
-	});
-
-	it("reports invalid resource contract fields", async () => {
-		await write_valid_repo_fixture(test_dir);
-		await writeFile(
-			path.join(test_dir, "docs", "resources", "sample.md"),
-			`---
-title: Sample Resource
-type: article
-source: web
-url: not-a-url
-author: Example Author
-date_captured: 07-03-2026
-tags: []
-status: reviewed
-description: Sample description
----
-`,
-		);
-
-		const result = run_validator(test_dir);
-		expect(result.status).toBe(1);
-		expect(result.stderr).toContain("invalid url field");
-		expect(result.stderr).toContain("invalid date_captured format");
-		expect(result.stderr).toContain("missing required frontmatter field: tags");
+		expect(result.stderr).toContain("missing docs/DESIGN-PRINCIPLES.md");
 	});
 
 	it("reports missing skill required fields", async () => {
