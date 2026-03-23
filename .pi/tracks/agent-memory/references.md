@@ -47,6 +47,12 @@
   - `docs/en/concepts/06-mcp-integration.md`
 - **Why it matters here:** useful for design ideas (tiering, hierarchical retrieval, memory promotion), not as a direct implementation target.
 
+## External Resources
+- `docs/resources/cognee-memory-layer-vasili.md` — Cognee memory layer talk.
+  Validates domain isolation + session/permanent split. Feedback loop idea
+  (agents generating query hints that improve future retrieval) is relevant
+  to the open promotion flow question.
+
 ## Local Track Artifacts
 - `specs/qmd-extension-v1.md` — current design spec
 - `exec-plans/qmd-extension-v1.md` — rollout plan
