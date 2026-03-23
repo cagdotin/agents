@@ -33,13 +33,14 @@ Theme data distributed with this package.
 System-of-record knowledge base for humans and agents.
 
 - `ARCHITECTURE.md` — repository map and invariants
+- `DESIGN-PRINCIPLES.md` — design principles distilled from research and practice
 - `QUALITY.md` — quality scorecard and prioritized gaps
 - `TESTING.md` — testing model and boundaries
 - `CONTRIBUTING-DOCS.md` — rules for documentation work
 - `exec-plans/` — active/completed execution plans + `tech-debt-tracker.md`
 - `specs/` — implementation specs for planned or complex work
 - `references/` — internal quick references
-- `resources/` — captured external resources and repo takeaways
+- `.graveyard/resources/` — retired resource analyses (migrated to vault)
 
 ### `scripts/`
 

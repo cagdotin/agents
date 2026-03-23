@@ -19,7 +19,7 @@ This scorecard tracks maintainability and readiness of this package for day-to-d
 | Area | Score | Status | Notes |
 |---|---:|---|---|
 | Repository architecture docs | 3 | Good | `ARCHITECTURE.md` and this quality file now exist; keep updated as structure evolves |
-| Resource knowledge base (`docs/resources`) | 3 | Good | Strong frontmatter schema and summaries; continue consistent tagging/related links |
+| Design principles (`docs/DESIGN-PRINCIPLES.md`) | 3 | Good | Distilled from 9 resource analyses; full analyses migrated to vault |
 | `extensions/answer` | 3 | Good | Solid README and clear flow; low active maintenance load |
 | `extensions/todos` | 3 | Good | Strong implementation and TUI; docs were stale and are now refreshed |
 | `extensions/expert` | 4 | Excellent | Matching now uses aliases/keywords/pattern hints, injection is context-budget-aware, and `/expert log` + `/expert init` close the main UX gaps |

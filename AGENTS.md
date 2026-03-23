@@ -5,13 +5,13 @@ This repository defines global commands, skills, extensions, and themes for codi
 ## Where to Look First
 
 - Repository architecture map: `docs/ARCHITECTURE.md`
+- Design principles for this repo: `docs/DESIGN-PRINCIPLES.md`
 - Current quality status and prioritized gaps: `docs/QUALITY.md`
 - Documentation contribution rules: `docs/CONTRIBUTING-DOCS.md`
 - Active execution plans and debt tracker: `docs/exec-plans/README.md`
 - Planning skill standard: `skills/plan/PLAN.md`
 - Implementation specs for planned/complex work: `docs/specs/`
 - Pi extension API quick reference (repo-focused): `docs/references/pi-api-reference.md`
-- External resources index and capture workflow: `docs/resources/README.md`
 - Extension implementations: `extensions/` (all follow the same structure)
 
 ## Discovering Information

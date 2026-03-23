@@ -8,7 +8,7 @@ under `docs/`.
 
 ## Inspiration and Lineage
 
-Our documentation approach draws from specific sources, captured in `docs/resources/`:
+Our documentation approach draws from specific sources (see `docs/DESIGN-PRINCIPLES.md`):
 
 | Principle | Origin | Resource |
 |-----------|--------|----------|
@@ -65,8 +65,8 @@ entities. This is zero-maintenance and helps discover related things.
 **Do**: "The extraction logic lives in `extraction.ts` in the answer extension."
 **Don't**: "See [extraction.ts](../extensions/answer/extraction.ts)."
 
-Exception: wikilinks (`[[resource-name]]`) within `docs/resources/` are fine — they
-reference sibling documents by stable slug, not filesystem paths.
+Exception: wikilinks (`[[resource-name]]`) within design principles source
+attributions are fine — they reference stable identifiers, not filesystem paths.
 
 ### 4. Keep ARCHITECTURE.md Stable
 
@@ -89,18 +89,17 @@ describe it as if it does. Instead:
 anyone can regenerate from tooling output (for example test counts, coverage
 baselines, or similar counters).
 
-### 6. Every Resource Gets Frontmatter
+### 6. External Research Lives in the Vault
 
-External resources captured in `docs/resources/` **must** use the schema defined
-in `resources/README.md` and start from `resources/TEMPLATE.md`. Required fields:
-`title`, `type`, `source`, `url`, `author`, `date_captured`, `tags`, `status`,
-`description`.
+External resource analyses belong in the vault (`0xcgn/vault`), not in this repo.
+This repo keeps only the actionable principles in `docs/DESIGN-PRINCIPLES.md`.
+When new research influences how we build, distill the principle and add it there.
 
 ### 7. Explain Relevance, Not Just Content
 
-When capturing a resource, the most valuable section is "How This Relates to Our
-Repo." A summary of someone else's article is nice; explaining what it means for
-*our* decisions is essential.
+When adding a design principle, the source attribution matters — but the most
+valuable part is the "In practice" section. What does this principle mean for
+*our* code in *this* repo?
 
 ### 8. Mechanical Validation
 
