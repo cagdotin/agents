@@ -34,6 +34,8 @@ Start with purpose and user-visible intent: what someone can do after the change
 Do not rely on prior conversation context. Repeat assumptions you rely on.
 If external knowledge is required, summarize it in the plan in your own words.
 
+When a spec exists for this work, reference it by path and inherit its decisions — do not repeat the WHY. The spec owns intent, constraints, and decisions; the plan owns sequence, steps, and verification. Summarize just enough spec context for orientation, then focus on HOW and WHEN.
+
 ## Formatting
 
 For standalone markdown files where the file itself is the plan, write plain markdown directly (no outer fenced block).
