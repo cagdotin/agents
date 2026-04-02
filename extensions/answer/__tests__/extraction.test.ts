@@ -64,7 +64,7 @@ describe("select_extraction_model", () => {
 				if (provider === "openai-codex") return { provider, id };
 				return undefined;
 			},
-			getApiKey: async () => "test-key",
+			getApiKeyAndHeaders: async () => ({ ok: true, apiKey: "test-key" }),
 		};
 		const result = await select_extraction_model(current_model, registry);
 		expect(result.provider).toBe("openai-codex");
@@ -76,7 +76,7 @@ describe("select_extraction_model", () => {
 				if (provider === "anthropic" && id.includes("haiku")) return { provider, id };
 				return undefined;
 			},
-			getApiKey: async () => "test-key",
+			getApiKeyAndHeaders: async () => ({ ok: true, apiKey: "test-key" }),
 		};
 		const result = await select_extraction_model(current_model, registry);
 		expect(result.provider).toBe("anthropic");
@@ -86,7 +86,7 @@ describe("select_extraction_model", () => {
 	it("falls back to current model when no API keys", async () => {
 		const registry: ModelRegistry = {
 			find: () => undefined,
-			getApiKey: async () => undefined,
+			getApiKeyAndHeaders: async () => ({ ok: false, error: "No API key" }),
 		};
 		const result = await select_extraction_model(current_model, registry);
 		expect(result).toBe(current_model);
@@ -99,9 +99,9 @@ describe("select_extraction_model", () => {
 				if (provider === "anthropic") return { provider, id };
 				return undefined;
 			},
-			getApiKey: async (model) => {
-				if (model.provider === "openai-codex") return undefined;
-				return "haiku-key";
+			getApiKeyAndHeaders: async (model) => {
+				if (model.provider === "openai-codex") return { ok: false, error: "No key" };
+				return { ok: true, apiKey: "haiku-key" };
 			},
 		};
 		const result = await select_extraction_model(current_model, registry);

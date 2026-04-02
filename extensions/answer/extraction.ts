@@ -15,9 +15,13 @@ import type { ExtractionResult } from "./types.js";
 // Model registry interface (subset used by this module)
 // ---------------------------------------------------------------------------
 
+export type ResolvedRequestAuth =
+	| { ok: true; apiKey?: string; headers?: Record<string, string> }
+	| { ok: false; error: string };
+
 export interface ModelRegistry {
 	find: (provider: string, model_id: string) => Model<Api> | undefined;
-	getApiKey: (model: Model<Api>) => Promise<string | undefined>;
+	getApiKeyAndHeaders: (model: Model<Api>) => Promise<ResolvedRequestAuth>;
 }
 
 // ---------------------------------------------------------------------------
@@ -37,14 +41,14 @@ export interface ModelRegistry {
 export async function select_extraction_model(current_model: Model<Api>, registry: ModelRegistry): Promise<Model<Api>> {
 	const codex_model = registry.find("openai-codex", CODEX_MODEL_ID);
 	if (codex_model) {
-		const api_key = await registry.getApiKey(codex_model);
-		if (api_key) return codex_model;
+		const auth = await registry.getApiKeyAndHeaders(codex_model);
+		if (auth.ok) return codex_model;
 	}
 
 	const haiku_model = registry.find("anthropic", HAIKU_MODEL_ID);
 	if (haiku_model) {
-		const api_key = await registry.getApiKey(haiku_model);
-		if (api_key) return haiku_model;
+		const auth = await registry.getApiKeyAndHeaders(haiku_model);
+		if (auth.ok) return haiku_model;
 	}
 
 	return current_model;
@@ -117,7 +121,8 @@ export async function extract_questions(
 	text: string,
 	signal?: AbortSignal,
 ): Promise<ExtractionResult | null> {
-	const api_key = await registry.getApiKey(model);
+	const auth = await registry.getApiKeyAndHeaders(model);
+	if (!auth.ok) throw new Error(auth.error);
 
 	const user_message: UserMessage = {
 		role: "user",
@@ -128,7 +133,7 @@ export async function extract_questions(
 	const response = await complete(
 		model,
 		{ systemPrompt: EXTRACTION_SYSTEM_PROMPT, messages: [user_message] },
-		{ apiKey: api_key, signal },
+		{ apiKey: auth.apiKey, headers: auth.headers, signal },
 	);
 
 	if (response.stopReason === "aborted") return null;
