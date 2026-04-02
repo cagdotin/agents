@@ -1,7 +1,7 @@
 domain: extensions-dev
 description: Cross-extension conventions for progressive-disclosure docs, schema-first boundary validation, qualitative
   quality reporting, and repo-agnostic task-scoped runtime workspaces.
-last_synced: 2026-03-16T15:34:34.463Z
+last_synced: 2026-03-26T14:49:13.678Z
 scope:
   paths:
     - AGENTS.md
@@ -102,6 +102,10 @@ patterns:
     merging line-by-line with separator chars. Use `pad_to_width` + `truncateToWidth` on every line. Overlay uses
     `width: "90%"` with `minWidth` for responsive sizing. Arrow keys (←/→) and vim keys (h/l) for spatial pane
     navigation is more intuitive than tab for split-pane layouts.'
+  - 'Pi extensions can build true progressive side-channels without touching provider internals: `message_update`
+    carries `assistantMessageEvent.type === "text_delta"` with the incremental text chunk. For streamed native UI
+    integrations, keep stream parsing/compilation in Node extension code and send serialized patches/events into the UI
+    shell, rather than trying to parse the model stream inside the browser/webview.'
 design_decisions:
   - reason: Agent-facing docs optimize for context budget
     detail: Top-level docs are overviews, not handbooks. If an agent can infer something quickly from code, tests, repo
@@ -200,6 +204,13 @@ gotchas:
   - "QMD SDK search API: `store.searchLex()` (BM25), `store.searchVector()` (embedding), `store.search()` (full hybrid
     with LLM reranking). All async. The `searchFTS` function on the raw store is the old API — use the QMDStore methods
     instead. `HybridQueryResult` has `bestChunk` field for snippets; `SearchResult` has `body`."
+  - For streamed browser/webview UIs, the hardest bugs are often not in token parsing but at the seam between partial
+    streamed state and render-time assumptions. Buffer host→page commands until the shell explicitly reports ready, and
+    do not rely on library error boundaries for recovery — many React error boundaries permanently null-render after the
+    first transient exception, which turns partial-prop streaming failures into opaque black screens.
+  - Runtime-injected `<available_skills>` entries (like `cmux` and `env-skills`) make skills visible to the agent, but
+    they do not register normal `/skill:name` commands unless the same files also live in a standard Pi skill-discovery
+    path.
 references:
   - "Global workflow and enforcement policy: `AGENTS.md`"
   - "Repository docs index and reading order: `docs/README.md`"

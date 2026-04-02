@@ -1,0 +1,11 @@
+name: sub-agents
+purpose: "Research and build a sub-agent architecture for Pi — specialized agents (scout, oracle, worker, tester, reviewer) with ACP-based observability and external monitoring capabilities."
+status: active
+created_at: "2026-04-02T18:53:40.209Z"
+updated_at: "2026-04-02T18:55:33.846Z"
+last_synced_at: "2026-04-02T18:55:33.846Z"
+session_count: 1
+summary_version: 1
+related_paths:
+  - extensions/
+  - skills/
