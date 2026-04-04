@@ -1,4 +1,6 @@
-# tmux Extension
+# tmux Extension (Deprecated)
+
+> **Deprecated 2026-04-04.** Replaced by cmux as the primary terminal multiplexer. Can be unretired if tmux usage resumes.
 
 Unified tmux integration for Pi, providing notification badges and pane titles.
 
