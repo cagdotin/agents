@@ -31,15 +31,18 @@ Consolidated memory architecture planning (post-implementation):
 ### Expert stream (merged from `expert-extension-rework`)
 - ✅ simplification implemented
 - ✅ append-first expertise updates in place
-- ⏳ future pruning strategy for append-only domains
+- ✅ **RETIRED 2026-04-04** — extension moved to `.graveyard/`, expertise YAML + specs archived
+- Direction: vault-based memory with atomic notes, MOC routing, agent-driven retrieval
 
 ## Current tasks
 
 - [x] **QMD panel split-pane redesign** (8 milestones) — complete
 - [ ] Implement tracks milestone 2 from `docs/specs/2026-03-12-tracks-extension-workstream-lifecycle-v2.md`
-- [ ] Define v1 design sketch for unified tracks+expert memory plugin (workstream memory + domain memory boundary)
-- [ ] Decide promotion flow: session findings → track files → expertise append
-- [ ] Validate which OpenViking ideas to adopt next (tiering/promotion/retrieval orchestration) without adopting its runtime stack
+- [ ] ~~Define v1 design sketch for unified tracks+expert memory plugin~~ → superseded by vault-based memory direction
+- [ ] Design vault-based agent memory: per-repo vault structure, MOC for domain expertise, atomic claim notes
+- [ ] Prototype vault integration: agent reads/writes atomic notes, navigates via MOC, retrieves via QMD
+- [ ] Define what "domain expertise" looks like as a vault MOC (folder structure, note templates, linking conventions)
+- [ ] Validate which OpenViking ideas to adopt next (tiering/promotion/retrieval orchestration) within vault model
 
 ## Upstream
 
@@ -47,16 +50,19 @@ Consolidated memory architecture planning (post-implementation):
 
 ## Open threads
 
-- Should unified memory live as one extension with internal modules, or two extensions sharing one explicit contract?
-- Which information belongs in tracks vs expertise to avoid duplication?
-- Should promotion be manual-only in v1 of unification, with optional assisted suggestions later?
-- How should compaction/pruning work for long-lived expertise files while preserving important history?
+- What vault folder structure maps best to agent memory needs? (per-repo `.vault/` or shared vault with repo namespaces?)
+- How does the vault MOC pattern from `0xcgn/vault` translate to agent-authored notes?
+- Should notes be plain markdown (Obsidian-compatible) or need structured frontmatter for agent parsing?
+- How does QMD index vault notes? Does it replace or complement vault-internal linking?
+- Which information belongs in tracks vs vault to avoid duplication?
+- Should promotion be manual-only in v1, with optional assisted suggestions later?
 
 ## Next steps
 
-- Use `workstreams/tracks-extension.md` and `workstreams/expert-extension-rework.md` as consolidation baselines.
-- Draft a short unification spec that defines responsibilities for L1 (workstream) vs L2 (domain) memory.
-- Run one end-to-end workflow example (new initiative → track execution → expertise promotion → QMD lookup) and capture friction.
+- Study `0xcgn/vault` methodology and extract the patterns that apply to agent memory
+- Design the vault folder structure and note templates for domain expertise
+- Prototype: agent creates/reads atomic claim notes during a real task, measures retrieval quality vs old YAML approach
+- Define the L2 boundary: what lives in vault notes vs what stays in track files
 
 ## Done
 

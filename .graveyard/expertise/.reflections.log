@@ -1,0 +1,1171 @@
+---
+date: 2026-03-05T12:08:43.517Z
+domain: expert-extension
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-05T11-31-23-089Z_f34d1ab0-933c-492f-b56f-cfc809668170.jsonl
+model: current session model
+summary: >-
+  ) as structured output format, parsed by parse_reflection_output()"
+    - "before_agent_start hook scores domains against the user prompt via keyword + path matching, injects top N into system prompt"
+    - "agent_end hook checks which files were modified (write/edit tool calls), matches against domain scopes, triggers reflection for matched domains"
+    - "The expertise YAML file has required header fields (domain, description, last_synced, scope) and freeform agent-maintained sections below"
+    - "Storage layer uses the 'yaml' npm package for parsing/serializing, not hand-rolled YAML like todos does"
+    - "Expertise files live in .pi/expertise/<domain>.yaml, settings in .pi/expertise/settings.json, log in .pi/expertise/.reflections.log"
+    - "The init flow is 2-step: tool creates skeleton YAML with scope, returns file listing; agent then reads key files and calls update with full expertise"
+
+  patterns:
+    - "All functions and variables use snake_case, types use CamelCase — per AGENTS.md coding style"
+    - "Tool uses StringEnum from pi-ai for action enum (required for Google model compatibility)"
+    - "Tool renderCall/renderResult follow the same pattern as todos tool — Text component with theme.fg() coloring"
+    - "Error results use a shared error_result() helper that returns { content, details: { action, error } }"
+    - "The /expert command uses ctx.ui.select() for domain picking when no domain arg is given"
+    - "Reflection temp files are written to os.tmpdir() and cleaned up in a finally block"
+    - "The reflection model is configurable via settings.json — empty string means use current session model"
+    - "PI_EXPERTISE_PATH env var overrides the default .pi/expertise/ directory (same pattern as PI_TODO_PATH)"
+
+  gotchas:
+    - "The 'yaml' package is available transitively via pi's dependencies — no separate npm install needed"
+    - "ESM/CJS import warnings from tsc are expected and harmless — pi uses jiti which handles module resolution at runtime"
+    - "The type narrowing for validate_domain_name() requires a cast: (validation as { valid: false; error: string }).error"
+    - "extract_modified_files() checks both toolResult messages (msg.input?.path) and assistant tool_use blocks (block.input?.path) to catch file paths from either direction"
+    - "The auto-reflect hook runs at agent_end which blocks the next prompt — if reflection_model is slow this could feel sluggish"
+    - "match_domains_to_prompt() uses simple word-level matching with score thresholds — no embedding/semantic search, works fine for <20 domains"
+    - "scan_scope_paths() has an is_ignored_dir() set that skips node_modules, .git, dist, etc. — may need extending for non-JS projects"
+    - "The reflection prompt in constants.ts uses XML tags for structured output — if the cheap model doesn't follow the format, parse_reflection_output() returns null and the reflection fails gracefully"
+    - "format_conversation_for_reflection() truncates individual tool results to 2000 chars to keep the reflection prompt within context limits"
+
+  design_decisions:
+    - reason: "Conversation-wide reflection instead of diff-based"
+      detail: "User emphasized that the most valuable learning comes from corrections ('we don't do it that way'), reasoning ('the reason we built it like this is...'), and conventions — not from code diffs. Diffs only show WHAT changed, conversation shows WHY."
+    - reason: "No changelog in expertise files"
+      detail: "User pointed out changelogs get stale with multiple contributors and don't belong in a mental model. Audit trail lives in .reflections.log (append-only) and git history instead. Just last_synced timestamp in the YAML."
+    - reason: "Manual /expert reflect command"
+      detail: "User noted that sometimes changes are committed mid-conversation, so there are no diffs to trigger auto-reflect. Manual trigger ensures learning can happen anytime regardless of file state."
+    - reason: "Cheap model for reflection"
+      detail: "User wanted to use faster/cheaper models for the reflection task since it's essentially summarization. Configured via reflection_model setting. Spawning pi subprocess reuses existing auth."
+    - reason: "Reflection summary shown to user"
+      detail: "User wanted visibility into what the agent learned and why — both as a TUI notification and in the persistent .reflections.log file."
+    - reason: "Selective injection over global context"
+      detail: "Unlike AGENTS.md which always loads, expertise is injected only when the user prompt matches a domain — saves context window for large codebases with many domains."
+    - reason: "No sub-agents, no MCP, no embedding search"
+      detail: "Aligned with pi's philosophy of simplicity. Simple keyword + path matching is sufficient for <20 domains. Everything uses tools + events."
+    - reason: "Expertise is NOT source of truth"
+      detail: "The code is always the source of truth. Expertise files are a working memory / mental model to help the agent orient quickly. The injection prompt explicitly says 'always validate against actual code'."
+
+  video_origin:
+    - "Concept inspired by IndyDevDan's 'Agent Experts' video (youtube.com/watch?v=zTcDwqopvKE)"
+    - "Core idea: agents that execute AND learn — plan, build, self-improve cycle"
+    - "Video contrasts memory files (static, global, manual) vs agent experts (scoped, auto-updating, conversation-aware)"
+  </updated_expertise>
+
+
+  <reflection_summary>
+
+  - **Added** `video_origin` section documenting the inspiration source (IndyDevDan's Agent Experts video) and the core
+  concepts that drove the design
+
+  - **Added** design decision for "Selective injection over global context" — user's brainstorm explicitly contrasted
+  expertise with AGENTS.md's always-loaded nature
+
+  - **Added** design decision for "No sub-agents, no MCP, no embedding search" — deliberate simplicity choices discussed
+  during planning
+
+  - **Added** design decision for "Expertise is NOT source of truth" — key philosophical point from both the video and
+  the implementation (injection prompt says "validate against actual code")
+
+  - **Added** `ExpertiseAction` to key_types in types.ts file entry
+
+  - **Added** `delete_expertise`, `ensure_expertise_dir` to storage.ts key_functions
+
+  - **Added** `validate_domain_name` to helpers.ts key_functions  
+
+  - **Added** `DOMAIN_NAME_PATTERN` to constants.ts key_exports
+
+  - **Added** architecture note about the 2-step init flow (skeleton + agent reads files + update)
+
+  - **Preserved** all existing knowledge — nothing was contradicted in this conversation
+---
+date: 2026-03-05T12:29:48.386Z
+domain: expert-extension
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-05T12-11-43-478Z_d72d7103-f9fa-4ca9-8221-d9e8ff1571bf.jsonl
+model: current session model
+summary: >-
+  ) for structured output"
+    - "Init is 2-step: tool creates skeleton YAML with scope → agent reads key files → agent calls update with full expertise"
+
+  gotchas:
+    - "'yaml' npm package is available transitively via pi's dependencies — no separate install needed"
+    - "ESM/CJS import warnings from tsc are expected and harmless — pi uses jiti for module resolution at runtime"
+    - "auto-reflect runs at agent_end which blocks the next prompt — if reflection_model is slow this feels sluggish"
+    - "If the cheap model doesn't follow XML format, parse_reflection_output() returns null and reflection fails gracefully"
+    - "scan_scope_paths() skips node_modules, .git, dist — may need extending for non-JS projects"
+
+  design_decisions:
+    - reason: "Progressive disclosure over exhaustive documentation"
+      detail: "Expertise should contain what you can't easily get from reading the code — patterns, gotchas, design reasoning. For specifics, point to a file path and let the agent look it up. Like a developer's brain: you know where things are and why, you look up the details."
+    - reason: "10-second rule for content"
+      detail: "If a developer could figure it out in 10 seconds by reading the code, it doesn't belong in the expertise file. No file listings, no function names, no export inventories."
+    - reason: "Conversation-wide reflection instead of diff-based"
+      detail: "The most valuable learning comes from corrections, reasoning, and conventions — not code diffs. Diffs show WHAT changed, conversation shows WHY."
+    - reason: "No changelog in expertise files"
+      detail: "Audit trail lives in .reflections.log (append-only) and git history. Just last_synced in the YAML."
+    - reason: "Cheap model for reflection"
+      detail: "Reflection is summarization — a fast/cheap model works. Configured via reflection_model in settings.json. Spawns a pi subprocess reusing existing auth."
+    - reason: "Selective injection over global context"
+      detail: "Expertise is injected only when the prompt matches a domain — saves context window vs AGENTS.md which always loads."
+    - reason: "No sub-agents, no MCP, no embedding search"
+      detail: "Simple keyword + path matching is sufficient for <20 domains. Aligned with pi's simplicity philosophy."
+    - reason: "Expertise is NOT source of truth"
+      detail: "The code is always the source of truth. The injection prompt explicitly says 'always validate against actual code'."
+
+  references:
+    - "Reflection prompt and content rules: extensions/expert/constants.ts (REFLECTION_PROMPT)"
+    - "Skeleton YAML structure for new domains: extensions/expert/storage.ts (build_skeleton_yaml)"
+    - "Init response guidance for agents: extensions/expert/tool.ts (init action)"
+    - "Domain matching logic: extensions/expert/helpers.ts (match_domains_to_prompt)"
+    - "Concept origin: IndyDevDan's 'Agent Experts' video — agents that execute AND learn, scoped auto-updating memory"
+  </updated_expertise>
+
+
+  <reflection_summary>
+
+  - **Removed `files` section entirely** — listing file paths, exports, and function names violates the progressive
+  disclosure principle established in this conversation. The code is self-explanatory; agents can read it.
+
+  - **Removed `architecture` section** — was duplicating what `files` said in prose form. Replaced with a concise
+  `overview`.
+
+  - **Added "progressive disclosure" and "10-second rule" as explicit design decisions** — these are the key principles
+  from this conversation that should guide all future expertise authoring.
+
+  - **Updated reflection prompt guidance** — the REFLECTION_PROMPT in constants.ts was rewritten to enforce lean content
+  rules; this is now referenced rather than duplicated.
+
+  - **Noted jiti runtime detail in overview** — no tsconfig/build needed, which was discovered during the verification
+  step.
+
+  - **Preserved video origin** as a single line in references — per user preference, it's worth remembering where the
+  idea came from.
+
+  - **Deduplicated patterns/gotchas** — removed items that were restated across sections; kept only genuinely
+  non-obvious items.
+---
+date: 2026-03-05T13:25:52.121Z
+domain: expert-extension
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-05T11-31-23-089Z_f34d1ab0-933c-492f-b56f-cfc809668170.jsonl
+model: current session model
+summary: >-
+  - **Removed auto-reflect as a design principle**: User decided auto-reflect on `agent_end` should be removed entirely.
+  Reflection is now explicit-only (tool call or `/expert reflect`). Updated design_decisions accordingly.
+
+  - **Added two-stage reflection architecture**: Router (single cheap call with condensed conversation) identifies
+  affected domains + reflection points, then fans out to parallel domain expert subprocesses. Each expert gets
+  domain-filtered conversation + router's attention hints. This was a collaborative design decision between user and
+  agent.
+
+  - **Added domain-filtered conversation design**: Each domain expert sees all user/assistant messages but only tool
+  results for files in their scope. This pairs with the router to right-size context per domain.
+
+  - **Explicitly noted no YAML validation needed**: User rejected the suggestion to add YAML parse validation after
+  reflection — YAML is used as a readable format, not strictly validated.
+
+  - **Added active_todos section**: Tracks the 5 TODOs created during the conversation for ongoing improvements
+  (rendering polish, domain matching, context budget, UX features).
+
+  - **Updated gotchas**: Added notes about unused `scope.patterns`, keyword-only matching limitations, and missing
+  context budget checks — all discovered during the code review.
+
+  - **Removed "conversation-wide reflection instead of diff-based" decision**: Replaced with the more specific two-stage
+  router + domain-filtered design that supersedes it.
+---
+date: 2026-03-05T13:36:49.653Z
+domain: expert-extension
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-05T13-27-24-780Z_ab08f551-a1fe-4814-91e0-3744ac608b47.jsonl
+model: current session model
+summary: >-
+  - **TODO-91af54b9 completed** — removed from active_todos, all design decisions updated from "planned" to
+  "implemented" with implementation details
+
+  - **Removed references to auto-reflect** — `auto_improve` setting, `register_auto_reflect_hook`, `agent_end` hook are
+  all gone
+
+  - **Added architecture section** — documents the new file layout (router.ts, reflection pipeline, conversation
+  formatters) and data flow
+
+  - **Updated design_decisions** — "Two-stage reflection" and "Domain-filtered conversation" now include implementation
+  specifics (function names, file locations, Promise.all pattern)
+
+  - **New gotchas added**: router XML parsing fragility, domain param being optional for reflect, PipelineResult
+  structure for multi-domain display
+
+  - **Updated references** — added router.ts and reflection pipeline as key reference files
+
+  - **Preserved** all existing knowledge about content principles, injection, trimming, and remaining TODOs
+---
+date: 2026-03-05T13:38:40.241Z
+domain: expert-extension
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-05T13-27-24-780Z_ab08f551-a1fe-4814-91e0-3744ac608b47.jsonl
+model: current session model
+summary: >-
+  - **Trimmed architecture section** — removed file-by-file listing that violates the 10-second rule (agent can `ls` and
+  `grep`). The code structure is obvious from the files themselves.
+
+  - **Trimmed design_decisions** — removed "Cheap model for reflection" (obvious from settings), "Active trimming on
+  every reflection" (detail of the prompt, not architecture), and "Expertise bloat signals codebase problems" (already
+  in the reflection prompt constant, not an architecture decision).
+
+  - **Consolidated router conversation format details** — removed the blow-by-blow of format_conversation_for_router
+  (user msgs full, assistant summarized, etc.) since this is visible from reading helpers.ts. Kept only the high-level
+  design decision.
+
+  - **Removed duplicate gotchas** — "If the cheap model doesn't follow XML format, parse fails gracefully" is just
+  describing what the code does. Kept the fragility warning instead.
+
+  - **Removed PipelineResult structure gotcha** — implementation detail visible from types.ts.
+
+  - **Net reduction**: ~95 lines → ~60 lines, well within the 30-60 line target.
+---
+date: 2026-03-05T13:47:16.140Z
+domain: expert-extension
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-05T13-27-24-780Z_ab08f551-a1fe-4814-91e0-3744ac608b47.jsonl
+model: current session model
+summary: >-
+  - **Added "In-process LLM calls" design decision** — documents WHY subprocess spawning was replaced (API key
+  inheritance failure, lock file conflicts) and the reference pattern (answer extension's extraction.ts). This is the
+  key architectural insight from the conversation.
+
+  - **Added "Model selected once, passed down"** — captures the refactoring that removed redundant model selection from
+  the router.
+
+  - **Removed overview architecture section** — the file-by-file flow description violated the 10-second rule; the code
+  structure is self-evident.
+
+  - **Updated references** — added llm.ts as key reference with its lineage from the answer extension pattern.
+
+  - **Removed "Domain-filtered conversation" as separate design decision** — merged into the two-stage reflection
+  description since it's an implementation detail of that design.
+
+  - **Removed "Selective injection over global context"** — obvious from reading the hook code.
+
+  - **Net result**: ~55 lines, focused on non-obvious WHY decisions.
+---
+date: 2026-03-05T14:06:59.633Z
+domain: expert-extension
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-05T14-03-21-758Z_39f65d69-bb75-4fc6-aa4f-da699fd3cdcf.jsonl
+model: (default)
+summary: >-
+  - **Added new design decision** about trimming philosophy change — this is the key insight from the conversation.
+  Documents WHY thresholds were raised and the pushback mechanism was added (agents were silently dropping valuable
+  info).
+
+  - **Removed reference entries** for router.ts and reflection.ts — these are discoverable by reading the code, unlike
+  the llm.ts pattern which has non-obvious ancestry from the answer extension.
+
+  - **Simplified gotchas** — merged domain param note into the two-stage reflection design decision where it belongs,
+  added note about CONTENT_PRINCIPLES propagation scope since that's a non-obvious coupling.
+---
+date: 2026-03-05T14:09:32.372Z
+domain: extensions-dev
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-05T14-03-21-758Z_39f65d69-bb75-4fc6-aa4f-da699fd3cdcf.jsonl
+model: (default)
+summary: >-
+  - **Added**: "Pi loads extensions as raw TS — no build/compile step" to overview. This is non-obvious and was
+  confirmed when attempting `npm run build` which doesn't exist. Saves confusion for anyone trying to compile
+  extensions.
+
+  - **No removals**: Nothing in the existing expertise was contradicted. The conversation was primarily about the expert
+  extension's trimming behavior (covered by the `expert-extension` domain), not about extensions-dev patterns in
+  general.
+
+  - The bulk of the conversation insights (router pipeline, trimming philosophy, pushback mechanism) belong in the
+  `expert-extension` domain, not here.
+---
+date: 2026-03-05T14:09:33.614Z
+domain: expert-extension
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-05T14-03-21-758Z_39f65d69-bb75-4fc6-aa4f-da699fd3cdcf.jsonl
+model: (default)
+summary: >-
+  - **Added design decision**: `.pi/expertise/` is now tracked in git (was previously gitignored). This is a non-obvious
+  choice — explains why the `.gitignore` was changed and that only `.pi/todos/` remains ignored.
+
+  - **Updated last_synced** timestamp to reflect current reflection.
+
+  - **No removals**: All existing content remains valid and was not contradicted. The trimming design decision was
+  already captured from the prior reflection in this same conversation.
+
+  - The conversation primarily reinforced the trimming philosophy change that was already documented — the commit itself
+  bundled the router refactor + trimming softening together, but the expertise already covered both from the earlier
+  reflection pass.
+---
+date: 2026-03-05T14:10:02.163Z
+domain: expert-extension
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-05T14-05-21-113Z_e041d206-9de9-4177-bff9-52626af2df9e.jsonl
+model: current session model
+summary: >-
+  - **Added design decision**: Documented the new "expertise injection visibility" feature — custom message sent via
+  `pi.sendMessage()` in `before_agent_start` hook, rendered with `registerMessageRenderer` using Box/Text from pi-tui
+
+  - **Added gotcha**: Custom message renderer must return `undefined` (not `null`) when nothing to render
+
+  - **Added reference**: Custom message pattern reference pointing to hooks.ts + index.ts, modeled after the
+  message-renderer example
+
+  - **Updated overview**: Mentioned that injected domains are now shown in the conversation
+
+  - **Key implementation details captured**: The `ExpertiseInjectionDetails` type in types.ts,
+  `EXPERTISE_LOADED_MESSAGE_TYPE` constant in hooks.ts, theme colors used (customMessageLabel, accent, dim,
+  customMessageBg)
+---
+date: 2026-03-05T14:20:49.255Z
+domain: expert-extension
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-05T14-10-40-646Z_67d0c8e9-38af-407b-a52c-389c3e165c1d.jsonl
+model: (default)
+summary: >-
+  - **Merged** the old "Reflection re-evaluates ALL existing entries" design decision with the new WHY-vs-HOW prompt
+  design insight into a single, more comprehensive entry. The root cause (implementation walkthroughs accumulating
+  because nothing "contradicts" them) and the three-part fix (explicit examples, active re-evaluation, updated "does not
+  belong" list) are now captured together.
+
+  - **No other changes needed** — the expertise file was already cleaned up during the conversation itself (stale
+  `select_reflection_model` reference, custom message implementation walkthrough, etc. were already removed). The
+  remaining entries all pass the 10-second rule.
+
+  - **Considered removing** "Two-stage reflection: Router → parallel domain experts" (borderline code description) but
+  kept it — the "skip router with domain" behavior is a meaningful architectural shortcut that's not obvious without
+  reading reflection.ts carefully.
+---
+date: 2026-03-05T14:54:43.548Z
+domain: expert-extension
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-05T14-05-21-113Z_e041d206-9de9-4177-bff9-52626af2df9e.jsonl
+model: current session model
+summary: >-
+  - **Added design decision**: "CustomMessageEntry serves dual purpose" — the sendMessage() call both renders in chat
+  AND persists for session reconstruction, eliminating need for separate appendEntry()
+
+  - **Added design decision**: "setStatus over setFooter" — explains why setStatus is the right choice for footer domain
+  display (lightweight, doesn't replace entire footer)
+
+  - **Added gotcha**: /expert reflect must call restore_status(ctx) in finally block after temporary status override
+
+  - **Added gotcha**: session_domains Map is module-level state that must be cleared on session_switch
+
+  - **Updated overview**: Mentions footer status bar display and CustomMessageEntry-based persistence
+
+  - **Added references**: Custom message rendering pattern (hooks.ts + index.ts), session state reconstruction pattern
+
+  - **Removed previous "appendEntry" framing**: The actual implementation uses CustomMessageEntry scanning, not
+  CustomEntry — the plan evolved during implementation
+---
+date: 2026-03-06T21:40:23.659Z
+domain: extensions-dev
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-06T21-16-53-813Z_14392bc9-9076-4e73-aa7f-3be32fe3fc94.jsonl
+model: (default)
+summary: >-
+  - Added new **project-level extension conventions** from the conversation:
+    - AGENTS.md is intentionally a short index.
+    - Extension knowledge is now anchored in `docs/ARCHITECTURE.md`, `docs/QUALITY.md`, and `docs/references/pi-api-reference.md`.
+    - Extension directories are expected to have READMEs (including small single-file extensions).
+  - Updated orientation/references to reflect the new doc structure and progressive-disclosure workflow.
+
+  - Trimmed overly mechanical wording in existing design decisions (kept the **why/tradeoff**, removed some
+  implementation-level phrasing).
+
+  - Kept a few detailed gotchas (e.g., `StringEnum`, `ctx.ui.custom()` blocking, `execute()` positional args) because
+  they are repeatedly failure-prone and not obvious from quick code scans.
+---
+date: 2026-03-06T21:47:30.339Z
+domain: extensions-dev
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-06T21-16-53-813Z_14392bc9-9076-4e73-aa7f-3be32fe3fc94.jsonl
+model: (default)
+summary: >-
+  - Added new **doc-system conventions** from the conversation:
+    - AGENTS.md as a short map
+    - docs/ARCHITECTURE.md + docs/QUALITY.md as core system docs
+    - docs/exec-plans/ as the place for recommendation rollups, reasoning, and debt tracking (with wikilinks)
+    - docs/resources + TEMPLATE.md as structured external-knowledge capture workflow
+  - Updated references to point to the new docs structure (including exec plans/debt tracker).
+
+  - Kept high-value, failure-prone gotchas (provider enum compatibility, `ctx.ui.custom()` blocking behavior,
+  `triggerTurn` semantics).
+
+  - Trimmed phrasing toward **why/tradeoff** and removed redundant implementation-tour wording where possible.
+---
+date: 2026-03-06T22:43:23.107Z
+domain: extensions-dev
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-06T22-11-07-304Z_22507817-0720-4f1d-adf9-4a4d895e8c4e.jsonl
+model: (default)
+summary: >-
+  - Added the major new insight from this session: **local Lefthook pre-commit gates are now the enforcement baseline**,
+  with `bun run check` as the single quality contract.
+
+  - Incorporated the explicit user correction: **do not assume PR-based CI as a required next step** for this repo’s
+  current workflow.
+
+  - Kept high-value Pi extension gotchas that are easy to forget and costly to rediscover.
+
+  - Trimmed away low-level mechanics (exact validator internals/threshold implementation details) and kept only
+  decision-level guidance and practical failure modes.
+
+  - Added a **codebase concern** noting scope creep (extensions + repo process in one domain) and suggested splitting
+  domains if this continues.
+---
+date: 2026-03-06T23:33:22.291Z
+domain: expert-extension
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-06T23-19-14-171Z_5ea39edc-45c1-47c7-a441-4f5ef6e0be7c.jsonl
+model: (default)
+summary: >-
+  - Updated the model for **R9 completion**: matching hardening, context-budget-aware injection, and `/expert log` +
+  `/expert init` are now reflected.
+
+  - Removed stale/incorrect knowledge:
+    - Dropped old gotchas claiming `scope.patterns` was unused and matching was keyword-only.
+    - Removed resolved R9 TODOs (`TODO-07388ec8`, `TODO-a48d2d97`, `TODO-6087997f`).
+    - Replaced stale architecture note about LLM invocation with the verified R9 scoping decision (“not redesigned in this phase”).
+  - Trimmed implementation-heavy descriptions while preserving non-obvious operational risks (threshold-driven skips,
+  parser fragility, shared prompt-contract coupling).
+
+  - Added `codebase_concerns` because reliability now depends on implicit cross-file policy and format-sensitive
+  parsing, which are easy to regress without stronger tests/docs.
+---
+date: 2026-03-07T11:07:36.597Z
+domain: extensions-dev
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-07T10-09-39-977Z_714168c0-c97b-4114-8632-fb12eb1b359d.jsonl
+model: (default)
+summary: >-
+  - Added new high-value decisions from the conversation around **damage-control**:
+    - default-on safety posture
+    - layered rules (bundled + global + project)
+    - additive-only merge semantics in v1
+    - expert-integration explicitly deferred
+    - session-entry-only audit logging for v1
+  - Captured user roadmap corrections as durable guidance:
+    - prefer existing **skills** over redundant extension builds (Linear case)
+    - deprioritize lower-ROI cosmetic/theme work vs safety/focus functionality
+  - Kept existing extension gotchas that are still “burn-risk” and non-obvious; added new damage-control-specific
+  gotchas (fail-closed ask mode, additive-only merge, log location).
+
+  - Lightly refined process patterns to distinguish when to use **specs** vs **exec plans**, based on how this work was
+  actually executed.
+---
+date: 2026-03-07T11:09:08.899Z
+domain: extensions-dev
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-07T11-01-58-821Z_5f0ea0dd-5871-4396-8d74-81020462ef7b.jsonl
+model: (default)
+summary: >-
+  - Added the new docs-governance insights from this conversation:
+    - external architectural guidance should be captured in `docs/resources/` (and indexed) before being applied;
+    - `docs/CONTRIBUTING-DOCS.md` is now the canonical docs policy for humans and agents;
+    - governance should be cross-linked from `AGENTS.md` and `docs/README.md`;
+    - docs updates should be followed by docs validation + full repo checks.
+  - Updated the architecture-related decision framing to reflect matklad-style intent (constraints/tradeoffs/rationale
+  over static code map).
+
+  - Updated references to include the new canonical docs policy and new resource capture file.
+
+  - Trimmed lower-signal/stale detail:
+    - removed overly roadmap-specific guidance (“cosmetic parity” prioritization),
+    - removed one implementation-mechanics-only damage-control log storage detail,
+    - reduced duplication where additive-only policy semantics were repeated.
+  - Kept technical API gotchas that are easy to get burned by and not obvious at a glance in code.
+---
+date: 2026-03-07T11:29:28.059Z
+domain: extensions-dev
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-06T23-28-04-863Z_2ade23cb-0642-4100-b798-730601f7b461.jsonl
+model: (default)
+summary: >-
+  - Added new high-signal insights from the conversation:
+    - AGENTS.md now intentionally includes a compact **Golden Rules** section (while still staying short).
+    - Validation messaging principle is now explicit: errors should include **what/why/how + references** for autonomous agent correction.
+    - Scope now includes `scripts/validate-docs.ts` since this became part of the domain behavior.
+
+  - Kept and re-validated existing architecture/process reasoning entries that capture **why** (progressive disclosure,
+  canonical docs policy, repo as system of record, damage-control policy semantics).
+
+
+  - Pruned one stale/overly specific reference:
+    - Removed `docs/resources/architecture-md-matklad.md` from references because it was not part of this conversation’s active decisions and was too implementation-specific as a durable shortcut.
+
+  - Added a `codebase_concerns` item:
+    - Several agreed improvements are still planned (not mechanically enforced), indicating reliance on convention memory remains a structural risk until tooling lands.
+
+  - I did **not** aggressively trim the existing gotchas/design items despite file length, because they still appear to
+  be hard-won, non-obvious pitfalls that likely save real debugging time and pass the 30-min archaeology test.
+---
+date: 2026-03-07T11:56:29.474Z
+domain: extensions-dev
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-07T11-47-29-618Z_ef3827e7-5821-4dc6-9ebe-1c87796ffefd.jsonl
+model: (default)
+summary: >-
+  - Added new durable insights from the UX-panel implementation:
+    - damage-control now follows a **minimal footer signal + drill-down panel** pattern,
+    - panel/shortcut dual entrypoints are intentional,
+    - and runtime visibility continues to use **session custom entries** (no separate log file).
+  - Kept and sharpened high-value API gotchas, including a new one about **shortcut toggling while `ctx.ui.custom()` is
+  active**.
+
+  - Pruned duplicate/overly mechanical items (especially repeated additive-merge notes and excessive reference sprawl),
+  while retaining decision-level context and hard-to-discover pitfalls.
+
+  - Added a structural concern that this expertise domain is becoming broad and may need splitting if it keeps growing.
+---
+date: 2026-03-07T12:06:30.933Z
+domain: extensions-dev
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-07T11-45-50-099Z_c3f12c74-86b0-4a47-9d7e-7d6e60c0b946.jsonl
+model: (default)
+summary: >-
+  - Added new high-value insights from this session:
+    - Vitest testing strategy (mock only internal `@mariozechner/*`, keep real external deps).
+    - Explicit “no LLM/network in tests” policy and the fail-fast `complete()` mock behavior.
+    - Quality-gate evolution: `bun run check` includes tests and Lefthook now runs lint/docs/tests as parallel pre-commit steps.
+    - Docs-validator gotcha: `extensions/__mocks__/README.md` is required because validator treats subdirs under `extensions/` as extension-facing.
+  - Captured newly discovered non-obvious pitfalls:
+    - Expert router scoring/short-term behavior can prevent seemingly obvious matches.
+    - Damage-control mutation regex has known command-shape blind spots.
+  - Pruned older entries that were too implementation-specific/noisy (e.g., very narrow damage-control UI mechanics)
+  while keeping the underlying design intent (low-noise UX, default-on safety, additive rule merge).
+
+  - Updated references to include new testing/quality control source-of-truth files (`vitest.config.ts`, mocks README,
+  `lefthook.yml`, updated QUALITY/spec docs).
+---
+date: 2026-03-07T12:10:08.790Z
+domain: extensions-dev
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-07T11-47-29-618Z_ef3827e7-5821-4dc6-9ebe-1c87796ffefd.jsonl
+model: (default)
+summary: >-
+  - Added new durable UX insights from this conversation:
+    - damage-control now follows **minimal footer signal + drill-down panel**.
+    - `/damage-control` UX expectation is a **proper bounded popup** (todo-style), not an unframed full-screen overlay.
+    - shortcut toggles must be handled **inside** active `ctx.ui.custom()` components.
+  - Preserved high-value existing conventions (docs-as-source-of-truth, deterministic tests, fail-closed safety
+  behavior).
+
+  - Trimmed lower-value/mechanical items that were mostly API/code walkthroughs (e.g., generic UI method behavior
+  details), while keeping hard-to-discover gotchas that routinely cause mistakes.
+
+  - Expanded `codebase_concerns` with a new structural issue: lack of shared popup UX primitives encourages inconsistent
+  panel quality across extensions.
+---
+date: 2026-03-07T12:33:19.286Z
+domain: extensions-dev
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-07T12-21-17-303Z_fb351687-8a26-4389-bc1e-60f6026a604b.jsonl
+model: (default)
+summary: >-
+  - Added the key new workflow insight from this conversation: **specs and execution plans are intentionally separate
+  artifacts by lifecycle/purpose**, and a nested `docs/exec-plans/specs/` folder is not required.
+
+  - Captured the concrete convention shift: `skills/create-spec` now supports **spec and/or execution plan**, with a
+  default bias toward producing both for medium/large work and cross-linking them.
+
+  - Added the resource-capture decision: external guidance should be stored as a **structured resource note** (summary +
+  context + relevance), not just a link; referenced the new Codex execution-plans resource entry.
+
+  - Pruned overly implementation-specific references (e.g., damage-control internal file wiring) while keeping hard-won
+  gotchas that are not obvious from quick code reading.
+
+  - Updated `codebase_concerns` to reflect the real friction surfaced here: adoption/discoverability of exec-plans is
+  still inconsistent despite docs and skill support.
+---
+date: 2026-03-07T12:48:27.561Z
+domain: extensions-dev
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-07T12-21-17-303Z_fb351687-8a26-4389-bc1e-60f6026a604b.jsonl
+model: (default)
+summary: >-
+  - Added the major new planning insights from this conversation:
+    - `PLANS.md` is now the canonical execution-plan standard.
+    - Medium/large work defaults to **both** spec + execution plan unless explicitly waived by the user.
+    - `docs/specs/` vs `docs/exec-plans/` separation is intentional; `exec-plans/specs` is not needed.
+  - Updated patterns/design decisions to capture the **why** behind adoption changes (underuse was trigger/policy drift,
+  not folder layout).
+
+  - Updated references to include new canonical docs (`PLANS.md`, exec-plan template, Codex/PLANS resource capture).
+
+  - Pruned stale concern about `exec-plans/specs` discoverability as an unresolved issue, since docs/policy were updated
+  to address it.
+
+  - Kept existing API/safety gotchas that remain hard to rediscover quickly from code alone.
+---
+date: 2026-03-07T12:53:47.093Z
+domain: extensions-dev
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-07T12-45-19-063Z_24a73d25-4a79-4a80-918e-e8e11313b465.jsonl
+model: (default)
+summary: >-
+  - Added **new high-value testing insight** from this session: Vitest aliases Pi packages to local mocks, so importing
+  new `@mariozechner/pi-*` helpers requires mock updates or tests fail at runtime.
+
+  - Added a **practical CI/check gotcha**: repo-wide checks can fail due unrelated baseline formatting; explicitly
+  report residual unrelated failures and validate touched files directly.
+
+  - Kept existing core policy/design entries (spec+plan discipline, deterministic gates, agent-legible validation)
+  because they capture **why** the repo works this way, not implementation mechanics.
+
+  - Trimmed/reworded some overlap for concision (especially in overview/pattern phrasing) while preserving all
+  non-obvious, repeatedly-useful gotchas.
+
+  - Added a new **codebase concern** about mock drift, since this session exposed it as a recurring structural friction
+  point.
+---
+date: 2026-03-07T13:02:25.332Z
+domain: extensions-dev
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-07T12-21-17-303Z_fb351687-8a26-4389-bc1e-60f6026a604b.jsonl
+model: (default)
+summary: >-
+  - Added the main new insights from this conversation:
+    - **medium/large work defaults to spec + execution plan unless user-waived**
+    - **execution plans are living docs with active→completed lifecycle**
+    - **skills must be portable/self-sustaining**, so create-spec now carries its own `PLAN.md`.
+  - Updated planning doctrine to reflect the current tradeoff:
+    - repo-level `PLANS.md` for consistency
+    - skill-local `PLAN.md` for cross-repo portability.
+  - Kept the non-obvious failure modes that repeatedly burn agents (Biome path-ignore behavior, unrelated baseline check
+  failures, Pi mock drift/runtime errors, `ctx.ui.custom().done()` behavior).
+
+  - Pruned several older, extension-specific mechanics (especially deep damage-control/expert internals) that were more
+  code-tour than durable cross-extension expertise.
+
+  - Added a concern about **dual-standard drift risk** (`PLANS.md` vs `skills/create-spec/PLAN.md`) and recommended
+  mechanical sync enforcement.
+---
+date: 2026-03-07T13:16:28.175Z
+domain: extensions-dev
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-07T12-21-17-303Z_fb351687-8a26-4389-bc1e-60f6026a604b.jsonl
+model: (default)
+summary: >-
+  - Updated the model to reflect the user’s explicit corrections:
+    - **No root `PLANS.md`** as standard.
+    - Canonical plan standard now lives in **`skills/plan/PLAN.md`**.
+    - Skill renamed from **`create-spec` → `plan`** to match broadened scope.
+  - Kept and strengthened the core planning doctrine:
+    - medium/large work defaults to **spec + execution plan unless explicitly waived**,
+    - spec/plan separation is by lifecycle (design vs execution state), not folder nesting.
+  - Added the key portability insight as first-class expertise:
+    - skills should be self-sustaining and ship their own standards/templates.
+  - Pruned stale/outdated entries tied to root `PLANS.md` and old `create-spec` references; kept only high-friction
+  gotchas that are costly to rediscover.
+
+  - Added/updated concerns around adoption enforcement and stale-reference drift after the skill rename.
+---
+date: 2026-03-07T14:49:00.957Z
+domain: extensions-dev
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-07T14-22-18-245Z_f88910c6-872f-4e49-9cf3-c025bd0babe9.jsonl
+model: (default)
+summary: >-
+  - Updated the model with the new **hybrid validation doctrine** established in this session:
+    - TypeBox + `StringEnum` for tool params
+    - Zod for runtime boundary parsing
+  - Added the new high-value convention that this policy is now documented in **global docs** (not just code), and
+  should be kept synchronized across canonical surfaces.
+
+  - Added practical post-change gotchas from the rollout (real YAML parsing now enforced in docs validation; tolerant
+  settings parsing may appear like silent reset).
+
+  - Kept planning-lifecycle guidance, but trimmed stale/less-useful historical details (e.g., rename history) that were
+  mostly archaeology and not actionable convention.
+
+  - Retained the existing scope concern (planning + runtime mixed in one expertise) and strengthened it as a structural
+  retrieval risk rather than trimming away useful insights.
+---
+date: 2026-03-07T15:03:39.617Z
+domain: extensions-dev
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-07T14-22-18-245Z_f88910c6-872f-4e49-9cf3-c025bd0babe9.jsonl
+model: (default)
+summary: >-
+  - Updated the expertise to reflect the **new enforced validation doctrine** from this session: TypeBox/`StringEnum`
+  for tool params, **schema-first Zod parsing** for runtime boundaries.
+
+  - Added a key design tradeoff that emerged during refactor: **use Zod for contracts, but map issues to stable
+  agent-legible hints** (don’t leak raw Zod errors).
+
+  - Added rollout-specific gotchas that are easy to miss:
+    - docs validator now strictly parses YAML + typed frontmatter contracts,
+    - empty required list fields (like `tags: []`) are intentionally surfaced as “missing required field,”
+    - tolerant normalization/migration can look like silent resets.
+  - Trimmed/reworded older entries that were too implementation-walkthrough-like, while keeping high-value conventions
+  and rationale.
+
+  - Kept and expanded `codebase_concerns` because repeated user pushback exposed a structural issue: boundary coverage
+  still relies too much on manual sweeps instead of automated enforcement.
+---
+date: 2026-03-07T15:08:22.208Z
+domain: extensions-dev
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-07T14-22-18-245Z_f88910c6-872f-4e49-9cf3-c025bd0babe9.jsonl
+model: (default)
+summary: >-
+  - Updated the model with the key correction from this session: **schema-first Zod parsing should be applied
+  consistently across comparable boundaries** (not partially), especially in docs frontmatter validation.
+
+  - Kept and sharpened the core tradeoff: **TypeBox/StringEnum for tool params, Zod for runtime boundaries** due Pi
+  `TSchema` compatibility constraints.
+
+  - Added/refined high-value gotchas from the rollout:
+    - strict YAML+Zod docs validation behavior,
+    - intentional `tags: []` => “missing required field” semantics,
+    - compatibility-oriented tolerant parsing/migration effects.
+  - Pruned some redundant reference/detail noise while keeping hard-to-discover operational conventions and decision
+  rationale.
+
+  - Retained `codebase_concerns` and strengthened automation concerns because this session showed ongoing reliance on
+  manual sweeps and doctrine sync by memory.
+---
+date: 2026-03-10T15:59:11.513Z
+domain: extensions-dev
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-10T15-44-46-478Z_b513f3a5-eef7-4443-afe3-fc244c1a5ac2.jsonl
+model: (default)
+summary: >-
+  - **Added** "Skills must be repo-agnostic" design decision — the user explicitly stated skills should work on any
+  repository, not just this one. This is a key architectural constraint that's easy to violate.
+
+  - **Added** "Core skills are composed, not embedded" design decision — captures the review-as-primitive,
+  PR-review-as-consumer pattern and the core-vs-wrapper report format boundary.
+
+  - **Added** "Existing artifact stays canonical until migration" design decision — the user decided `pr-review` remains
+  canonical during transition. This is a general pattern for skill extraction.
+
+  - **Added** gotcha about skill README enforcement gap — discovered during review that `validate-docs.ts` enforces
+  READMEs for extensions but not skills. Added to both gotchas and codebase_concerns.
+
+  - **Added** review skill spec/plan to references since they're now active artifacts.
+
+  - **Removed** several patterns that were just restating what's already in AGENTS.md or obvious from reading the plan
+  standard (cross-linking artifacts, updating index links on lifecycle changes, updating canonical surfaces together).
+
+  - **Removed** design decision about "Docs frontmatter validation uses typed Zod contracts" — this just describes what
+  the code does, visible from reading `validate-docs.ts`.
+
+  - **Removed** design decision about "Compatibility-preserving hardening" — this is covered by the pattern about
+  normalizing field-by-field.
+
+  - **Trimmed** references — removed file-level pointers (storage.ts files, test files) that a developer can find via
+  grep; kept document-level references that orient to specs and plans.
+
+  - **Simplified** the gotcha about frontmatter validation — merged two related items into one clearer statement about
+  the enforcement asymmetry.
+
+  - **Updated** codebase_concerns to flag the skill/extension README enforcement asymmetry as a structural issue worth
+  resolving.
+---
+date: 2026-03-10T16:06:58.161Z
+domain: extensions-dev
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-10T15-44-46-478Z_b513f3a5-eef7-4443-afe3-fc244c1a5ac2.jsonl
+model: (default)
+summary: >-
+  - **Strengthened** "Skills must be repo-agnostic" design decision to explicitly call out no package manager or
+  validation commands in skills — the user drew this boundary clearly when they said `bun run check` should not appear
+  in the review skill since it may not exist on other repos.
+
+  - **Added** "Review skill owns judgment, not mechanical validation" design decision — captures the user's key
+  architectural insight that review focuses on non-automatable concerns (correctness, security, architecture), while
+  CI/hooks/pre-commit own mechanical checks. This boundary was the main topic of the second half of the conversation.
+
+  - **Added** gotcha about implementation plans referencing repo-local validation vs skill behavior — the user
+  explicitly separated "how we validate this work in this repo" from "what the skill tells agents to do." Easy to
+  confuse.
+
+  - **Removed** two patterns that were just restating AGENTS.md rules ("create both spec + execution plan" and "treat
+  execution plans as living docs") — both are directly stated in AGENTS.md and the plan standard.
+
+  - **Kept** all existing design decisions and gotchas — reviewed each against the 10-second rule and they all still
+  capture non-obvious insights that require archaeology to discover.
+---
+date: 2026-03-10T16:16:01.003Z
+domain: extensions-dev
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-10T15-44-46-478Z_b513f3a5-eef7-4443-afe3-fc244c1a5ac2.jsonl
+model: (default)
+summary: >-
+  - **Removed** "Prefer mechanical enforcement (`bun run check`) over convention-memory" pattern — this is a verbatim
+  restatement of AGENTS.md golden rule #6, fails the 10-second rule.
+
+  - **Added** `skills/review/` to scope paths since the review skill was implemented during this conversation (SKILL.md,
+  README, report format, 6 lens files, all passing `bun run check`).
+
+  - **Removed** `skills/review/` reference from the old scope entry that only listed `skills/pr-review/` — now both are
+  tracked.
+
+  - **Updated** `last_synced` timestamp.
+
+  - **Kept all other entries unchanged** — reviewed every design decision, gotcha, pattern, and codebase concern against
+  the 10-second rule. All remaining items capture non-obvious insights that require archaeology to discover (hybrid
+  validation doctrine, enforcement asymmetry, skill repo-agnosticism constraints, judgment-vs-mechanical boundary,
+  etc.).
+
+  - **Did not add** lens taxonomy details (docs in quality.md vs dependencies.md) or scope ambiguity handling (ask user
+  for staged vs unstaged) — both are immediately visible from reading the implemented skill files.
+
+  - The conversation reinforced existing design decisions (repo-agnostic skills, review-owns-judgment,
+  implementation-plan-vs-skill-behavior separation) but didn't introduce fundamentally new insights beyond what was
+  already captured in prior expertise updates.
+---
+date: 2026-03-10T16:32:15.431Z
+domain: extensions-dev
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-10T15-44-46-478Z_b513f3a5-eef7-4443-afe3-fc244c1a5ac2.jsonl
+model: (default)
+summary: >-
+  - **Updated** "Core skills are composed, not embedded" design decision to reflect that the pr-review migration is now
+  complete — pr-review is a thin wrapper delegating to skills/review/.
+
+  - **Added** gotcha about trusting initial design instincts during artifact generation — the user explicitly observed
+  the agent makes better taxonomy decisions during generation than during review/second-guessing. This is a non-obvious
+  behavioral insight that directly affects work quality.
+
+  - **Removed** review skill exec plan from references since it's complete and being archived; kept the spec reference.
+
+  - **Removed** github-skill-merge exec plan reference — it was completed in this session and doesn't need a permanent
+  reference.
+
+  - **Reviewed all entries against the 10-second rule** — all remaining items capture non-obvious insights requiring
+  archaeology to discover. No items were stale or purely describing code mechanics.
+
+  - **Did not add** lens content details, pr-review output format specifics, or session-stats timeline implementation
+  details — all visible from reading the code directly.
+
+  - File is at ~95 lines of content, which is justified by the breadth of this domain (planning governance + validation
+  doctrine + skill architecture + runtime conventions).
+---
+date: 2026-03-10T16:49:48.589Z
+domain: extensions-dev
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-10T15-44-46-478Z_b513f3a5-eef7-4443-afe3-fc244c1a5ac2.jsonl
+model: (default)
+summary: >-
+  - **Added** "router SKILL.md + references/" pattern — captures the progressive disclosure approach used for the github
+  skill merge (and review skill). This is a reusable structural pattern that's not obvious from any single file.
+
+  - **Added** "Related skills consolidate into one router" design decision — records why commit/pr-review/github merged
+  (system prompt context reduction) and why the name is `github` not `git` (GitHub-specific tooling). Both are decisions
+  that would require archaeology to rediscover.
+
+  - **Updated** "Core skills are composed, not embedded" to reflect that the github skill now exists and delegates PR
+  review analysis to the review skill. The previous wording was aspirational; now it's reality.
+
+  - **Added** gotcha about damage-control blocking `rm -rf` — the agent hit this during the github skill merge when
+  trying to delete old skill directories. Non-obvious and will bite again.
+
+  - **Updated** scope paths — replaced `skills/pr-review/` with `skills/github/` since the merge is in progress. Kept
+  `skills/review/` which was already there.
+
+  - **Added** github skill merge spec to references.
+
+  - **Removed** `skills/pr-review/` from scope since it's being deprecated in favor of
+  `skills/github/references/pr-review.md`.
+
+  - **Reviewed all existing entries** against the 10-second rule — all remaining items capture non-obvious insights. The
+  conversation strongly reinforced several existing entries (repo-agnostic skills, judgment-vs-mechanical boundary,
+  implementation-plan-vs-skill-behavior separation) without contradicting any.
+
+  - File is at ~100 lines of content, justified by the breadth of this domain covering planning governance, validation
+  doctrine, skill architecture, and cross-extension conventions.
+---
+date: 2026-03-11T14:49:51.346Z
+domain: extensions-dev
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-11T14-42-10-344Z_3e31be6d-435d-42ae-b893-2384b1fb7c79.jsonl
+model: (default)
+summary: >-
+  - Added the new cross-cutting insight from the conversation: agent-facing docs should minimize context load and keep
+  only repo-specific doctrine, not generic how-to material.
+
+  - Captured the specific testing-docs decision: `docs/TESTING.md` should be a short overview of tiers, mocks, and
+  boundaries, while changing coverage/status belongs in `docs/QUALITY.md`.
+
+  - Tightened several existing entries to focus on rationale instead of mechanics, especially around testing and
+  validation.
+
+  - Removed lower-value implementation-detail items that were easy to rediscover from code/config, including the
+  todo-specific legacy migration note and the pre-commit gate sequencing detail.
+
+  - Kept a few concrete gotchas that are still expensive to rediscover in practice (`Biome` path checks, shared mock
+  export failures, Damage-Control `rm -rf` blocking).
+---
+date: 2026-03-11T14:58:07.582Z
+domain: extensions-dev
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-11T14-42-10-344Z_3e31be6d-435d-42ae-b893-2384b1fb7c79.jsonl
+model: (default)
+summary: Expertise updated (no summary provided)
+---
+date: 2026-03-11T15:12:15.577Z
+domain: extensions-dev
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-11T14-42-10-344Z_3e31be6d-435d-42ae-b893-2384b1fb7c79.jsonl
+model: (default)
+summary: >-
+  - Added the main doctrine from the conversation: stable docs should keep only non-obvious repo-specific
+  overview/policy, not things an agent can infer quickly from code or repo structure.
+
+  - Strengthened the testing-docs rule: `docs/TESTING.md` is a short testing doctrine file, not a Vitest tutorial or
+  cookbook.
+
+  - Updated the `QUALITY.md` guidance to match the user's correction: remove raw test counts, coverage baselines, and
+  similar tool-derivable metrics; keep only qualitative judgment and prioritized gaps.
+
+  - Captured the intentional pushback that stayed in the code/docs: qualitative testing posture still belongs in
+  `QUALITY.md` because tooling cannot infer priorities.
+
+  - Tightened the `ARCHITECTURE.md` guidance from “overview” to a sharper “pointing fingers” codemap rule.
+
+  - Pruned overlapping/redundant testing/doc entries and removed detail that mostly described doc contents mechanically
+  rather than preserving why those boundaries exist.
+
+  - Kept the existing concrete gotchas (`Biome` path checks, shared mock export failures, `rm -rf` blocking, etc.)
+  because they are still expensive to rediscover from code alone.
+---
+date: 2026-03-11T15:32:50.137Z
+domain: extensions-dev
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-11T14-42-10-344Z_3e31be6d-435d-42ae-b893-2384b1fb7c79.jsonl
+model: (default)
+summary: >-
+  - Added the user correction that top-level docs should exclude anything agents can recover quickly from code, repo
+  structure, or tooling output.
+
+  - Tightened the `ARCHITECTURE.md` doctrine from “short overview” to a sharper “finger-pointing codemap” rule: point to
+  areas/docs, do not inventory extensions just for discoverability.
+
+  - Updated the `QUALITY.md` guidance to match the conversation: remove raw test counts, coverage baselines, and similar
+  tool-derivable metrics; keep only qualitative judgment and prioritized gaps.
+
+  - Kept the existing nuance that qualitative testing posture still belongs in `QUALITY.md`, because tooling cannot tell
+  you which gaps matter next.
+
+  - Added the meta-rule that mechanical docs audits should enforce non-obvious doctrine, not force docs to restate
+  trivial repo facts.
+
+  - Re-reviewed existing entries and pruned overlap by merging the docs-related decisions into fewer, sharper statements
+  rather than code-tour-style descriptions.
+---
+date: 2026-03-11T17:12:56.081Z
+domain: extensions-dev
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-11T16-34-27-385Z_ed7689ed-059f-4129-8534-d85da0e85e98.jsonl
+model: (default)
+summary: >-
+  - Added the new cross-cutting doctrine from the tracks design discussion:
+    - tracks are task-scoped working memory under `.pi/`, not source-of-record docs
+    - task-local `AGENTS.md` should be the progressive-disclosure entrypoint
+    - minimal v1 should stay self-contained and avoid hard coupling to `.pi/todos/`
+    - single-file handoff is intentionally deferred for many-agent workflows
+    - Unix philosophy is now an explicit design lens for coordination extensions
+  - Added two high-value gotchas that are easy to miss:
+    - nested/task-local `AGENTS.md` is not auto-loaded by Pi unless the extension injects it
+    - task workspaces rot into junk drawers unless summaries replace stale state instead of append-only accumulation
+  - Merged overlapping QUALITY guidance into one sharper design decision instead of repeating it in two entries.
+
+  - Expanded references/scope to include the new tracks spec/plan and the Unix philosophy resource that informed the
+  design.
+
+  - I did not trim more aggressively because the remaining entries are mostly doctrine/tradeoff/gotcha items that are
+  hard to recover from code alone. The file is getting broad, so I flagged domain-scope creep and recommended splitting
+  out track/workspace expertise once implementation starts.
+---
+date: 2026-03-11T17:28:42.533Z
+domain: extensions-dev
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-11T16-34-27-385Z_ed7689ed-059f-4129-8534-d85da0e85e98.jsonl
+model: (default)
+summary: >-
+  - Added the user’s corrections to the tracks mental model:
+    - v1 tracks should be **self-contained** and not depend on `.pi/todos/`
+    - **single `handoff.md` is deferred** because it breaks down in many-agent workflows
+    - **sync should stay deterministic** in v1, not LLM-generated by default
+    - **`report.md` is a live artifact** updated during work, then finalized on closeout
+    - active-track state should live in **both settings and session trace entries**
+  - Captured the new architectural framing that tracks are more like a **file-format manager / CLI for standardized
+  workspaces** than a reuse of `todos`/`expertise` patterns.
+
+  - Strengthened the template doctrine: the extension should own a **templates directory** and copy canonical files into
+  each track so behavior is encoded in generated artifacts, not remembered from chat.
+
+  - Kept most existing entries because they are still mostly high-value doctrine/gotcha material rather than code-tour
+  details; I did not trim harder because the file’s size is mostly due to the domain being broad.
+
+  - Left the existing `codebase_concerns` warning in place: this expertise is approaching “too broad” territory, and
+  tracks likely deserve their own domain once implementation starts growing.
+---
+date: 2026-03-11T17:34:22.967Z
+domain: extensions-dev
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-11T16-34-27-385Z_ed7689ed-059f-4129-8534-d85da0e85e98.jsonl
+model: (default)
+summary: >-
+  - Added the main user correction for tracks: **the extension must be repo-agnostic and isolated to `.pi/tracks/`**. I
+  captured that as both a pattern and a design decision, and noted that templates must not assume project docs, todos,
+  or other host-repo structure.
+
+  - Updated the tracks mental model to match the later decisions:
+    - **self-contained `tasks.md` instead of `.pi/todos/` coupling**
+    - **deterministic sync in v1**
+    - **dual-write active track state** to settings + session trace entries
+    - **`report.md` is a live artifact**, not closeout-only
+    - **handoff is deferred** because a single handoff file does not scale in many-agent workflows
+  - Tightened existing tracks/template guidance so it captures the **why**: tracks are closer to a **file-format manager
+  / CLI for standardized workspaces** than a reuse of existing extension patterns.
+
+  - Trimmed some redundancy in the docs/codemap guidance by merging overlapping “docs should stay small” ideas into
+  sharper entries rather than repeating inventories.
+
+  - I did **not** trim more aggressively because most remaining entries are still high-value doctrine/gotcha material
+  that is hard to reconstruct from code alone. The file is broad because the domain itself is broad, so I kept the
+  existing scope-creep warning and strengthened `codebase_concerns` around splitting tracks into their own expertise
+  domain if implementation grows.
+---
+date: 2026-03-11T17:51:53.641Z
+domain: tracks-extension
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-11T17-37-13-165Z_965ad57a-4767-4aed-b428-a897aa3a8058.jsonl
+model: (default)
+summary: >-
+  - Added the core architectural insights that were hard to infer from code alone: repo-agnostic scope, extension-owned
+  templates, deterministic sync, split active-track state, rolling report, and shutdown refresh.
+
+  - Captured the main gotchas likely to burn future agents: `summary.md` is derived, active state is split across
+  settings vs session traces, and tracks are operational memory rather than durable source-of-record.
+
+  - Kept the file intentionally short and trimmed out implementation mechanics, file tours, and API details that are
+  obvious from reading the extension code/tests.
+---
+date: 2026-03-11T18:19:47.602Z
+domain: tracks-extension
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-11T17-37-13-165Z_965ad57a-4767-4aed-b428-a897aa3a8058.jsonl
+model: (default)
+summary: >-
+  - Tightened the file around durable insights only; removed duplicated “summary is derived” guidance from `patterns`
+  and kept it once as a gotcha.
+
+  - Sharpened the active-track gotcha to reflect the implemented authority split: settings are the current source of
+  truth, session traces are for history.
+
+  - Kept the core design decisions because they capture the non-obvious why: repo-agnostic scope, templates as policy,
+  deterministic sync, split state, rolling report, and shutdown safety net.
+
+  - Added a `codebase_concerns` note for the main new operational insight from the conversation: runtime hook/command
+  behavior still relies on live Pi verification because automated coverage is mostly Tier 1/2.
+
+  - Did not trim further because the remaining entries all save archaeology time and are not obvious from a quick code
+  read.
+---
+date: 2026-03-11T18:43:46.379Z
+domain: tracks-extension
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-11T17-37-13-165Z_965ad57a-4767-4aed-b428-a897aa3a8058.jsonl
+model: (default)
+summary: >-
+  - Corrected the most important outdated insight: `.pi/tracks/settings.json` is **not** the live authority for
+  current-session behavior anymore. The live Pi pass exposed a real bug where shutdown sync used the wrong track, so the
+  expertise now reflects the new session-trace authority model.
+
+  - Tightened the file by removing the old `patterns` section and keeping only durable, non-obvious guidance that saves
+  archaeology time.
+
+  - Kept the core design decisions because they still capture the important why: repo-agnostic scope, template-owned
+  policy, deterministic sync, rolling `report.md`, and shutdown safety net.
+
+  - Strengthened `codebase_concerns` because this conversation proved Tier 1/2 tests were insufficient for lifecycle
+  correctness; the remaining concern is valuable and not safely trimmable.
+---
+date: 2026-03-11T18:50:52.915Z
+domain: tracks-extension
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-11T17-37-13-165Z_965ad57a-4767-4aed-b428-a897aa3a8058.jsonl
+model: (default)
+summary: >-
+  - Corrected and sharpened the most important insight: `.pi/tracks/settings.json` is **not** the live runtime
+  authority; session trace state is authoritative for current-session attachment, which matters for hooks and no-arg
+  `/track` behavior.
+
+  - Preserved the key design decisions because they capture real tradeoffs, especially the session-local authority
+  change that only became obvious after the live Pi pass exposed cross-session hijacking.
+
+  - Added a new `codebase_concerns` note about repo-wide Biome checks scanning generated `.pi/tracks/settings.json`,
+  since that caused real validation noise during this work.
+
+  - Trimmed toward durable insights only; I did **not** cut further because the remaining entries all save archaeology
+  time and are not obvious from a quick code read. In particular, the authority split, deterministic sync rationale, and
+  live-only lifecycle testing gap all earned their place.
+---
+date: 2026-03-11T18:57:15.342Z
+domain: tracks-extension
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-11T18-51-55-159Z_4b328ea4-7747-424f-9720-d7dd045fe806.jsonl
+model: (default)
+summary: >-
+  - Added the new hard-won insight from the conversation: `/track` autocomplete values must include the active
+  subcommand because Pi replaces the full argument tail, not just the last token.
+
+  - Updated the description and references to reflect that slash-command UX is part of the domain knowledge now.
+
+  - Strengthened `codebase_concerns` to note that this is another runtime/TUI-only bug class that unit tests alone can
+  miss; tracks needs smoke coverage for command/autocomplete behavior as well as hook lifecycle.
+
+  - Deliberately did **not** add implementation details about the helper extraction or exact test code, since those are
+  easy to read in-source and fail the 10-second rule.
+---
+date: 2026-03-11T19:37:14.494Z
+domain: tracks-extension
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-11T16-34-27-385Z_ed7689ed-059f-4129-8534-d85da0e85e98.jsonl
+model: (default)
+summary: >-
+  - **Major addition — tracks are workstream contexts, not one-shot task containers.** This was the most important user
+  correction in the conversation. The original implementation and docs pushed toward closing the track after the first
+  implementation milestone; the user explicitly corrected this to say tracks should stay open as long as the initiative
+  is alive. Added as a top design decision.
+
+  - **Added "no coupling to .pi/todos/"** as a design decision with the reasoning — the user is unsure todos will
+  persist and wants tracks self-contained.
+
+  - **Added "report.md is rolling"** as its own design decision — previously this was partially captured in "closeout
+  starts before track end" but the framing has evolved.
+
+  - **Moved the biome/settings.json gotcha** from codebase_concerns into gotchas (it's a practical gotcha, not just a
+  structural concern), keeping codebase_concerns focused on the testing gap and the autocomplete contract issue.
+
+  - **Removed the duplicate codebase_concern** about biome/settings.json that was already covered in gotchas.
+
+  - **Trimmed the "closeout starts before track end" decision** — it was partially redundant with the new "report.md is
+  rolling" entry and the new "tracks are workstream contexts" entry.
+
+  - **Updated overview** to explicitly say tracks are NOT single-task containers and that `track end` means the
+  workstream is truly done.
+
+  - **Kept all existing gotchas** — they are all still valid and hard to discover from code alone.
+
+  - **Kept references unchanged** — they still accurately point to the right files.
+---
+date: 2026-03-12T08:57:32.431Z
+domain: tracks-extension
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-11T16-34-27-385Z_ed7689ed-059f-4129-8534-d85da0e85e98.jsonl
+model: (default)
+summary: >-
+  - **Added scope paths** for milestone 2 spec and execution plan
+  (`2026-03-12-tracks-extension-workstream-lifecycle-v2`).
+
+  - **Added design decision**: `settings.json stores only project-level track selection` — captures the WHY behind
+  keeping it minimal and the boundary with session traces. This was a significant topic in the conversation.
+
+  - **Added design decision**: `Exclude runtime state from repo-wide formatting checks` — the user explicitly decided to
+  exclude `.pi/tracks/settings.json` from Biome. This resolves the open policy question.
+
+  - **Updated biome gotcha** to include the resolution (exclude from Biome scope), not just describe the problem.
+
+  - **Updated "No coupling to .pi/todos/"** detail to include the user's reasoning: uncertainty about todos as the
+  long-term abstraction.
+
+  - **Updated "Repo-agnostic by default"** detail to note that templates specifically must not reference
+  project-specific systems.
+
+  - **Trimmed "Actions layer" design decision** — removed the implementation walkthrough (return shape, number of
+  functions) while keeping the WHY (eliminated duplication, fixed trace-ordering bug).
+
+  - **Fixed test reference** — was pointing to a nonexistent `actions.test.ts`, now correctly points to the `__tests__/`
+  directory.
+
+  - All existing gotchas retained — they are all still valid and hard to discover from code alone.
+
+  - File is ~105 lines, which is above the ideal range but I cannot trim further without losing genuine insights. Each
+  design decision captures a tradeoff or correction that required significant conversation to surface. The settings.json
+  and biome decisions in particular would take 30+ minutes of archaeology to reconstruct.
+---
+date: 2026-03-12T09:13:15.348Z
+domain: tracks-extension
+session: /Users/cgn/.pi/agent/sessions/--Users-cgn-git-0xcgn-agents--/2026-03-12T09-08-17-068Z_b8622862-8f30-4180-9104-ef14fd6592b5.jsonl
+model: (default)
+summary: >-
+  - **Updated Biome formatting gotcha**: The original entry said to exclude `settings.json` from Biome via config. The
+  conversation revealed Biome 2.x doesn't have an `ignore` key under `files`, so the actual fix is to write
+  `settings.json` with tab indentation matching the repo's Biome config. This is a genuine gotcha that burned the agent
+  during commit.
+
+  - **Removed "exclude runtime state from formatting" design decision**: This was the planned approach but was proven
+  unworkable. The gotcha entry now captures the correct resolution.
+
+  - **Trimmed references section**: Removed file pointers for `index.ts`, `helpers.ts`, `storage.ts`, and `__tests__/` —
+  these are discoverable by browsing the extension directory. Kept `actions.ts` (non-obvious that it's the shared
+  business logic layer) and `README.md` (operator-facing contract).
+
+  - **No other changes needed**: The conversation was primarily a commit workflow, not a design or architecture
+  discussion. All existing design decisions remain valid.

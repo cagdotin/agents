@@ -6,15 +6,14 @@
 - Track: agent-memory
 - Purpose: Research, evaluate, and integrate agent memory/context management improvements — covering QMD, OpenViking patterns, and enhancements to our expertise/tracks systems
 - Status: active
-- Last synced: 2026-03-16T15:34:19.735Z
-- Session count: 17
+- Last synced: 2026-04-04T08:07:08.642Z
+- Session count: 18
 - Summary version: 1
 
 ## Related paths
-- extensions/expert
 - extensions/tracks
-- .pi/expertise
 - .pi/tracks
+- .graveyard/extensions/expert
 - skills/
 - docs/
 
@@ -28,10 +27,11 @@
 
 ## Open checklist
 - Implement tracks milestone 2 from `docs/specs/2026-03-12-tracks-extension-workstream-lifecycle-v2.md`
-- Define v1 design sketch for unified tracks+expert memory plugin (workstream memory + domain memory boundary)
-- Decide promotion flow: session findings → track files → expertise append
-- Validate which OpenViking ideas to adopt next (tiering/promotion/retrieval orchestration) without adopting its runtime stack
-- Create PR to QMD repo: add opt-in `dot` option to `reindexCollection` (e.g. `{ dot?: boolean }`) so dot-path files can be included in the scanner without needing our `extra_paths` workaround. Must not change default behavior (`dot: false`).
+- ~~Define v1 design sketch for unified tracks+expert memory plugin~~ → superseded by vault-based memory direction
+- Design vault-based agent memory: per-repo vault structure, MOC for domain expertise, atomic claim notes
+- Prototype vault integration: agent reads/writes atomic notes, navigates via MOC, retrieves via QMD
+- Define what "domain expertise" looks like as a vault MOC (folder structure, note templates, linking conventions)
+- Validate which OpenViking ideas to adopt next (tiering/promotion/retrieval orchestration) within vault model
 
 ## Findings
 - **Local-first, zero infrastructure.** Single SQLite file, local models, no API keys, no server process.

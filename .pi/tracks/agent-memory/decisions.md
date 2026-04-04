@@ -92,3 +92,16 @@
   - L2 domain context (expertise)
   - L3 deep retrieval (QMD)
 - **Guardrail:** Any unified plugin design must preserve these boundaries even if implementation modules are merged.
+
+## Retire expert extension — 2026-04-04
+- **Rationale:** The extension's auto-injection model is fundamentally wrong for agent memory. Dumping YAML into context (either as listings or full pinned content) is supply-driven, not demand-driven. Good memory requires the agent to retrieve what it needs based on the current task, not receive a pre-selected dump.
+- **Problem 1 — wrong retrieval model:** Auto-injection means the agent never learns when/what to recall. It just gets content pushed at it.
+- **Problem 2 — flat YAML doesn't compose:** Single YAML files per domain can't express relationships between insights, link across domains, or build a knowledge graph. It's a bag of facts with no topology.
+- **Problem 3 — inconsistent quality:** Accumulated insights ranged from useful to noise. No mechanism for curation, weighting, or pruning.
+- **Direction:** Replace with vault-based memory (per-repo, Obsidian-style folder/graph structure). Domain expertise becomes a MOC (Map of Content) routing to atomic notes with specific claims. Model after `/Users/cgn/git/dev/0xcgn/vault` methodology.
+- **Immediate action:** Extension moved to `.graveyard/extensions/expert/`, expertise YAML + specs moved alongside. Clean baseline for measuring what the replacement needs.
+- **Design constraints for replacement:**
+  - Atomic, linkable notes instead of monolithic YAML
+  - Explicit claim structure (claim → evidence → confidence)
+  - Agent-driven retrieval (search/navigate) instead of auto-injection
+  - Composability across repos via shared vault conventions
