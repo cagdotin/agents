@@ -6,7 +6,7 @@
 - Track: sub-agents
 - Purpose: Research and build a sub-agent architecture for Pi — specialized agents (scout, oracle, worker, tester, reviewer) with ACP-based observability and external monitoring capabilities.
 - Status: active
-- Last synced: 2026-04-02T18:55:33.846Z
+- Last synced: 2026-04-04T08:23:07.447Z
 - Session count: 1
 - Summary version: 1
 
