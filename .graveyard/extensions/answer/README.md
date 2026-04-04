@@ -1,5 +1,7 @@
 
-# Answer – Q&A Extraction Extension
+# Answer – Q&A Extraction Extension (Deprecated)
+
+> **Deprecated 2026-04-04.** Low usage in practice — answers end up in chat directly. The UI panel doesn't add enough value over inline responses to justify the overhead.
 
 Forked from: https://github.com/mitsuhiko/agent-stuff/blob/main/pi-extensions/answer.ts
 Repository: https://github.com/mitsuhiko/agent-stuff
