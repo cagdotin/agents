@@ -1,4 +1,6 @@
-# Session Stats Extension
+# Session Stats Extension (Deprecated)
+
+> **Deprecated 2026-04-04.** Superseded by [Ariadne](https://github.com/0xcgn/ariadne), a dedicated Tauri desktop app that covers all the same ground plus cross-session analytics, cost/token tracking, conversation replay, and rich visualizations. Session observability is a user-facing concern and belongs in a standalone app, not embedded in the agent runtime.
 
 In-session observability panel for Pi agent activity.
 
