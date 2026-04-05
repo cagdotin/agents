@@ -1,6 +1,6 @@
 # QMD multi-collection selector rollout
 
-Status: Active  
+Status: Completed  
 Owner: agent  
 Created: 2026-03-16  
 Spec: [[docs/specs/2026-03-16-qmd-multi-collection-selector]]

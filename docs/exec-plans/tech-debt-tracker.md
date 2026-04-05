@@ -1,7 +1,7 @@
 # Tech Debt Tracker
 
 Status: active  
-Last updated: 2026-03-10
+Last updated: 2026-04-05
 
 This file tracks known debt surfaced during architecture/quality review.
 
@@ -20,7 +20,7 @@ Related:
 
 ## P1 Debt
 
-- None currently. (Expert R9 items — matching precision, context budget safeguards, command UX gaps — were resolved as of 2026-03-07; expert is now rated 4/4 in QUALITY.md.)
+- None currently.
 
 ---
 

@@ -62,8 +62,8 @@ Reference important files, types, and modules by name. Do **not** use direct lin
 or paths that go stale. Readers (human or agent) should use search to find named
 entities. This is zero-maintenance and helps discover related things.
 
-**Do**: "The extraction logic lives in `extraction.ts` in the answer extension."
-**Don't**: "See [extraction.ts](../extensions/answer/extraction.ts)."
+**Do**: "The parsing logic lives in `helpers.ts` in the todos extension."
+**Don't**: "See [helpers.ts](../extensions/todos/helpers.ts)."
 
 Exception: wikilinks (`[[resource-name]]`) within design principles source
 attributions are fine — they reference stable identifiers, not filesystem paths.

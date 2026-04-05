@@ -3,6 +3,46 @@
 Retired extensions kept for reference. Moved here instead of deleted so we remember what was tried.
 Extensions below marked **(deleted)** were removed without preserving code.
 
+## expert
+
+**Removed:** 2026-04-03
+
+**What it did:** Auto-injected domain expertise (YAML files in `.pi/expertise/`) into agent context based on prompt matching. Used aliases, keywords, and pattern hints to route prompts to relevant domains, with context-budget-aware injection.
+
+**Why it was retired:** The supply-driven YAML dump model is fundamentally wrong for agent memory. Flat YAML per domain can't express relationships, link insights, or build a knowledge graph. Direction is vault-based memory with atomic notes, MOC routing, and agent-driven retrieval.
+
+## answer
+
+**Removed:** 2026-04-04
+
+**What it did:** LLM-powered Q&A extraction with a TUI component. Used a loader flow to extract structured answers from context.
+
+**Why it was retired:** Low usage. The use case is better served by inline agent responses and skills.
+
+## session-stats
+
+**Removed:** 2026-04-04
+
+**What it did:** In-session observability panel showing tool call charts, detail drill-downs, file timeline mode, model history, error counts, and session duration. Accessible via `Ctrl+Alt+T` or `/ss`.
+
+**Why it was retired:** Session observability is a user-facing concern better served by a dedicated app. Ariadne covers all session-stats features plus cross-session analytics, cost/token tracking, and conversation replay.
+
+## tmux
+
+**Removed:** 2026-04-04
+
+**What it did:** Unified tmux integration — desktop notifications on agent completion and dynamic pane title updates showing session/agent state.
+
+**Why it was retired:** Replaced by the cmux extension, which provides the same notification behavior plus full cmux topology control, browser panels, and markdown viewers.
+
+## autoresearch
+
+**Removed:** 2026-03-28
+
+**What it did:** Automated research pipeline that fetched, analyzed, and synthesized external content into resource documents.
+
+**Why it was retired:** The research workflow moved to manual curation with vault-based storage. The automated pipeline produced volume but not enough quality.
+
 ## damage-control
 
 **Removed:** 2026-03-20

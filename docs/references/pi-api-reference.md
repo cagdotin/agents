@@ -125,7 +125,7 @@ For extension state that should survive reload/session traversal:
 
 Examples in this repo:
 - `extensions/todos` reconstructs from todo files and session context
-- `extensions/expert` reconstructs active domain state from custom message entries
+- `extensions/tracks` reconstructs active track state from track files and session context
 
 ---
 
@@ -160,10 +160,8 @@ For Pi core libs imported by extensions/skills, keep them in `peerDependencies` 
 ## 8) Quick “Where do I copy from?”
 
 - Tool + command + TUI flow: `extensions/todos/`, `extensions/tracks/`
-- LLM extraction flow with loader: `extensions/answer/`
-- Multi-hook stateful extension + message renderer: `extensions/expert/`
-- Panel + footer status: `extensions/session-stats/`
-- Simple event-only extension: `extensions/tmux/notify.ts`
+- Semantic search TUI panel: `extensions/qmd/`
+- Environment detection + skill injection: `extensions/cmux/`
 
 ---
 

@@ -1,7 +1,7 @@
 # TESTING
 
 Status: active
-Last updated: 2026-03-11
+Last updated: 2026-04-05
 
 This file gives the testing model for this repository. Keep it focused on repo-specific
 conventions, not generic Vitest advice.

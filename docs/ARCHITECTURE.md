@@ -1,7 +1,7 @@
 # ARCHITECTURE
 
 Status: active
-Last updated: 2026-03-11
+Last updated: 2026-04-05
 
 ---
 
@@ -26,7 +26,7 @@ On-demand instruction bundles. Skills are markdown playbooks, not runtime code.
 
 ### `pi-themes/`
 
-Theme data distributed with this package.
+Theme JSON files distributed with this package.
 
 ### `docs/`
 
@@ -40,7 +40,7 @@ System-of-record knowledge base for humans and agents.
 - `exec-plans/` — active/completed execution plans + `tech-debt-tracker.md`
 - `specs/` — implementation specs for planned or complex work
 - `references/` — internal quick references
-- `.graveyard/resources/` — retired resource analyses (migrated to vault)
+- `.graveyard/` — retired extensions, skills, resources, and docs kept for reference
 
 ### `scripts/`
 
@@ -55,7 +55,7 @@ was removed and why.
 
 Runtime state managed by extensions, not source code. Notably:
 - `.pi/todos/`
-- `.pi/expertise/`
+- `.pi/tracks/`
 
 ---
 

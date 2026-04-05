@@ -1,6 +1,6 @@
 # Tracks extension — minimal implementation plan
 
-Status: Active
+Status: Completed
 Owner: agent
 Created: 2026-03-11
 Spec: [[docs/specs/2026-03-11-tracks-extension-minimal-v1.md]]

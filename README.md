@@ -17,12 +17,8 @@ agents/
 │   ├── exec-plans/        # Active/completed execution plans
 │   └── references/        # Internal quick references (Pi API, etc.)
 ├── extensions/            # Pi extensions
-│   ├── answer/
 │   ├── cmux/
-│   ├── expert/
 │   ├── qmd/
-│   ├── session-stats/
-│   ├── tmux/
 │   ├── todos/
 │   └── tracks/
 ├── skills/                # Agent skills (SKILL.md based)

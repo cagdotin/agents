@@ -1,7 +1,7 @@
 # QUALITY
 
 Status: active
-Last updated: 2026-03-11
+Last updated: 2026-04-05
 
 This scorecard tracks maintainability and readiness of this package for day-to-day agent use.
 
@@ -20,14 +20,10 @@ This scorecard tracks maintainability and readiness of this package for day-to-d
 |---|---:|---|---|
 | Repository architecture docs | 3 | Good | `ARCHITECTURE.md` and this quality file now exist; keep updated as structure evolves |
 | Design principles (`docs/DESIGN-PRINCIPLES.md`) | 3 | Good | Distilled from 9 resource analyses; full analyses migrated to vault |
-| `extensions/answer` | 3 | Good | Solid README and clear flow; low active maintenance load |
-| `extensions/todos` | 3 | Good | Strong implementation and TUI; docs were stale and are now refreshed |
-| `extensions/expert` | 4 | Excellent | Matching now uses aliases/keywords/pattern hints, injection is context-budget-aware, and `/expert log` + `/expert init` close the main UX gaps |
-| `extensions/qmd` | 3 | Good | QMD semantic search panel with split-pane preview, multi-collection support, and repo-first onboarding |
-| `extensions/session-stats` | 3 | Good | In-session observability panel with tool call charts, detail drill-downs, file timeline mode, and model history |
-| `extensions/tracks` | 3 | Good | Repo-agnostic workstream contexts with deterministic sync, local AGENTS.md, and subcommand-aware slash-command UX |
-| `extensions/tmux` | 3 | Good | Unified tmux integration (notify + pane title); documented |
 | `extensions/cmux` | 3 | Good | Auto-detects cmux environment and injects skill for topology/browser/markdown control |
+| `extensions/qmd` | 3 | Good | QMD semantic search panel with split-pane preview, multi-collection support, and repo-first onboarding |
+| `extensions/todos` | 3 | Good | Strong implementation and TUI; docs were stale and are now refreshed |
+| `extensions/tracks` | 3 | Good | Repo-agnostic workstream contexts with deterministic sync, local AGENTS.md, and subcommand-aware slash-command UX |
 | Skills (`skills/*`) | 3 | Good | Consistent SKILL format and clear purpose |
 | Mechanical validation | 4 | Excellent | `bun run check` gates Biome + docs + boundary invariants + Vitest; Lefthook pre-commit runs all four in parallel |
 | Automated testing | 3 | Good | Tier 1 and Tier 2 are in use with shared mocks; Tier 3 runtime-heavy testing is still deferred |
@@ -41,27 +37,8 @@ For test conventions, mock strategy, and boundaries, see `docs/TESTING.md`.
 Current posture:
 - Tier 1 and Tier 2 coverage exists across multiple extensions and scripts.
 - Tier 3 code is still mostly untested because it is tightly coupled to the Pi runtime.
-- The best next candidates for more coverage are `expert/tool.ts`, `todos/tool.ts`, and `session-stats/panel.ts`, where logic could be extracted or tested with shared mocks.
+- The best next candidates for more coverage are `todos/tool.ts` and `tracks/tool.ts`, where logic could be extracted or tested with shared mocks.
 - If deeper runtime testing becomes important, we need a Pi test harness or a mock session/context factory.
-
-### Known code issues found during testing
-
-These were discovered while writing tests and are worth keeping visible because they
-represent real behavioral quirks in production code.
-
-1. **`expert/helpers.ts` — Domain alias matching silently ignores short aliases.**
-   `term_matches_prompt` rejects terms shorter than 3 characters. Aliases like `"db"`
-   never match. This is intentional to avoid false positives but is not obvious to
-   users defining aliases.
-
-2. **`expert/helpers.ts` — Keyword-only matches fall below routing threshold.**
-   A single keyword match scores +4, but `MIN_DOMAIN_MATCH_SCORE` is 6. A keyword
-   alone is never sufficient to route a prompt to a domain.
-
-3. **`expert/helpers.ts` — `scan_scope_paths` does not ignore top-level ignored directories.**
-   `is_ignored_dir` only applies during recursive walk. If `"node_modules"` is passed
-   directly as a scope path, its contents are returned. The ignore list is a convenience,
-   not a security boundary.
 
 ---
 
