@@ -1,98 +1,40 @@
 ---
 name: browser
-description: Fetch and read web pages using Lightpanda headless browser. Renders JavaScript, extracts clean markdown, and respects robots.txt. Use when you need to read articles, documentation, or any web content.
+description: Fetch and read web pages using Lightpanda headless browser, or automate full browser interactions using agent-browser. Use when you need to read articles, documentation, any web content, or interact with web pages.
 ---
 
 # Browser
 
-Fetch and read web pages with Lightpanda — a fast headless browser that executes
-JavaScript and produces clean output.
+Use this skill for fetching web content and automating browser interactions.
 
-## Setup
+## Shared guidance
 
-```bash
-cd {baseDir} && bun install
-```
+- Always prefer Lightpanda for **read-only** fetching — it's faster and lighter.
+- Use agent-browser when you need to **interact** with a page (click, fill forms, navigate, screenshot).
+- Always set `LIGHTPANDA_DISABLE_TELEMETRY=true` when using Lightpanda.
+- Always pass `--obey_robots` to Lightpanda (skip only for localhost).
+- **Fallback**: if Lightpanda fails or crashes on a page, use agent-browser (`$ab open '<url>' && $ab get text body`) as a Chrome-based fallback.
 
-This downloads the Lightpanda native binary to `~/.cache/lightpanda-node/lightpanda`.
+## Routing
 
-## Usage
+| Task | Reference to read |
+|------|-------------------|
+| Read a web page, article, or docs | `references/lightpanda.md` |
+| Interact with a page (click, fill, screenshot, test) | `references/agent-browser.md` |
+| Authentication flows (login, OAuth, 2FA, state reuse) | `{baseDir}/node_modules/agent-browser/skills/agent-browser/references/authentication.md` |
+| Multiple parallel sessions, state persistence | `{baseDir}/node_modules/agent-browser/skills/agent-browser/references/session-management.md` |
+| Snapshot refs lifecycle, troubleshooting | `{baseDir}/node_modules/agent-browser/skills/agent-browser/references/snapshot-refs.md` |
+| Video recording for debugging/docs | `{baseDir}/node_modules/agent-browser/skills/agent-browser/references/video-recording.md` |
+| Performance profiling | `{baseDir}/node_modules/agent-browser/skills/agent-browser/references/profiling.md` |
+| Proxy configuration | `{baseDir}/node_modules/agent-browser/skills/agent-browser/references/proxy-support.md` |
 
-### Read a web page (default — use this most of the time)
+## Quick reference (read-only fetch)
+
+For the most common case — just reading a page — use this directly:
 
 ```bash
 LIGHTPANDA_DISABLE_TELEMETRY=true ~/.cache/lightpanda-node/lightpanda fetch \
   --dump markdown --strip_mode full --obey_robots '<url>'
 ```
 
-### Output formats
-
-| Format | Flag | When to use |
-|--------|------|-------------|
-| `markdown` | `--dump markdown` | Default. Clean, readable, LLM-friendly |
-| `semantic_tree_text` | `--dump semantic_tree_text` | Huge pages — more compact than markdown |
-| `html` | `--dump html` | Need raw HTML, meta tags, or structured data |
-| `semantic_tree` | `--dump semantic_tree` | Structured accessibility tree |
-
-### Strip modes
-
-| Mode | Flag | Effect |
-|------|------|--------|
-| `full` | `--strip_mode full` | Remove JS, CSS, images, SVG (recommended default) |
-| `js` | `--strip_mode js` | Remove only scripts |
-| `css` | `--strip_mode css` | Remove only styles |
-| `ui` | `--strip_mode ui` | Remove images, pictures, video, CSS, SVG |
-
-### Timeout
-
-For slow sites, increase the HTTP timeout (default 10s):
-
-```bash
-LIGHTPANDA_DISABLE_TELEMETRY=true ~/.cache/lightpanda-node/lightpanda fetch \
-  --dump markdown --strip_mode full --obey_robots --http_timeout 15000 '<url>'
-```
-
-## Defaults
-
-Always use these unless you have a specific reason not to:
-
-- `LIGHTPANDA_DISABLE_TELEMETRY=true` — no telemetry
-- `--obey_robots` — respect robots.txt (skip only for localhost)
-- `--strip_mode full` — minimal output size
-- `--dump markdown` — readable output
-
-## Tips
-
-- **Large output?** Pipe through `head -n 200` or switch to `semantic_tree_text`
-- **JavaScript-heavy SPA?** Lightpanda executes JS before dumping — it just works
-- **localhost URLs?** Drop `--obey_robots` for local development servers
-- **GitHub pages?** Work but include navigation chrome — output is noisy
-- **Page fails or crashes?** Lightpanda is beta — try a different dump format, or the site may use unsupported Web APIs
-
-## Examples
-
-Read an article:
-```bash
-LIGHTPANDA_DISABLE_TELEMETRY=true ~/.cache/lightpanda-node/lightpanda fetch \
-  --dump markdown --strip_mode full --obey_robots 'https://example.com/article'
-```
-
-Check API docs:
-```bash
-LIGHTPANDA_DISABLE_TELEMETRY=true ~/.cache/lightpanda-node/lightpanda fetch \
-  --dump markdown --strip_mode full --obey_robots 'https://docs.example.com/api'
-```
-
-Get compact summary of a large page:
-```bash
-LIGHTPANDA_DISABLE_TELEMETRY=true ~/.cache/lightpanda-node/lightpanda fetch \
-  --dump semantic_tree_text --strip_mode full --obey_robots 'https://example.com' \
-  | head -n 100
-```
-
-Inspect meta tags and structured data:
-```bash
-LIGHTPANDA_DISABLE_TELEMETRY=true ~/.cache/lightpanda-node/lightpanda fetch \
-  --dump html --strip_mode js --obey_robots 'https://example.com' \
-  | grep -i '<meta\|og:\|schema.org'
-```
+For everything else, load the appropriate reference file.
