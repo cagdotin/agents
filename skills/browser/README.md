@@ -1,17 +1,24 @@
 # Browser
 
-Fetch and read web pages using [Lightpanda](https://lightpanda.io), a headless
-browser built in Zig. Executes JavaScript, produces clean markdown, and runs
-11x faster than Chrome headless with 9x less memory.
+Fetch, read, and interact with web pages using two complementary tools:
 
-## What this skill does
+- **[Lightpanda](https://lightpanda.io)** — fast headless browser for read-only
+  fetching. Executes JavaScript, produces clean markdown, 11x faster than Chrome
+  headless with 9x less memory.
+- **[agent-browser](https://agent-browser.dev)** — browser automation CLI for AI
+  agents. Full interaction: click, type, screenshot, navigate. Ref-based element
+  selection with compact accessibility tree output.
 
-Teaches the agent to use the Lightpanda CLI via bash for web research tasks:
+## When to use which
 
-- Read articles, blog posts, and documentation
-- Fetch JavaScript-rendered single-page applications
-- Extract page metadata and structured data
-- Check deployed sites and verify content
+| Task | Tool |
+|------|------|
+| Read an article, docs, or blog post | Lightpanda |
+| Fetch API docs or web content | Lightpanda |
+| Fill a form, click buttons, navigate | agent-browser |
+| Take screenshots for visual testing | agent-browser |
+| Test UI interactions or responsive layout | agent-browser |
+| Lightpanda fails on a page | agent-browser (fallback) |
 
 ## Setup
 
@@ -19,24 +26,24 @@ Teaches the agent to use the Lightpanda CLI via bash for web research tasks:
 cd skills/browser && bun install
 ```
 
-The `@lightpanda/browser` npm package automatically downloads the native binary
-for your platform (macOS arm64/x86_64, Linux arm64/x86_64).
+This installs:
+- `@lightpanda/browser` — downloads the Lightpanda native binary to `~/.cache/lightpanda-node/lightpanda`
+- `agent-browser` — native Rust CLI for browser automation (run `npx agent-browser install` on first use to download Chrome)
 
-## How it works
+## Skill structure
 
-This is a **skill, not an extension**. It provides instructions that teach the
-agent how to use `lightpanda fetch` via the bash tool. No custom tools, no
-process management, no TUI rendering — just a CLI command the agent runs when
-it needs to read a web page.
-
-## Lightpanda maturity
-
-Beta. Most websites work. Web API coverage is incomplete but improving. Some
-sites may fail or produce unexpected output.
+```
+skills/browser/
+├── SKILL.md                        ← main skill (routing + quick reference)
+├── references/
+│   ├── lightpanda.md               ← read-only fetching (formats, modes, tips)
+│   └── agent-browser.md            ← interactive automation (commands, sessions, examples)
+├── package.json                    ← dependencies
+└── README.md                       ← this file
+```
 
 ## See also
 
-- [Spec](../../docs/specs/lightpanda-browser-integration.md) — full design
-  rationale, future extension scenarios, and graduation criteria
-- [Lightpanda GitHub](https://github.com/lightpanda-io/browser)
 - [Lightpanda docs](https://docs.lightpanda.io)
+- [agent-browser docs](https://agent-browser.dev)
+- [Spec](../../docs/specs/lightpanda-browser-integration.md) — original design rationale

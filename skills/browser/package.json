@@ -1,9 +1,10 @@
 {
 	"name": "browser",
-	"version": "1.0.0",
+	"version": "2.0.0",
 	"type": "module",
 	"dependencies": {
-		"@lightpanda/browser": "^1.2.0"
+		"@lightpanda/browser": "^1.2.0",
+		"agent-browser": "^0.24.1"
 	},
 	"trustedDependencies": [
 		"@lightpanda/browser"
