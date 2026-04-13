@@ -9,22 +9,24 @@ Local, on-device hybrid search engine for markdown content. Combines BM25 full-t
 
 ## When to Use This
 
+The active repository collection key is provided by the QMD environment hint in the system prompt. If you need to confirm it, inspect `.pi/qmd.json` and use its `collection_key`.
+
 **Use QMD before `rg` in these specific situations:**
 
 1. **Before starting unfamiliar work** — search for existing context before reading random files.
-   `qmd query -c agents "how does the panel extension work"`
+   `qmd query -c <collection> "how does the panel extension work"`
 
 2. **Before proposing a design change** — find prior decisions and rationale.
-   `qmd query -c agents "why was the overlay width changed to 90%"`
+   `qmd query -c <collection> "why was the overlay width changed to 90%"`
 
 3. **Before creating a new utility or pattern** — check if something similar already exists.
-   `qmd query -c agents "shared utility for file tree rendering"`
+   `qmd query -c <collection> "shared utility for file tree rendering"`
 
 4. **When looking for related specs or plans** — find docs you don't know exist.
-   `qmd query -c agents "specs about tracks extension lifecycle"`
+   `qmd query -c <collection> "specs about tracks extension lifecycle"`
 
 5. **When you know the concept but not the location** — semantic search finds what `rg` can't.
-   `qmd query -c agents "how do extensions handle error states"`
+   `qmd query -c <collection> "how do extensions handle error states"`
 
 **Use `rg`/`grep` instead** when you know the exact string, variable name, or file path.
 
@@ -32,13 +34,13 @@ Local, on-device hybrid search engine for markdown content. Combines BM25 full-t
 
 ```bash
 # Hybrid search (best quality — expansion + BM25 + vector + reranking)
-qmd query -c agents "your question"
+qmd query -c <collection> "your question"
 
 # BM25 keyword search (fast, no LLM)
-qmd search "exact keywords" -c agents
+qmd search "exact keywords" -c <collection>
 
 # Structured query (you control sub-queries)
-qmd query $'lex: "connection pool" timeout\nvec: why do database connections time out'
+qmd query -c <collection> $'lex: "connection pool" timeout\nvec: why do database connections time out'
 
 # Get a specific document by path or docid
 qmd get "docs/ARCHITECTURE.md"
@@ -72,7 +74,7 @@ qmd status
 When a query term is ambiguous, add `intent:` on the first line:
 
 ```bash
-qmd query $'intent: web page load times\nlex: performance\nvec: how to improve performance'
+qmd query -c <collection> $'intent: web page load times\nlex: performance\nvec: how to improve performance'
 ```
 
 ### Combining Types

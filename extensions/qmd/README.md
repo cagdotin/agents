@@ -5,9 +5,11 @@ Repo-local QMD infrastructure for Pi.
 ## What it does
 
 - Detects whether the current repo is indexed by QMD
+- Activates the QMD runtime through the shared conditional feature helper
 - Tracks repo freshness via `.pi/qmd.json`
 - Adds a quiet footer for indexed repos only
-- Injects short guidance so the agent knows when to use `qmd query/search/get` via `bash`
+- Exposes the QMD skill only for indexed repos via `resources_discover`
+- Adds a cached system prompt hint so the agent knows when to use `qmd query/search/get` via `bash`
 - Provides an interactive split-pane TUI panel (`/qmd`, `/qp`, `Ctrl+Alt+Q`) with:
   - Persistent collection sidebar (left) — always visible, navigate with `j/k`, filter with `/`
   - Context-sensitive main pane (right) — overview, files, or search view
@@ -79,8 +81,11 @@ extensions/qmd/
 │   └── repo-binding.ts         # Repo root, collection key, marker I/O
 ├── extension/
 │   ├── command.ts              # Slash commands, alias, shortcut, panel lifecycle
-│   ├── runtime.ts              # Session hooks, footer, prompt injection
+│   ├── runtime.ts              # Session hooks, footer, prompt hint builder, init-workflow prompt
 │   └── tool.ts                 # Workflow-scoped qmd_init tool
+├── skills/
+│   └── qmd/
+│       └── SKILL.md            # Extension-owned QMD skill reference
 ├── ui/
 │   ├── constants.ts            # Panel constants (width, shortcuts, icon)
 │   ├── data.ts                 # Snapshot builder, file tree, helpers
@@ -120,6 +125,14 @@ If you want to recreate this extension in another repo without installing this p
 - `diy/qmd-extension-diy-execution-plan.md` — implementation milestones
 - `diy/references.md` — internal docs + agent-memory raw links
 - `diy/agent-prompt-template.md` — copy/paste prompt for rebuilding elsewhere
+
+## Lifecycle model
+
+- `session_start` — conditional feature activation + runtime bootstrap
+- `resources_discover` — expose the extension-owned QMD skill only for indexed repos
+- `before_agent_start` — cached indexed-repo prompt hint from the helper, plus active `/qmd init` workflow prompt from runtime state
+- `session_switch` / `session_tree` / `session_fork` / `session_compact` — refresh binding and freshness state
+- `session_shutdown` — close QMD store
 
 ## Docs
 

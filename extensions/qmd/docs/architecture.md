@@ -107,10 +107,11 @@ User-facing commands and panel lifecycle:
 Manages panel open/close state and wires callbacks.
 
 ### `extension/runtime.ts`
-- refresh binding/freshness on session lifecycle events (`session_start`, `session_switch`, `session_tree`, `session_fork`, `session_compact`)
-- close panel on `session_start` and `session_switch`
+- bootstrap binding/freshness once on activation, then refresh on session lifecycle events (`session_switch`, `session_tree`, `session_fork`, `session_compact`)
+- close panel on activation and `session_switch`
 - set quiet footer status (silent when not indexed)
-- inject short QMD CLI guidance via `before_agent_start`
+- build the cached QMD CLI prompt hint used by the conditional feature helper
+- inject only the active `/qmd init` workflow prompt via `before_agent_start`
 - close the store on `session_shutdown`
 
 ### `extension/tool.ts`

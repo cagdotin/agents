@@ -52,12 +52,40 @@ export async function refresh_runtime_state(ctx: ExtensionContext, state: QmdExt
 	apply_footer_status(ctx, state);
 }
 
-export function register_runtime(pi: ExtensionAPI, state: QmdExtensionState): void {
-	pi.on("session_start", async (_event, ctx) => {
-		state.close_panel?.();
-		await refresh_runtime_state(ctx, state);
-	});
+export async function bootstrap_runtime_state(ctx: ExtensionContext, state: QmdExtensionState): Promise<void> {
+	state.close_panel?.();
+	await refresh_runtime_state(ctx, state);
+}
 
+export function build_qmd_prompt_hint(collection_key: string, skill_path: string): string {
+	return [
+		`This repository is indexed by QMD (collection: \`${collection_key}\`).`,
+		"",
+		"**Use QMD before rg/grep when:**",
+		"- Starting unfamiliar work — search before reading random files",
+		"- Checking for prior decisions — find out *why* something was designed a certain way",
+		"- Looking for patterns — discover how other parts of the codebase handle similar problems",
+		"- Finding related specs/plans — locate relevant docs you don't know exist",
+		"- Searching for concepts — when you know *what* you need but not *where* it lives or what it's called",
+		"",
+		"**Use rg/grep instead** when you know the exact string, variable name, or file path.",
+		"",
+		"Quick reference:",
+		"```bash",
+		"# Semantic search (best quality — expansion + BM25 + vector + reranking)",
+		`qmd query -c ${collection_key} "your question here"`,
+		"",
+		"# Keyword search (fast, no LLM, good for known terms)",
+		`qmd search "exact keywords" -c ${collection_key}`,
+		"",
+		"# Get a specific document",
+		`qmd get "path/to/file.md"`,
+		"```",
+		`Refer to \`${skill_path}\` for advanced usage (structured queries, intent, output formats).`,
+	].join("\n");
+}
+
+export function register_runtime(pi: ExtensionAPI, state: QmdExtensionState): void {
 	pi.on("session_switch", async (_event, ctx) => {
 		state.close_panel?.();
 		await refresh_runtime_state(ctx, state);
@@ -69,48 +97,13 @@ export function register_runtime(pi: ExtensionAPI, state: QmdExtensionState): vo
 		});
 	}
 
-	pi.on("before_agent_start", async (event, _ctx) => {
-		const prompt_parts: string[] = [];
-
-		if (state.last_binding?.status === "indexed") {
-			const ck = state.last_binding.collection_key;
-			prompt_parts.push(
-				`This repository is indexed by QMD (collection: \`${ck}\`).`,
-				"",
-				"**Use QMD before rg/grep when:**",
-				"- Starting unfamiliar work — search before reading random files",
-				"- Checking for prior decisions — find out *why* something was designed a certain way",
-				"- Looking for patterns — discover how other parts of the codebase handle similar problems",
-				"- Finding related specs/plans — locate relevant docs you don't know exist",
-				"- Searching for concepts — when you know *what* you need but not *where* it lives or what it's called",
-				"",
-				"**Use rg/grep instead** when you know the exact string, variable name, or file path.",
-				"",
-				"Quick reference:",
-				"```bash",
-				`# Semantic search (best quality — expansion + BM25 + vector + reranking)`,
-				`qmd query -c ${ck} "your question here"`,
-				"",
-				"# Keyword search (fast, no LLM, good for known terms)",
-				`qmd search "exact keywords" -c ${ck}`,
-				"",
-				"# Get a specific document",
-				`qmd get "path/to/file.md"`,
-				"```",
-				"Refer to `skills/qmd/SKILL.md` for advanced usage (structured queries, intent, output formats).",
-			);
-		}
-
-		if (state.init_workflow) {
-			prompt_parts.push("", "# QMD Init Workflow", "", state.init_workflow.prompt);
-		}
-
-		if (prompt_parts.length === 0) {
+	pi.on("before_agent_start", async (event) => {
+		if (!state.init_workflow) {
 			return undefined;
 		}
 
 		return {
-			systemPrompt: `${event.systemPrompt}\n\n${prompt_parts.join("\n")}`,
+			systemPrompt: `${event.systemPrompt}\n\n# QMD Init Workflow\n\n${state.init_workflow.prompt}`,
 		};
 	});
 

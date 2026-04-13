@@ -25,7 +25,12 @@ vi.mock("../../core/qmd-store.js", () => ({
 	close_store: async () => {},
 }));
 
-import { type QmdExtensionState, register_runtime } from "../../extension/runtime.js";
+import {
+	bootstrap_runtime_state,
+	build_qmd_prompt_hint,
+	type QmdExtensionState,
+	register_runtime,
+} from "../../extension/runtime.js";
 
 function create_mock_pi() {
 	const handlers = new Map<string, Array<(event: any, ctx: any) => Promise<any>>>();
@@ -48,6 +53,7 @@ function create_mock_pi() {
 function create_mock_ctx() {
 	const statuses = new Map<string, string | undefined>();
 	return {
+		cwd: "/tmp/repo",
 		statuses,
 		ui: {
 			setStatus(key: string, value: string | undefined) {
@@ -58,18 +64,36 @@ function create_mock_ctx() {
 }
 
 describe("runtime hooks", () => {
-	it("sets a quiet indexed footer and injects QMD guidance", async () => {
+	it("boots runtime state and sets a quiet indexed footer", async () => {
 		const pi = create_mock_pi();
 		const state: QmdExtensionState = {};
 		register_runtime(pi as any, state);
 
 		const ctx = create_mock_ctx();
-		await pi.trigger("session_start", {}, ctx);
+		await bootstrap_runtime_state(ctx as any, state);
 		expect(ctx.statuses.get("qmd")).toBe("qmd: indexed ✓");
+	});
 
-		const result = await pi.trigger("before_agent_start", { systemPrompt: "base" }, ctx);
-		expect(result.systemPrompt).toContain("This repository is indexed by QMD (collection: `p_demo`).");
-		expect(result.systemPrompt).toContain("qmd query -c p_demo");
-		expect(result.systemPrompt).toContain("**Use QMD before rg/grep when:**");
+	it("injects only the init workflow prompt from runtime hooks", async () => {
+		const pi = create_mock_pi();
+		const state: QmdExtensionState = {
+			init_workflow: {
+				repo_root: "/tmp/repo",
+				prompt: "Review this QMD proposal.",
+			},
+		};
+		register_runtime(pi as any, state);
+
+		const result = await pi.trigger("before_agent_start", { systemPrompt: "base" }, create_mock_ctx());
+		expect(result.systemPrompt).toContain("# QMD Init Workflow");
+		expect(result.systemPrompt).toContain("Review this QMD proposal.");
+	});
+
+	it("builds a collection-aware QMD prompt hint", () => {
+		const hint = build_qmd_prompt_hint("p_demo", "/tmp/extensions/qmd/skills/qmd/SKILL.md");
+		expect(hint).toContain("This repository is indexed by QMD (collection: `p_demo`).");
+		expect(hint).toContain('qmd query -c p_demo "your question here"');
+		expect(hint).toContain("Use QMD before rg/grep when:");
+		expect(hint).toContain("/tmp/extensions/qmd/skills/qmd/SKILL.md");
 	});
 });
