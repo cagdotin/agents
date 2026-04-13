@@ -45,13 +45,18 @@ function truncate(str: string, max: number): string {
 	return `${str.slice(0, max - 1)}…`;
 }
 
-export function register_tab_title(pi: ExtensionAPI, surface_id: string): void {
+interface TitleContext {
+	model?: { id: string };
+	sessionManager: { getBranch(): any[] };
+}
+
+export function register_tab_title(pi: ExtensionAPI, surface_id: string, initial_ctx?: TitleContext): void {
 	const project_name = basename(process.cwd());
 	let model_name = "";
 	let is_working = false;
 
 	/** Get a display name for the current session. */
-	const get_session_title = (ctx?: { sessionManager: { getBranch(): any[] } }): string | undefined => {
+	const get_session_title = (ctx?: TitleContext): string | undefined => {
 		const name = pi.getSessionName();
 		if (name) return name;
 
@@ -73,7 +78,7 @@ export function register_tab_title(pi: ExtensionAPI, surface_id: string): void {
 	};
 
 	/** Build and set the tab title */
-	const update_title = (ctx?: { sessionManager: { getBranch(): any[] } }) => {
+	const update_title = (ctx?: TitleContext) => {
 		const status_icon = is_working ? `${MARKER}*` : MARKER;
 		const model_part = model_name ? ` · ${model_name}` : "";
 		const session_title = get_session_title(ctx);
@@ -97,6 +102,12 @@ export function register_tab_title(pi: ExtensionAPI, surface_id: string): void {
 		cmux(`tab-action --tab '${escape_shell(surface_id)}' --action clear-name`);
 		cmux('set-status pi ""');
 	};
+
+	if (initial_ctx?.model) {
+		model_name = shorten_model(initial_ctx.model.id);
+	}
+	update_title(initial_ctx);
+	update_status();
 
 	// Session lifecycle
 	pi.on("session_start", async (_event, ctx) => {

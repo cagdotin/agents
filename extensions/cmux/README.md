@@ -4,9 +4,13 @@ Detects when Pi is running inside [cmux](https://cmux.dev) and provides integrat
 
 ## Features
 
-### Skill Injection
+### Conditional Skill Discovery
 
-Registers the cmux skill into `<available_skills>` so the agent can load it on-demand. Adds a small nudge telling the agent it's running in cmux with CLI access.
+Registers the cmux skill through Pi's `resources_discover` lifecycle so it only appears when Pi is actually running inside cmux and the `cmux` CLI is available.
+
+### Environment Hint
+
+Adds a cached cmux environment hint to the agent system prompt and emits a one-time activation message so the model knows it is running inside cmux and should bias toward the cmux skill when layout or surface control is relevant.
 
 ### Notification (Sound + Flash)
 
@@ -55,7 +59,7 @@ Skill source: [manaflow-ai/cmux on skills.sh](https://skills.sh/manaflow-ai/cmux
 
 ## Architecture
 
-- `index.ts` — entry point: detection guard, skill injection, composes sub-modules
+- `index.ts` — entry point: conditional feature registration + sub-module activation
 - `detect.ts` — cmux detection (env vars + process tree walk)
 - `shared.ts` — shared cmux CLI helpers (`cmux`, `cmux_json`, `escape_shell`)
 - `notify.ts` — notification and flash logic
@@ -64,8 +68,10 @@ Skill source: [manaflow-ai/cmux on skills.sh](https://skills.sh/manaflow-ai/cmux
 
 ## Lifecycle Hooks Used
 
-- `before_agent_start` — skill injection + system prompt nudge
+- `session_start` — feature activation + tab-title bootstrap
+- `resources_discover` — conditional cmux skill exposure
+- `before_agent_start` — cached cmux system prompt hint + one-time activation message
 - `agent_start` / `agent_end` — both sub-modules (working indicator + notification)
-- `session_start` / `session_switch` / `session_fork` — tab-title
+- `session_switch` / `session_fork` — tab-title
 - `model_select` — tab-title
 - `session_shutdown` — both sub-modules (cleanup)
