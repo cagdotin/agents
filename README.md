@@ -21,7 +21,8 @@ agents/
 │   ├── qmd/
 │   ├── todos/
 │   └── tracks/
-├── skills/                # Agent skills (SKILL.md based)
+├── lib/                   # Shared extension runtime helpers
+├── skills/                # Package-wide agent skills (SKILL.md based)
 └── pi-themes/             # Pi theme JSON files
 ```
 
@@ -68,6 +69,10 @@ Use `bunx` for ad-hoc binaries. Do not use npm/yarn/pnpm in this repo.
 ### Skills (Pi)
 
 Skills can be invoked with `/skill:name` or loaded automatically by the agent when relevant.
+
+This repo has two skill models:
+- top-level `skills/` — package-wide always-available skills
+- extension-owned skills under `extensions/<name>/skills/` — exposed conditionally through extension runtime detection
 
 ### Extensions (Pi)
 

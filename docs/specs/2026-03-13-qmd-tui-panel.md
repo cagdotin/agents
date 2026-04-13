@@ -181,7 +181,7 @@ This keeps the panel free of Pi/extension logic. The extension layer decides wha
 │                                                                              │
 │    docs/ARCHITECTURE.md                                                      │
 │    extensions/qmd/README.md                                                  │
-│    skills/qmd/SKILL.md                                                       │
+│    extensions/qmd/skills/qmd/SKILL.md                                        │
 │                                                                              │
 │──────────────────────────────────────────────────────────────────────────────│
 │  esc close  ·  u update  ·  r refresh  ·  enter files  ·  j/k scroll        │

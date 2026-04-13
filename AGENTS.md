@@ -12,6 +12,7 @@ This repository defines global commands, skills, extensions, and themes for codi
 - Planning skill standard: `skills/plan/PLAN.md`
 - Implementation specs for planned/complex work: `docs/specs/`
 - Pi extension API quick reference (repo-focused): `docs/references/pi-api-reference.md`
+- Conditional feature registration pattern: `docs/references/conditional-feature-registration.md`
 - Extension implementations: `extensions/` (all follow the same structure)
 
 ## Discovering Information
@@ -38,7 +39,7 @@ qmd search "exact keywords" -c agents
 qmd get "docs/ARCHITECTURE.md"
 ```
 
-Always pass `-c agents` to scope results to this repo. See `skills/qmd/SKILL.md` for the full reference.
+Always pass `-c agents` to scope results to this repo. See `extensions/qmd/skills/qmd/SKILL.md` for the full reference.
 
 ## Golden Rules
 

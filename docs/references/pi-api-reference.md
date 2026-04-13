@@ -77,10 +77,25 @@ pi.registerShortcut("ctrl+q", {
 Common events in this repo:
 - session lifecycle: `session_start`, `session_switch`, `session_shutdown`
 - agent lifecycle: `before_agent_start`, `agent_start`, `agent_end`
+- resources: `resources_discover`
 - tool flow: `tool_call`, `tool_result`
 - input pipeline: `input`
 
 Use hooks for guardrails/context injection; prefer tools/commands for explicit actions.
+
+### Conditional feature pattern
+
+For environment-sensitive features, prefer the shared helper in `lib/extension-runtime/conditional-feature.ts` over ad hoc detection in each extension.
+
+Use it when an extension should:
+- detect environment once per session/reload
+- activate runtime behavior conditionally
+- expose extension-owned skills via `resources_discover`
+- add a cached system prompt hint or one-time activation message
+
+Current examples:
+- `extensions/cmux/`
+- `extensions/qmd/`
 
 ---
 
@@ -141,6 +156,8 @@ Examples in this repo:
 }
 ```
 
+Top-level `skills/` are always-available package skills. Environment-dependent skills should live under the owning extension (for example `extensions/qmd/skills/qmd/`) and be exposed through `resources_discover`, not through the package manifest.
+
 Only declare manifest paths that exist in-repo (add `prompts` later when real prompt templates are introduced).
 
 For Pi core libs imported by extensions/skills, keep them in `peerDependencies` with `"*"`.
@@ -160,8 +177,9 @@ For Pi core libs imported by extensions/skills, keep them in `peerDependencies` 
 ## 8) Quick “Where do I copy from?”
 
 - Tool + command + TUI flow: `extensions/todos/`, `extensions/tracks/`
-- Semantic search TUI panel: `extensions/qmd/`
-- Environment detection + skill injection: `extensions/cmux/`
+- Semantic search TUI panel + conditional indexed skill: `extensions/qmd/`
+- Environment detection + conditional feature activation: `extensions/cmux/`
+- Shared conditional activation helper: `lib/extension-runtime/conditional-feature.ts`
 
 ---
 

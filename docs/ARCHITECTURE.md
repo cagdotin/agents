@@ -18,7 +18,9 @@ in `package.json`.
 ### `extensions/`
 
 Runtime code loaded by Pi at startup. Extensions live here, each in its own
-subdirectory, and each must have a README.
+subdirectory, and each must have a README. Extensions may also own
+environment-dependent skills under `extensions/<name>/skills/` and expose them
+through `resources_discover` instead of the package manifest.
 
 ### `skills/`
 
@@ -45,6 +47,12 @@ System-of-record knowledge base for humans and agents.
 ### `scripts/`
 
 Validation and automation run through `bun run`.
+
+### `lib/`
+
+Shared TypeScript helpers for extension runtime code. These are ordinary modules,
+not Pi-discovered extensions, and exist to prevent cross-extension runtime
+coupling.
 
 ### `.graveyard/`
 
@@ -133,3 +141,7 @@ boundaries, Zod at runtime data boundaries.
 - `skills` → `./skills`
 - `extensions` → `./extensions`
 - `themes` → `./pi-themes`
+
+Top-level `skills/` are package-wide always-available skills. Conditional or
+extension-owned skills belong under the relevant extension and are surfaced at
+runtime through the shared conditional feature pattern.
