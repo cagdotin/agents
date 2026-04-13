@@ -40,6 +40,7 @@ The important repo-specific behavior is:
 Co-locate tests with the code they cover:
 
 - `extensions/<name>/__tests__/<module>.test.ts`
+- `lib/**/__tests__/<module>.test.ts`
 - `scripts/__tests__/<script>.test.ts`
 
 Static fixtures belong in `__tests__/fixtures/`.
