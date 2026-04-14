@@ -14,18 +14,11 @@
  */
 
 import path from "node:path";
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
 import { register_conditional_feature } from "../../lib/extension-runtime/conditional-feature.js";
 import { has_cmux_cli, is_cmux } from "./detect.js";
 import { register_notify } from "./notify.js";
 import { register_tab_title } from "./tab-title.js";
-
-interface CmuxFeatureState {
-	inside_cmux: boolean;
-	has_cli: boolean;
-	surface_id: string;
-	skill_path: string;
-}
 
 const CMUX_HINT = `
 You are running inside **cmux**, a macOS terminal multiplexer. The \`cmux\` CLI is available for controlling windows, workspaces, panes, surfaces, browser panels, and markdown viewers. Use the cmux skill when the user needs layout control, surface management, browser panels, or other cmux topology operations.
@@ -41,28 +34,40 @@ function get_skill_path(): string {
 	return path.resolve(path.dirname(new URL(import.meta.url).pathname), "skills", "cmux", "SKILL.md");
 }
 
+const has_cmux_activation_message = (ctx: ExtensionContext) =>
+	ctx.sessionManager
+		.getEntries()
+		.some((entry) => entry.type === "custom_message" && entry.customType === CMUX_ACTIVATION_MESSAGE.customType);
+
+function register_activation_message(pi: ExtensionAPI) {
+	pi.on("before_agent_start", (_event, ctx) => {
+		if (has_cmux_activation_message(ctx)) return;
+
+		return {
+			message: {
+				customType: CMUX_ACTIVATION_MESSAGE.customType,
+				content: CMUX_ACTIVATION_MESSAGE.content,
+				display: true,
+			},
+		};
+	});
+}
+
 export default function cmux_extension(pi: ExtensionAPI) {
-	register_conditional_feature<CmuxFeatureState>(pi, {
-		feature_name: "cmux",
-		detect: () => ({
-			inside_cmux: is_cmux(),
-			has_cli: has_cmux_cli(),
-			surface_id: process.env.CMUX_SURFACE_ID ?? "",
-			skill_path: get_skill_path(),
-		}),
-		should_activate: (state) => state.inside_cmux && state.has_cli,
-		activate: ({ ctx, state }) => {
+	register_conditional_feature(pi, {
+		init: (_ctx) => ({ enabled: is_cmux() && has_cmux_cli() }),
+		get_skills: (_config) => [get_skill_path()],
+		get_instructions: (_config) => CMUX_HINT,
+		activate: (ctx, _config) => {
 			ctx.ui.setStatus("cmux", "⊞ cmux");
+			register_activation_message(pi);
 
-			if (!state.surface_id) {
-				return;
-			}
+			const surface_id = process.env.CMUX_SURFACE_ID ?? null;
 
-			register_notify(pi, state.surface_id);
-			register_tab_title(pi, state.surface_id, ctx);
+			if (!surface_id) return;
+
+			register_notify(pi, surface_id);
+			register_tab_title(pi, surface_id, ctx);
 		},
-		skill_paths: (state) => [state.skill_path],
-		system_prompt_hint: CMUX_HINT,
-		activation_message: CMUX_ACTIVATION_MESSAGE,
 	});
 }

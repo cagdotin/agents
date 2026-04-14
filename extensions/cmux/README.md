@@ -68,10 +68,9 @@ Skill source: [manaflow-ai/cmux on skills.sh](https://skills.sh/manaflow-ai/cmux
 
 ## Lifecycle Hooks Used
 
-- `session_start` — feature activation + tab-title bootstrap
+- `session_start` — feature activation + tab-title bootstrap for startup/reload/new/resume/fork
 - `resources_discover` — conditional cmux skill exposure
-- `before_agent_start` — cached cmux system prompt hint + one-time activation message
+- `before_agent_start` — cached cmux system-prompt addendum + one-time activation message
 - `agent_start` / `agent_end` — both sub-modules (working indicator + notification)
-- `session_switch` / `session_fork` — tab-title
-- `model_select` — tab-title
 - `session_shutdown` — both sub-modules (cleanup)
+- `model_select` — tab-title

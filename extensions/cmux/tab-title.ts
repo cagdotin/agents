@@ -123,14 +123,6 @@ export function register_tab_title(pi: ExtensionAPI, surface_id: string, initial
 		update_title(ctx);
 	});
 
-	pi.on("session_switch", async (_event, ctx) => {
-		update_title(ctx);
-	});
-
-	pi.on("session_fork", async (_event, ctx) => {
-		update_title(ctx);
-	});
-
 	// Agent lifecycle
 	pi.on("agent_start", async (_event, ctx) => {
 		is_working = true;
