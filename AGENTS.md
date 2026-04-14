@@ -59,3 +59,4 @@ Read nearby implementation and tests before introducing new patterns.
 - Pi extensions live in `./extensions`.
 - When working in this repo, add or update extensions there.
 - You can consult pi-mono for reference, but do not modify code in pi-mono.
+- To retire an extension, follow `.graveyard/PROCESS.md` — write a rebuild spec, summarize references, delete source and related docs.

@@ -56,8 +56,10 @@ coupling.
 
 ### `.graveyard/`
 
-Retired code kept for reference. See `.graveyard/extensions/README.md` for what
-was removed and why.
+Retired extensions and modules. Each entry has a rebuild spec (`spec.md`) and
+reference summary (`references.md`) — no source code. See
+`.graveyard/extensions/README.md` for what was removed and why, and
+`.graveyard/PROCESS.md` for how to retire an extension.
 
 ### `.pi/`
 

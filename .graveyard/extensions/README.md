@@ -1,7 +1,6 @@
 # Extension Graveyard
 
-Retired extensions kept for reference. Moved here instead of deleted so we remember what was tried.
-Extensions below marked **(deleted)** were removed without preserving code.
+Retired extensions. Each folder contains a rebuild spec (`spec.md`) and reference summary (`references.md`) — no source code. See `.graveyard/PROCESS.md` for the full retirement process.
 
 ## expert
 
