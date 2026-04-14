@@ -86,12 +86,7 @@ export function build_qmd_prompt_hint(collection_key: string, skill_path: string
 }
 
 export function register_runtime(pi: ExtensionAPI, state: QmdExtensionState): void {
-	pi.on("session_switch", async (_event, ctx) => {
-		state.close_panel?.();
-		await refresh_runtime_state(ctx, state);
-	});
-
-	for (const event_name of ["session_tree", "session_fork", "session_compact"] as const) {
+	for (const event_name of ["session_tree", "session_compact"] as const) {
 		pi.on(event_name, async (_event, ctx) => {
 			await refresh_runtime_state(ctx, state);
 		});
@@ -108,6 +103,7 @@ export function register_runtime(pi: ExtensionAPI, state: QmdExtensionState): vo
 	});
 
 	pi.on("session_shutdown", async () => {
+		state.close_panel?.();
 		await close_store();
 	});
 }

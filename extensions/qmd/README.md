@@ -5,7 +5,7 @@ Repo-local QMD infrastructure for Pi.
 ## What it does
 
 - Detects whether the current repo is indexed by QMD
-- Activates the QMD runtime through the shared conditional feature helper
+- Activates the QMD runtime through extension-local repo-binding detection
 - Tracks repo freshness via `.pi/qmd.json`
 - Adds a quiet footer for indexed repos only
 - Exposes the QMD skill only for indexed repos via `resources_discover`
@@ -128,11 +128,11 @@ If you want to recreate this extension in another repo without installing this p
 
 ## Lifecycle model
 
-- `session_start` — conditional feature activation + runtime bootstrap
+- `session_start` — repo-binding activation + runtime bootstrap for startup/reload/new/resume/fork
 - `resources_discover` — expose the extension-owned QMD skill only for indexed repos
-- `before_agent_start` — cached indexed-repo prompt hint from the helper, plus active `/qmd init` workflow prompt from runtime state
-- `session_switch` / `session_tree` / `session_fork` / `session_compact` — refresh binding and freshness state
-- `session_shutdown` — close QMD store
+- `before_agent_start` — indexed-repo prompt hint from repo-binding state, plus active `/qmd init` workflow prompt from runtime state
+- `session_tree` / `session_compact` — refresh binding and freshness state within the current session
+- `session_shutdown` — close the panel and QMD store
 
 ## Docs
 

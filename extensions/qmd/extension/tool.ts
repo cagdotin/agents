@@ -21,13 +21,7 @@ export function deactivate_qmd_init_tool(pi: ExtensionAPI) {
 }
 
 export function register_qmd_tool(pi: ExtensionAPI, state: QmdExtensionState): void {
-	for (const event_name of [
-		"session_start",
-		"session_switch",
-		"session_tree",
-		"session_fork",
-		"session_compact",
-	] as const) {
+	for (const event_name of ["session_start", "session_tree", "session_compact"] as const) {
 		pi.on(event_name, async () => {
 			if (!state.init_workflow) {
 				deactivate_qmd_init_tool(pi);
