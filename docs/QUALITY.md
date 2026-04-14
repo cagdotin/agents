@@ -1,7 +1,7 @@
 # QUALITY
 
 Status: active
-Last updated: 2026-04-05
+Last updated: 2026-04-14
 
 This scorecard tracks maintainability and readiness of this package for day-to-day agent use.
 
@@ -21,7 +21,7 @@ This scorecard tracks maintainability and readiness of this package for day-to-d
 | Repository architecture docs | 3 | Good | `ARCHITECTURE.md` and this quality file now exist; keep updated as structure evolves |
 | Design principles (`docs/DESIGN-PRINCIPLES.md`) | 3 | Good | Distilled from 9 resource analyses; full analyses migrated to vault |
 | `extensions/cmux` | 3 | Good | Auto-detects cmux environment and injects skill for topology/browser/markdown control |
-| `extensions/qmd` | 3 | Good | QMD semantic search panel with split-pane preview, multi-collection support, and repo-first onboarding |
+| Repo-local search integration | 3 | Good | Conditional repo tooling with panel UX and onboarding flow |
 | `extensions/todos` | 3 | Good | Strong implementation and TUI; docs were stale and are now refreshed |
 | `extensions/tracks` | 3 | Good | Repo-agnostic workstream contexts with deterministic sync, local AGENTS.md, and subcommand-aware slash-command UX |
 | Skills (`skills/*`) | 3 | Good | Consistent SKILL format and clear purpose |

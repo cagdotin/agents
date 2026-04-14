@@ -53,8 +53,7 @@ Extensions live in `extensions/`. Each is a self-contained directory with `index
 
 - `ctx.sessionManager.getBranch()` — returns current branch of session entries (root to leaf)
 - `ctx.model` — current model object (`id`, `name`, `provider`)
-- `pi.on("session_start", handler)` — fires on initial session load
-- `pi.on("session_switch", handler)` — fires after switching sessions
+- `pi.on("session_start", handler)` — fires on startup, reload, new-session, resume, and fork transitions (`event.reason` distinguishes them)
 - `ctx.ui.setStatus(key, text)` — set footer status icon
 - `ctx.ui.custom(factory, options)` — show overlay panel
 - `pi.registerCommand(name, options)` — register `/command`
@@ -101,7 +100,7 @@ Follows `extensions/damage-control/panel.ts`:
    - `build_stats(ctx)` helper that calls `reconstruct_stats()` from `ctx.sessionManager.getBranch()`.
    - Register `/session-stats` command (alias `/ss`).
    - Register `Ctrl+Alt+T` shortcut.
-   - `session_start`/`session_switch` hooks: close panel if open, set footer status.
+   - `session_start` hook: close panel if open and set footer status for startup/new/resume/fork/reload transitions.
    - Panel `get_stats` callback calls `build_stats(ctx)` for fresh reconstruction on each open/refresh.
 2. Wire panel open/toggle logic (same pattern as damage-control).
 

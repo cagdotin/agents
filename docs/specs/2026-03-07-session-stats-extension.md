@@ -58,7 +58,7 @@ extensions/session-stats/
 
 Integration points:
 - **Pi session manager**: `ctx.sessionManager.getBranch()` for reading session entries on demand.
-- **Pi event hooks**: `session_start`, `session_switch` (for closing panel and setting footer only).
+- **Pi event hooks**: `session_start` (including `event.reason` for startup/new/resume/fork/reload) for closing panel and setting footer only.
 - **Pi UI APIs**: `ctx.ui.setStatus()` for footer, `ctx.ui.custom()` for panel overlay.
 - **No cross-extension dependencies.** Does not import from damage-control or expert.
 

@@ -45,8 +45,7 @@ Use `skills/plan` for both artifact types.
 
 ## Recently completed
 
-- [[docs/exec-plans/completed/2026-03-16-qmd-multi-collection-selector]] — repo-first QMD panel with in-panel collection switching and external read-only inspection
-- [[docs/exec-plans/completed/2026-03-16-qmd-panel-split-pane-redesign]] — split-pane preview for QMD search results
+- [[docs/exec-plans/completed/2026-04-14-pi-lifecycle-alignment-and-doc-pruning]] — align live extensions with modern Pi lifecycle hooks and trim redundant package-level guidance
 - [[docs/exec-plans/completed/2026-03-11-tracks-extension-minimal-v1]] — minimal task-scoped track workspaces with local AGENTS.md, snapshots, and closeout flow
 - [[docs/exec-plans/completed/2026-03-11-tmux-extension-merge]] — consolidate tmux-notify + tmux-pane-title into single extension
 - [[docs/exec-plans/completed/2026-03-10-docs-audit-script]] — automated docs freshness audit (`bun run audit`)

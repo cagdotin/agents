@@ -75,7 +75,7 @@ pi.registerShortcut("ctrl+q", {
 ## 2.3 Hooking events
 
 Common events in this repo:
-- session lifecycle: `session_start`, `session_switch`, `session_shutdown`
+- session lifecycle: `session_start`, `session_tree`, `session_compact`, `session_shutdown`
 - agent lifecycle: `before_agent_start`, `agent_start`, `agent_end`
 - resources: `resources_discover`
 - tool flow: `tool_call`, `tool_result`
@@ -85,17 +85,19 @@ Use hooks for guardrails/context injection; prefer tools/commands for explicit a
 
 ### Conditional feature pattern
 
-For environment-sensitive features, prefer the shared helper in `lib/extension-runtime/conditional-feature.ts` over ad hoc detection in each extension.
+For conditional features that can be driven by one-time initialized local state, prefer the shared helper in `lib/extension-runtime/conditional-feature.ts` over ad hoc wiring in each extension.
 
 Use it when an extension should:
-- detect environment once per session/reload
-- activate runtime behavior conditionally
-- expose extension-owned skills via `resources_discover`
-- add a cached system prompt hint or one-time activation message
+- initialize feature state once from `ExtensionContext`
+- gate runtime behavior behind `state.enabled`
+- expose extension-owned skills or prompt templates via `resources_discover`
+- append extra system-prompt text via `before_agent_start`
+
+Upstream Pi reloads and rebinds extensions for `/new`, `/resume`, `/fork`, and `/reload`, so one-time helper state is safe across those session-replacement flows. If a feature needs recomputation while the same extension runtime stays alive, use custom extension logic.
 
 Current examples:
 - `extensions/cmux/`
-- `extensions/qmd/`
+- `extensions/frontend-dev/`
 
 ---
 
@@ -156,7 +158,7 @@ Examples in this repo:
 }
 ```
 
-Top-level `skills/` are always-available package skills. Environment-dependent skills should live under the owning extension (for example `extensions/qmd/skills/qmd/`) and be exposed through `resources_discover`, not through the package manifest.
+Top-level `skills/` are always-available package skills. Environment-dependent skills should live under the owning extension (for example `extensions/<name>/skills/`) and be exposed through `resources_discover`, not through the package manifest.
 
 Only declare manifest paths that exist in-repo (add `prompts` later when real prompt templates are introduced).
 
@@ -177,7 +179,6 @@ For Pi core libs imported by extensions/skills, keep them in `peerDependencies` 
 ## 8) Quick “Where do I copy from?”
 
 - Tool + command + TUI flow: `extensions/todos/`, `extensions/tracks/`
-- Semantic search TUI panel + conditional indexed skill: `extensions/qmd/`
 - Environment detection + conditional feature activation: `extensions/cmux/`
 - Shared conditional activation helper: `lib/extension-runtime/conditional-feature.ts`
 

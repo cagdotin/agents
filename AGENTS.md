@@ -17,33 +17,18 @@ This repository defines global commands, skills, extensions, and themes for codi
 
 ## Discovering Information
 
-This repo is indexed by [QMD](https://github.com/tobi/qmd), a local hybrid search engine.
+For unfamiliar work, orient with the repo docs first:
+- `docs/ARCHITECTURE.md` for module boundaries
+- `docs/QUALITY.md` for current strengths and gaps
+- `docs/references/` for local implementation patterns
 
-**Use QMD before `rg` when:**
-- **Starting unfamiliar work** — `qmd query -c agents "how does X work"` before reading random files
-- **Checking for prior decisions** — `qmd query -c agents "why was X designed this way"` before proposing changes
-- **Looking for patterns** — `qmd query -c agents "how do other extensions handle Y"` before inventing new ones
-- **Finding related specs/plans** — `qmd query -c agents "specs about X feature"` before creating a new spec
-- **Searching for concepts** — when you know *what* you need but not *where* it lives or what it's called
-
-**Use `rg`/`grep` instead** when you know the exact string, variable name, or file path.
-
-```bash
-# Semantic search (best quality — expansion + BM25 + vector + reranking)
-qmd query -c agents "your question here"
-
-# Keyword search (fast, no LLM, good for exact terms)
-qmd search "exact keywords" -c agents
-
-# Get a specific document by path
-qmd get "docs/ARCHITECTURE.md"
-```
-
-Always pass `-c agents` to scope results to this repo. See `extensions/qmd/skills/qmd/SKILL.md` for the full reference.
+Use `rg`/`grep` when you know the exact string, symbol, or file path.
+Use `find`/directory listings when you need a quick map of the repo surface.
+Read nearby implementation and tests before introducing new patterns.
 
 ## Golden Rules
 
-1. **Reuse before inventing** — run `qmd query -c agents "existing utility for X"` and check `extensions/` before creating new ones.
+1. **Reuse before inventing** — check `extensions/`, `lib/`, and `docs/references/` for an existing pattern before creating new ones.
 2. **Validate at boundaries** — use TypeBox + `StringEnum` for tool params, and Zod for runtime boundary parsing (YAML/JSON/frontmatter/LLM output).
 3. **Shared utilities over hand-rolled helpers** — extract common logic; don't duplicate across extensions.
 4. **Every extension gets a README** — behavior, triggers, setup. No undocumented extensions.

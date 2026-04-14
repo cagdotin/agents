@@ -17,10 +17,6 @@ agents/
 │   ├── exec-plans/        # Active/completed execution plans
 │   └── references/        # Internal quick references (Pi API, etc.)
 ├── extensions/            # Pi extensions
-│   ├── cmux/
-│   ├── qmd/
-│   ├── todos/
-│   └── tracks/
 ├── lib/                   # Shared extension runtime helpers
 ├── skills/                # Package-wide agent skills (SKILL.md based)
 └── pi-themes/             # Pi theme JSON files
