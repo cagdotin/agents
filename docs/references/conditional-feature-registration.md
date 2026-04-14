@@ -1,41 +1,17 @@
-# Conditional Feature Registration
+# Conditional feature registration
 
-Project-local reference for environment-dependent extension behavior.
+Project-local reference for `lib/extension-runtime/conditional-feature.ts`.
 
-Use this pattern when an extension should:
+Use this helper when an extension wants to initialize a small local feature state once from `ExtensionContext`, then drive activation, conditional resource exposure, and optional instruction injection from that state.
 
-- detect environment once per session or reload
-- activate runtime behavior only in matching environments
-- expose skills or prompt templates only when relevant
-- optionally add a cached system prompt hint and one-time activation message
+This helper is a good fit when:
+- a feature can decide enablement from one initialized state object
+- runtime setup should happen at most once per extension runtime
+- skills/prompts/instructions can be derived directly from that state
+
+Use custom extension logic instead when a feature needs state refresh beyond extension-runtime replacement boundaries.
 
 Source implementation: `lib/extension-runtime/conditional-feature.ts`
-
----
-
-## Why this exists
-
-Pi always discovers extension entrypoints statically. This helper gives us a shared **conditional activation** layer inside the extension runtime so we do not have to hand-roll detection, activation, and `resources_discover` wiring in each extension.
-
-This is the standard pattern for environment-sensitive features in this repo.
-
-Examples:
-- `extensions/cmux/` — active only inside cmux, exposes the cmux skill conditionally
-- `extensions/qmd/` — activates when QMD is available, exposes the QMD skill only for indexed repos
-
----
-
-## Core model
-
-A conditional feature has three separate decisions:
-
-1. **Detect state** — inspect the current environment or repo once
-2. **Activate runtime** — decide whether commands, tools, footer state, panels, etc. should exist
-3. **Expose agent-facing context** — decide whether skills, prompt templates, and prompt hints should be available
-
-This separation matters.
-
-For example, QMD may activate runtime support for `/qmd init` even when the repo is not indexed yet, while only exposing the QMD skill and indexed-repo prompt hint once the repo is actually bound to a collection.
 
 ---
 
@@ -45,117 +21,75 @@ For example, QMD may activate runtime support for `/qmd init` even when the repo
 import { register_conditional_feature } from "../../lib/extension-runtime/conditional-feature.js";
 
 register_conditional_feature(pi, {
-  feature_name: "cmux",
-  detect: () => ({
-    inside_cmux: is_cmux(),
-    has_cli: has_cmux_cli(),
-    surface_id: process.env.CMUX_SURFACE_ID ?? "",
-    skill_path: get_skill_path(),
-  }),
-  should_activate: (state) => state.inside_cmux && state.has_cli,
-  activate: ({ ctx, state }) => {
+  init: (ctx) => detect_dependencies(ctx.cwd),
+  activate: (ctx, state) => {
+    if (!state.enabled) return;
+    ctx.ui.setStatus("frontend-dev", "fe-dev");
+  },
+  get_skills: (state) => get_skills(state),
+});
+
+register_conditional_feature(pi, {
+  init: () => ({ enabled: is_cmux() && has_cmux_cli() }),
+  activate: (ctx, _state) => {
     ctx.ui.setStatus("cmux", "⊞ cmux");
-    register_notify(pi, state.surface_id);
-    register_tab_title(pi, state.surface_id, ctx);
   },
-  skill_paths: (state) => [state.skill_path],
-  system_prompt_hint: "You are running inside cmux.",
-  activation_message: {
-    customType: "cmux-detected",
-    content: "cmux detected — skill available, CLI ready",
-  },
+  get_skills: () => [get_skill_path()],
+  get_instructions: () => "You are running inside cmux.",
 });
 ```
 
-### Required fields
+## State contract
 
-- `feature_name` — short identifier for logging/error context
-- `detect(context)` — returns feature state
-- `should_activate(state)` — runtime activation predicate
+`init(ctx)` must return an object with:
+- `enabled: boolean`
 
-### Optional fields
+The helper also tracks one-time activation on the state object during runtime. Treat the initialized state as helper-owned runtime state, not as immutable input.
 
-- `activate(context)` — one-time runtime setup during `session_start`
-- `should_include_skills(state)` — narrower gate for skill exposure
-- `should_include_prompts(state)` — narrower gate for prompt-template exposure
-- `skill_paths` — static array or state-based resolver
-- `prompt_paths` — static array or state-based resolver
-- `system_prompt_hint` — cached hint appended through `before_agent_start`
-- `activation_message` — one-time visible custom message
-- `on_detection_error(context)` — custom error handling for detector failures
+## Config fields
+
+### Required
+
+- `init(ctx)` — synchronously initialize feature state from `ExtensionContext`
+- `activate(ctx, state)` — runtime setup hook called during `session_start` when `state.enabled` is true and the feature has not already activated in this runtime
+
+### Optional
+
+- `get_skills(state)` — return skill paths for `resources_discover`
+- `get_prompts(state)` — return prompt-template paths for `resources_discover`
+- `get_instructions(state)` — return extra system-prompt text for `before_agent_start`; the helper trims whitespace and skips blank results
 
 ---
 
-## Lifecycle
+## Lifecycle model
 
-### `session_start`
+### Within one extension runtime
 
 The helper:
-- runs `detect({ cwd, reason: "startup" })`
-- evaluates `should_activate(state)`
-- runs `activate(...)` once when active
-- caches the detected state
+- lazily initializes state on first use
+- reuses that same state for later hooks
+- activates at most once while that extension runtime stays alive
 
-### `resources_discover`
+### Across Pi session replacement flows
 
-The helper:
-- reuses cached detection for the same `cwd + reason`
-- returns `skillPaths` and `promptPaths` when allowed
-- lets Pi rebuild the base system prompt with those resources loaded
+Upstream Pi lifecycle docs say `/new`, `/resume`, `/fork`, and `/reload` all emit `session_shutdown` for the old extension instance, then reload and rebind extensions before the next `session_start`.
 
-### `before_agent_start`
+That means one-time helper state is safe across those boundaries: a new extension runtime gets a fresh call to `init(ctx)`.
 
-Only used when the feature defines:
-- `system_prompt_hint`
-- and/or `activation_message`
+### Within-session events
 
-The helper does **not** re-detect here. It only reads cached state and appends the already-decided hint. Activation messages are emitted once per runtime.
-
-### `/reload`
-
-Pi emits `resources_discover` with `reason: "reload"`. The helper treats reload as a fresh detection boundary.
-
----
-
-## What belongs in `should_activate`
-
-Put conditions here when they decide whether the feature runtime should exist at all.
-
-Examples:
-- cmux env + CLI availability
-- toolchain present on disk
-- repo has required config and the extension should be live
-
-If `should_activate(state)` is false:
-- `activate(...)` does not run
-- `system_prompt_hint` does not apply
-- `activation_message` does not emit
-- default resource inclusion is also false
-
----
-
-## What belongs in `should_include_*`
-
-Use these when runtime activation is broader than model-facing exposure.
-
-Example: QMD
-- runtime active when QMD is available for this repo/session
-- skill exposed only when repo binding is actually indexed
-- indexed-repo hint exposed only when binding is indexed
-
-Do **not** hide policy in the text builder if a separate predicate makes the code clearer.
+Events such as `session_tree` and `session_compact` do not replace the extension runtime. If a feature needs recomputation during those events, do not rely on this helper alone.
 
 ---
 
 ## Error behavior
 
-If `detect()` throws:
-- the feature fails closed
-- activation is skipped
-- resources are not exposed
-- optional `on_detection_error(...)` runs if provided
+The helper is fail-loud.
 
-This prevents partially detected environments from exposing misleading skills or prompt hints.
+- It does not catch synchronous `init(ctx)` errors.
+- It does not catch synchronous `activate(ctx, state)` errors.
+- It does not provide retries, snapshots, or recovery.
+- Async `init`/`activate` behavior is outside the current contract; keep both hooks synchronous.
 
 ---
 
@@ -164,15 +98,16 @@ This prevents partially detected environments from exposing misleading skills or
 - Put shared runtime helpers in `lib/`, not `extensions/`
 - Keep extension-owned skills under `extensions/<name>/skills/`
 - Use `resources_discover` for conditional skill exposure
-- Use cached prompt hints only for environment awareness, not for re-running detection
-- Keep cross-extension runtime dependencies out of `extensions/`; share logic through `lib/`
+- Prefer this helper when one-time initialized state is enough
+- Use custom runtime logic for richer refresh behavior
 
 ---
 
 ## Related files
 
 - `lib/extension-runtime/conditional-feature.ts`
+- `lib/extension-runtime/__tests__/conditional-feature.test.ts`
 - `extensions/cmux/index.ts`
-- `extensions/qmd/index.ts`
+- `extensions/frontend-dev/index.ts`
 - `docs/references/pi-api-reference.md`
 - `docs/ARCHITECTURE.md`
