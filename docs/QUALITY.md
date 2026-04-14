@@ -22,7 +22,6 @@ This scorecard tracks maintainability and readiness of this package for day-to-d
 | Design principles (`docs/DESIGN-PRINCIPLES.md`) | 3 | Good | Distilled from 9 resource analyses; full analyses migrated to vault |
 | `extensions/cmux` | 3 | Good | Auto-detects cmux environment and injects skill for topology/browser/markdown control |
 | Repo-local search integration | 3 | Good | Conditional repo tooling with panel UX and onboarding flow |
-| `extensions/todos` | 3 | Good | Strong implementation and TUI; docs were stale and are now refreshed |
 | `extensions/tracks` | 3 | Good | Repo-agnostic workstream contexts with deterministic sync, local AGENTS.md, and subcommand-aware slash-command UX |
 | Skills (`skills/*`) | 3 | Good | Consistent SKILL format and clear purpose |
 | Mechanical validation | 4 | Excellent | `bun run check` gates Biome + docs + boundary invariants + Vitest; Lefthook pre-commit runs all four in parallel |
@@ -37,7 +36,7 @@ For test conventions, mock strategy, and boundaries, see `docs/TESTING.md`.
 Current posture:
 - Tier 1 and Tier 2 coverage exists across multiple extensions and scripts.
 - Tier 3 code is still mostly untested because it is tightly coupled to the Pi runtime.
-- The best next candidates for more coverage are `todos/tool.ts` and `tracks/tool.ts`, where logic could be extracted or tested with shared mocks.
+- The best next candidate for more coverage is `tracks/tool.ts`, where logic could be extracted or tested with shared mocks.
 - If deeper runtime testing becomes important, we need a Pi test harness or a mock session/context factory.
 
 ---
@@ -66,4 +65,4 @@ A healthy state means:
 - New contributors can navigate from `AGENTS.md` → architecture docs → exact extension/skill docs quickly.
 - Each extension directory has a practical README with triggers, setup, and behavior.
 - Documentation and workflows consistently use Bun commands (`bun`, `bun run`, `bunx`).
-- Known gaps are explicitly tracked here or in `.pi/todos`, not only in chat.
+- Known gaps are explicitly tracked here, not only in chat.

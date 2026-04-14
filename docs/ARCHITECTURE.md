@@ -62,7 +62,6 @@ was removed and why.
 ### `.pi/`
 
 Runtime state managed by extensions, not source code. Notably:
-- `.pi/todos/`
 - `.pi/tracks/`
 
 ---

@@ -21,7 +21,7 @@ A spec is NOT a code-generation blueprint. When a spec tries to be precise enoug
 
 **Specs capture decisions. Code captures implementations. Exec plans bridge the two.**
 
-Core principle: **self-discovery first**. Exhaust codebase/docs/todos context before asking the user for missing business decisions.
+Core principle: **self-discovery first**. Exhaust codebase and docs context before asking the user for missing business decisions.
 
 ## Modes of use
 

@@ -62,8 +62,8 @@ Reference important files, types, and modules by name. Do **not** use direct lin
 or paths that go stale. Readers (human or agent) should use search to find named
 entities. This is zero-maintenance and helps discover related things.
 
-**Do**: "The parsing logic lives in `helpers.ts` in the todos extension."
-**Don't**: "See [helpers.ts](../extensions/todos/helpers.ts)."
+**Do**: "The parsing logic lives in `helpers.ts` in the tracks extension."
+**Don't**: "See [helpers.ts](../extensions/tracks/helpers.ts)."
 
 Exception: wikilinks (`[[resource-name]]`) within design principles source
 attributions are fine — they reference stable identifiers, not filesystem paths.
@@ -83,7 +83,7 @@ describe it as if it does. Instead:
 
 - Track quality gaps and judgment calls in `QUALITY.md`
 - Track planned work in `exec-plans/` or `specs/`
-- Use `.pi/todos/` for actionable items
+- Use `.pi/tracks/` for actionable items scoped to workstreams
 
 `QUALITY.md` should capture evaluation and non-obvious gaps, not raw metrics that
 anyone can regenerate from tooling output (for example test counts, coverage

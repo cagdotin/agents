@@ -141,7 +141,6 @@ For extension state that should survive reload/session traversal:
 - rebuild state on `session_start` from session entries
 
 Examples in this repo:
-- `extensions/todos` reconstructs from todo files and session context
 - `extensions/tracks` reconstructs active track state from track files and session context
 
 ---
@@ -178,7 +177,7 @@ For Pi core libs imported by extensions/skills, keep them in `peerDependencies` 
 
 ## 8) Quick “Where do I copy from?”
 
-- Tool + command + TUI flow: `extensions/todos/`, `extensions/tracks/`
+- Tool + command + TUI flow: `extensions/tracks/`
 - Environment detection + conditional feature activation: `extensions/cmux/`
 - Shared conditional activation helper: `lib/extension-runtime/conditional-feature.ts`
 
