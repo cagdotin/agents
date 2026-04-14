@@ -56,19 +56,15 @@ For each reference found in step 3:
 - **Rewrite** references that mention the module alongside still-live content
 - **Leave** references in completed specs/exec-plans as historical record (they describe what was true at the time)
 
-### 5. Move source code
+### 5. Delete source code
 
-Move the source directory into the graveyard folder. Include tests.
-
-```
-mv extensions/<name>/ .graveyard/extensions/<name>/source/
-```
-
-Or, if the source is small enough to not warrant a subfolder, move it directly:
+Once the spec and references are written, delete the source code entirely. The spec is the artifact — the graveyard folder should contain only documentation, not code.
 
 ```
-mv extensions/<name>/* .graveyard/extensions/<name>/
+rm -rf extensions/<name>/
 ```
+
+Do **not** move source code into the graveyard. The spec exists precisely so the feature can be rebuilt without the original source.
 
 ### 6. Update the graveyard index
 
@@ -87,4 +83,4 @@ If the module is registered in `package.json` (extensions array, etc.), remove i
 Group the changes into logical commits:
 1. Add graveyard spec and references
 2. Clean up live doc references
-3. Move source code and update graveyard index
+3. Delete source code and update graveyard index
