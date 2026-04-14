@@ -80,7 +80,7 @@ export default function tracks_extension(pi: ExtensionAPI) {
 		await restore_track_status(ctx);
 	});
 
-	for (const event_name of ["session_switch", "session_tree", "session_fork", "session_compact"] as const) {
+	for (const event_name of ["session_tree", "session_compact"] as const) {
 		pi.on(event_name, async (_event, ctx) => {
 			await restore_track_status(ctx);
 		});
