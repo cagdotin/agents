@@ -57,6 +57,14 @@ Extensions below marked **(deleted)** were removed without preserving code.
 
 **Why it was shelved:** The streaming pipeline worked in principle, but the end-to-end experience wasn't reliable enough to keep shipping. Upstream `@json-render/react` error boundaries permanently null-rendered components after transient streaming-time prop errors, several `@json-render/shadcn` components weren't tolerant of partial props during streaming, and the overall model ergonomics needed more iteration. May revisit when the json-render ecosystem matures or if Glimpse gets a simpler patching model.
 
+## todos
+
+**Removed:** 2026-04-14
+
+**What it did:** File-based todo management with a `todo` tool for agent automation and an interactive `/todos` TUI for browsing, filtering, and acting on todos. Stored todos as YAML-frontmatter markdown files in `.pi/todos/` with per-session assignment/claiming and automatic garbage collection.
+
+**Why it was retired:** Low usage over an extended period. The tracks extension covers task tracking for feature work more effectively with workstream-scoped contexts, deterministic sync, and local AGENTS.md. A full rebuild spec is in `todos/spec.md`.
+
 ## env-skills (deleted)
 
 **Removed:** 2026-04-02
