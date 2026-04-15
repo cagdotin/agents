@@ -11,7 +11,7 @@ function detect_work_context(cwd: string, work_root: string | null): { enabled: 
 }
 
 describe("detect_work_context", () => {
-	const work_root = "/Users/test/git/dev/meister";
+	const work_root = "/Users/test/git/dev/acme";
 
 	test("enables when cwd is exactly the work root", () => {
 		const result = detect_work_context(work_root, work_root);
@@ -34,7 +34,7 @@ describe("detect_work_context", () => {
 	});
 
 	test("disables when cwd is a sibling with matching prefix", () => {
-		// /Users/test/git/dev/meister-other should NOT match /Users/test/git/dev/meister
+		// /Users/test/git/dev/acme-other should NOT match /Users/test/git/dev/acme
 		const result = detect_work_context(`${work_root}-other`, work_root);
 		expect(result.enabled).toBe(false);
 	});
