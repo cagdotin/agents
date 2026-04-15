@@ -2,7 +2,6 @@ import path from "node:path";
 import type { BeforeAgentStartEvent, ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import type { RepoBindingResult } from "./core/types.js";
 import { detect_repo_binding } from "./domain/repo-binding.js";
-import { register_qmd_command } from "./extension/command.js";
 import {
 	bootstrap_runtime_state,
 	build_qmd_prompt_hint,
@@ -65,7 +64,6 @@ export default function qmd_extension(pi: ExtensionAPI) {
 		activated = true;
 		register_runtime(pi, state);
 		register_qmd_tool(pi, state);
-		register_qmd_command(pi, state);
 		await bootstrap_runtime_state(ctx, state);
 	});
 

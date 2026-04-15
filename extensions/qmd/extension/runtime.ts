@@ -13,7 +13,6 @@ export interface QmdExtensionState {
 		repo_root: string;
 		prompt: string;
 	};
-	close_panel?: () => void;
 }
 
 function footer_text(binding?: RepoBindingResult, freshness?: FreshnessResult): string | undefined {
@@ -53,7 +52,6 @@ export async function refresh_runtime_state(ctx: ExtensionContext, state: QmdExt
 }
 
 export async function bootstrap_runtime_state(ctx: ExtensionContext, state: QmdExtensionState): Promise<void> {
-	state.close_panel?.();
 	await refresh_runtime_state(ctx, state);
 }
 
@@ -103,7 +101,6 @@ export function register_runtime(pi: ExtensionAPI, state: QmdExtensionState): vo
 	});
 
 	pi.on("session_shutdown", async () => {
-		state.close_panel?.();
 		await close_store();
 	});
 }

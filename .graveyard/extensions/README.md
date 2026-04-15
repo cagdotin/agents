@@ -64,6 +64,14 @@ Retired extensions. Each folder contains a rebuild spec (`spec.md`) and referenc
 
 **Why it was retired:** Low usage over an extended period. The tracks extension covers task tracking for feature work more effectively with workstream-scoped contexts, deterministic sync, and local AGENTS.md. A full rebuild spec is in `todos/spec.md`.
 
+## qmd-tui
+
+**Removed:** 2026-04-15
+
+**What it did:** Interactive split-pane TUI dashboard for the QMD index. Opened as a wide overlay panel (`/qmd`, `/qp`, `Ctrl+Alt+Q`) with a persistent collection sidebar and a context-sensitive main pane supporting overview, files, search, and preview views. Included NERDTree-style file browsing with index toggle, debounced search, and a plain-text fallback.
+
+**Why it was retired:** The TUI panel added ~2,400 lines of UI code for a feature that was rarely used interactively. The remaining QMD extension (init pipeline, skill injection, prompt hints, freshness detection, footer status) covers the agent-facing workflow without a TUI.
+
 ## env-skills (deleted)
 
 **Removed:** 2026-04-02
