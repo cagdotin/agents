@@ -1,6 +1,6 @@
 import path from "node:path";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { type FeatureConfig, register_conditional_feature } from "@/lib/extension-runtime/conditional-feature.js";
+import { type FeatureConfig, register_conditional_feature } from "../../lib/extension-runtime/conditional-feature.js";
 import { load_workspace_config } from "./config.js";
 import type { WorkspaceConfig } from "./constants.js";
 import { build_template_vars, generate_skills } from "./skills.js";

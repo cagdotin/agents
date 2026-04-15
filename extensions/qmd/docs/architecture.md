@@ -2,9 +2,10 @@
 
 ## Layers
 
-- **Extension**
-  - `extension/runtime.ts` — session lifecycle hooks, footer, prompt injection
-  - `extension/tool.ts` — workflow-scoped `qmd_init` tool
+- **Features** (conditional)
+  - `features/indexed.ts` — activated when repo is indexed: skill exposure, prompt hint, footer, freshness refresh
+- **Commands**
+  - `commands/init.ts` — `/qmd init` command, `qmd_init` tool, workflow prompt injection
 - **Domain**
   - `domain/repo-binding.ts` — repo root, collection key, marker I/O
   - `domain/freshness.ts` — git-based markdown freshness detection
@@ -17,8 +18,17 @@
 Dependency direction stays one-way:
 
 ```
-Extension → Domain → Core → QMD SDK
+Commands / Features → Domain → Core → QMD SDK
 ```
+
+## Feature model
+
+The extension has one conditional feature and one command:
+
+- **indexed** (`features/indexed.ts`) — uses `register_conditional_feature` with async detection. Enabled when `binding.status === "indexed"`. Exposes QMD skill, injects prompt hint, sets footer, refreshes freshness on session events.
+- **init** (`commands/init.ts`) — always registered as a `/qmd init` command. Scans the repo, builds a draft proposal, sends it as a user message for agent refinement, and activates the `qmd_init` tool. If the repo is already indexed, the command says so and returns.
+
+The store lifecycle (`session_shutdown → close_store`) is shared infrastructure registered in `index.ts`.
 
 ## Core responsibilities
 
@@ -39,8 +49,6 @@ Small wrapper around `@tobilu/qmd`:
 - translated errors via `with_store()`
 - narrow helpers: `list_collections`, `add_collection`, `set_contexts`, `list_contexts`, `update_collection`, `embed_pending`, `get_status`, `get_active_document_paths`, `get_index_health`, `close_store`
 
-Note: `get_active_document_paths()` uses `store.internal.getActiveDocumentPaths()` — the low-level `InternalStore`, not the high-level `QMDStore`.
-
 ## Domain responsibilities
 
 ### `domain/repo-binding.ts`
@@ -60,20 +68,6 @@ Deterministic pipeline:
 - build init prompt for agent refinement
 - normalize confirmed proposal via Zod
 - execute init via the store wrapper
-
-## Extension responsibilities
-
-### `extension/runtime.ts`
-- bootstrap binding/freshness once on activation, then refresh on `session_tree` and `session_compact`
-- set quiet footer status (silent when not indexed)
-- build the QMD CLI prompt hint from the current repo-binding state
-- inject only the active `/qmd init` workflow prompt via `before_agent_start`
-- close the store on `session_shutdown`
-
-### `extension/tool.ts`
-Workflow-scoped `qmd_init` tool.
-It is registered at load time but removed from the active tool set by default.
-`/qmd init` activates it and execution deactivates it in `finally`.
 
 ## Source-of-truth rule
 

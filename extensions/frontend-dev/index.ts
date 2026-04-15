@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { z } from "zod";
-import { type FeatureConfig, register_conditional_feature } from "@/lib/extension-runtime/conditional-feature";
+import { type FeatureConfig, register_conditional_feature } from "../../lib/extension-runtime/conditional-feature";
 
 const dependencies_schema = z.optional(z.record(z.string(), z.string()));
 
