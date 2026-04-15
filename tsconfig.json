@@ -4,6 +4,9 @@
 		"module": "ESNext",
 		"moduleResolution": "bundler",
 		"types": ["vitest/globals"],
+		"paths": {
+			"@/lib/*": ["./lib/*"]
+		},
 		"strict": true,
 		"noEmit": true,
 		"skipLibCheck": true
