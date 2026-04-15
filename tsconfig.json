@@ -1,0 +1,11 @@
+{
+	"compilerOptions": {
+		"target": "ESNext",
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"types": ["vitest/globals"],
+		"strict": true,
+		"noEmit": true,
+		"skipLibCheck": true
+	}
+}
