@@ -129,10 +129,12 @@ This repo has automated tests. For the testing model and boundaries, see
 
 ### Extension patterns
 
-All extensions follow the same structure (`index.ts`, README, types, helpers,
-storage, tool). When building new extensions, match the existing conventions.
-Prefer the existing validation stack: TypeBox + `StringEnum` at Pi tool
-boundaries, Zod at runtime data boundaries.
+All extensions have an `index.ts` entry point and a README. Most use the
+`register_conditional_feature` helper from `lib/extension-runtime/` for
+environment detection and conditional skill/prompt injection (see
+`docs/references/conditional-feature-registration.md`). Commands and tools
+are registered directly on `ExtensionAPI`. Prefer Zod at runtime data
+boundaries and TypeBox at Pi tool-registration boundaries.
 
 ---
 

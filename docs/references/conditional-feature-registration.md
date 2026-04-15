@@ -50,7 +50,7 @@ The helper also tracks one-time activation on the state object during runtime. T
 
 ### Required
 
-- `init(ctx)` — synchronously initialize feature state from `ExtensionContext`
+- `init(ctx)` — initialize feature state from `ExtensionContext` (sync or async)
 - `activate(ctx, state)` — runtime setup hook called during `session_start` when `state.enabled` is true and the feature has not already activated in this runtime
 
 ### Optional
@@ -86,10 +86,10 @@ Events such as `session_tree` and `session_compact` do not replace the extension
 
 The helper is fail-loud.
 
-- It does not catch synchronous `init(ctx)` errors.
-- It does not catch synchronous `activate(ctx, state)` errors.
+- It does not catch `init(ctx)` errors (sync or async).
+- It does not catch `activate(ctx, state)` errors.
 - It does not provide retries, snapshots, or recovery.
-- Async `init`/`activate` behavior is outside the current contract; keep both hooks synchronous.
+- `init()` may return a `Promise<TConfig>` or `TConfig` — both are supported. Async errors propagate as rejected promises.
 
 ---
 
@@ -109,5 +109,7 @@ The helper is fail-loud.
 - `lib/extension-runtime/__tests__/conditional-feature.test.ts`
 - `extensions/cmux/index.ts`
 - `extensions/frontend-dev/index.ts`
+- `extensions/dayjob/index.ts`
+- `extensions/qmd/features/indexed.ts`
 - `docs/references/pi-api-reference.md`
 - `docs/ARCHITECTURE.md`
