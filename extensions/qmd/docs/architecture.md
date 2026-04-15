@@ -2,13 +2,7 @@
 
 ## Layers
 
-- **UI**
-  - `ui/panel.ts` — interactive TUI panel (overview, files, updating views)
-  - `ui/data.ts` — snapshot builder, file tree, formatting helpers
-  - `ui/constants.ts` — panel constants (width, shortcuts, icon)
-  - `ui/plain-text.ts` — non-TUI fallback summary
 - **Extension**
-  - `extension/command.ts` — slash commands, alias, shortcut, panel lifecycle
   - `extension/runtime.ts` — session lifecycle hooks, footer, prompt injection
   - `extension/tool.ts` — workflow-scoped `qmd_init` tool
 - **Domain**
@@ -23,11 +17,8 @@
 Dependency direction stays one-way:
 
 ```
-Extension → UI → Core
 Extension → Domain → Core → QMD SDK
 ```
-
-The `ui/` layer imports from `core/` (types, store) but never from `extension/` or `domain/`. Actions flow into the panel via callbacks, not imports.
 
 ## Core responsibilities
 
@@ -70,45 +61,10 @@ Deterministic pipeline:
 - normalize confirmed proposal via Zod
 - execute init via the store wrapper
 
-## UI responsibilities
-
-### `ui/data.ts`
-Pure data layer — no TUI or Pi imports.
-- `QmdPanelSnapshot` — flat, serializable struct with all panel data
-- `build_qmd_panel_snapshot()` — gathers binding, freshness, store data into a snapshot
-- `build_file_tree()` / `flatten_tree()` — hierarchical tree with single-child collapsing
-- `format_relative_time()`, `group_paths_by_directory()`, `wrap_text()` — formatting helpers
-
-### `ui/panel.ts`
-Interactive TUI panel with three views:
-- **Overview** — binding status, freshness, index stats, contexts, stale files
-- **Files** — NERDTree-style collapsible file browser with vi-style navigation
-- **Updating** — progress display during index updates
-
-Actions are injected via `QmdPanelCallbacks` (get_snapshot, on_update, on_init, on_close).
-
-### `ui/plain-text.ts`
-Renders a `QmdPanelSnapshot` as plain text for non-TUI environments.
-
-### `ui/constants.ts`
-All panel magic values: command names, alias, shortcut, icon, width.
-
 ## Extension responsibilities
-
-### `extension/command.ts`
-User-facing commands and panel lifecycle:
-- `/qmd` (no args) — opens the panel (or plain-text fallback)
-- `/qmd status` — prints text status
-- `/qmd update` — runs scoped update
-- `/qmd init` — starts onboarding flow
-- `/qp` — alias for `/qmd`
-- `Ctrl+Alt+Q` — toggle shortcut
-
-Manages panel open/close state and wires callbacks.
 
 ### `extension/runtime.ts`
 - bootstrap binding/freshness once on activation, then refresh on `session_tree` and `session_compact`
-- close panel on activation and `session_shutdown`
 - set quiet footer status (silent when not indexed)
 - build the QMD CLI prompt hint from the current repo-binding state
 - inject only the active `/qmd init` workflow prompt via `before_agent_start`

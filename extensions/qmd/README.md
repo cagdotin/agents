@@ -10,13 +10,6 @@ Repo-local QMD infrastructure for Pi.
 - Adds a quiet footer for indexed repos only
 - Exposes the QMD skill only for indexed repos via `resources_discover`
 - Adds a cached system prompt hint so the agent knows when to use `qmd query/search/get` via `bash`
-- Provides an interactive split-pane TUI panel (`/qmd`, `/qp`, `Ctrl+Alt+Q`) with:
-  - Persistent collection sidebar (left) — always visible, navigate with `j/k`, filter with `/`
-  - Context-sensitive main pane (right) — overview, files, or search view
-  - Interactive search with debounced lex results and hybrid mode (`ctrl+t`)
-  - File browser with NERDTree-style tree and index toggle
-  - In-panel update (`u`, bound only) and init (`i`) actions
-  - `tab` switches focus between sidebar and main pane
 - Provides subcommands: `/qmd status`, `/qmd update`, `/qmd init`
 
 ## What it does not do
@@ -33,11 +26,6 @@ The extension owns infra and workflow. The agent still uses the QMD CLI directly
 - **`.pi/qmd.json`** — repo binding and freshness marker only
 
 ## Commands
-
-### `/qmd` (no args) · `/qp` · `Ctrl+Alt+Q`
-Opens the QMD index dashboard as a split-pane panel. Left pane shows all collections; right pane shows overview, files, or search for the selected collection. Use `tab` to switch focus, `s` to search, `f` for files. See `docs/panel.md` for full keyboard shortcuts and layout.
-
-When `hasUI` is false, prints a plain-text summary instead.
 
 ### `/qmd status`
 Shows current repo state only:
@@ -80,17 +68,11 @@ extensions/qmd/
 │   ├── onboarding.ts           # Deterministic init pipeline
 │   └── repo-binding.ts         # Repo root, collection key, marker I/O
 ├── extension/
-│   ├── command.ts              # Slash commands, alias, shortcut, panel lifecycle
 │   ├── runtime.ts              # Session hooks, footer, prompt hint builder, init-workflow prompt
 │   └── tool.ts                 # Workflow-scoped qmd_init tool
 ├── skills/
 │   └── qmd/
 │       └── SKILL.md            # Extension-owned QMD skill reference
-├── ui/
-│   ├── constants.ts            # Panel constants (width, shortcuts, icon)
-│   ├── data.ts                 # Snapshot builder, file tree, helpers
-│   ├── panel.ts                # Split-pane TUI panel (sidebar + main: overview/files/search)
-│   └── plain-text.ts           # Non-TUI fallback summary
 ├── diy/
 │   ├── README.md               # How to copy/paste this blueprint into another repo
 │   ├── qmd-extension-snapshot-spec.md
@@ -100,8 +82,7 @@ extensions/qmd/
 ├── docs/
 │   ├── architecture.md         # Layer diagram and responsibilities
 │   ├── freshness.md            # Freshness model and footer behavior
-│   ├── onboarding.md           # Init flow steps and caveats
-│   └── panel.md                # Panel states, keyboard shortcuts, data flow
+│   └── onboarding.md           # Init flow steps and caveats
 └── __tests__/
     ├── core/
     │   ├── qmd-store.test.ts
@@ -110,10 +91,8 @@ extensions/qmd/
     │   ├── freshness.test.ts
     │   ├── onboarding.test.ts
     │   └── repo-binding.test.ts
-    ├── extension/
-    │   └── runtime.test.ts
-    └── ui/
-        └── data.test.ts
+    └── extension/
+        └── runtime.test.ts
 ```
 
 ## DIY blueprint
@@ -132,11 +111,10 @@ If you want to recreate this extension in another repo without installing this p
 - `resources_discover` — expose the extension-owned QMD skill only for indexed repos
 - `before_agent_start` — indexed-repo prompt hint from repo-binding state, plus active `/qmd init` workflow prompt from runtime state
 - `session_tree` / `session_compact` — refresh binding and freshness state within the current session
-- `session_shutdown` — close the panel and QMD store
+- `session_shutdown` — close the QMD store
 
 ## Docs
 
 - `docs/architecture.md` — layers, dependency direction, file responsibilities
 - `docs/onboarding.md` — init flow steps and caveats
 - `docs/freshness.md` — freshness model and footer behavior
-- `docs/panel.md` — panel states, keyboard shortcuts, data flow
