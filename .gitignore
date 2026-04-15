@@ -2,5 +2,6 @@ node_modules/
 bun.lock
 coverage/
 extensions/dayjob/config.json
+extensions/dayjob/out/
 .pi/todos/
 .pi/expertise/.reflections.log
