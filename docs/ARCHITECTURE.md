@@ -7,144 +7,71 @@ Last updated: 2026-04-30
 
 ## Bird's eye
 
-This repository is a **Pi package**: a versioned bundle of extensions, skills,
-themes, and docs for coding agents. Pi discovers them through the `pi` manifest
-in `package.json`.
+This repository is a **Pi package**: a versioned bundle of extensions, skills, themes, and support docs for coding agents. Pi discovers package resources through the `pi` manifest in `package.json`.
 
----
-
-## Codemap
+## Major parts
 
 ### `extensions/`
 
-Runtime code loaded by Pi at startup. Extensions live here, each in its own
-subdirectory, and each must have a README. Extensions may also own
-environment-dependent skills under `extensions/<name>/skills/` and expose them
-through `resources_discover` instead of the package manifest.
+Runtime code loaded by Pi at startup. Each extension lives in its own directory and must have a README.
 
 ### `skills/`
 
-On-demand instruction bundles. Skills are markdown playbooks, not runtime code. They may live directly under `skills/` or inside category subdirectories such as `skills/engineering/`, `skills/productivity/`, and `skills/tools/`; Pi discovers skill directories recursively.
+Reusable instruction bundles. Skills are markdown playbooks, not runtime code.
 
 ### `pi-themes/`
 
 Theme JSON files distributed with this package.
 
+### `lib/`
+
+Shared TypeScript helpers for extension runtime code. These modules exist to prevent cross-extension runtime coupling.
+
 ### `docs/`
 
-System-of-record knowledge base for humans and agents.
-
-- `ARCHITECTURE.md` — repository map and invariants
-- `DESIGN-PRINCIPLES.md` — design principles distilled from research and practice
-- `QUALITY.md` — quality scorecard and prioritized gaps
-- `TESTING.md` — testing model and boundaries
-- `CONTRIBUTING-DOCS.md` — rules for documentation work
-- `exec-plans/` — active/completed execution plans + `tech-debt-tracker.md`
-- `specs/` — implementation specs for planned or complex work
-- `references/` — internal quick references
-- `.graveyard/` — retired extensions, skills, resources, and docs kept for reference
+Support docs organized by memory type:
+- `ARCHITECTURE.md` — stable bird's-eye overview
+- `DESIGN-PRINCIPLES.md` — enduring design constraints
+- `coding-conventions.md` — naming and style rules
+- `TESTING.md` — repo-specific testing conventions
+- `adr/` — durable decision memory
+- `specs/` and `exec-plans/` — planning artifacts for genuinely complex work
+- `agents/` — repo-local configuration for shared skills
+- `references/` — shared repo-wide references only
 
 ### `scripts/`
 
 Validation and automation run through `bun run`.
 
-### `lib/`
-
-Shared TypeScript helpers for extension runtime code. These are ordinary modules,
-not Pi-discovered extensions, and exist to prevent cross-extension runtime
-coupling.
-
 ### `.graveyard/`
 
-Retired extensions and modules. Each entry has a rebuild spec (`spec.md`) and
-reference summary (`references.md`) — no source code. See
-`.graveyard/extensions/README.md` for what was removed and why, and
-`.graveyard/PROCESS.md` for how to retire an extension.
+Retired extensions and modules kept only as rebuild specs and reference summaries.
 
 ### `.pi/`
 
 Runtime state managed by extensions, not source code. Notably:
 - `.pi/tracks/`
 
----
-
 ## Boundaries
 
-- **Source vs. runtime:** `extensions/`, `skills/`, and `docs/` define behavior.
-  `.pi/` is generated runtime state and gitignored.
-- **Extensions vs. skills:** extensions execute at runtime; skills are static
-  instructions loaded into context on demand.
-- **Docs vs. code:** code is the source of truth for behavior; docs are the
-  source of truth for decisions, boundaries, and where to look.
-
----
+- **Source vs runtime:** `extensions/`, `skills/`, `lib/`, and `docs/` are source. `.pi/` is generated runtime state.
+- **Extensions vs skills:** extensions execute at runtime; skills are static guidance loaded on demand.
+- **Shared vs owned references:** top-level `docs/references/` is only for repo-wide references. References with a natural owner belong next to that module, skill, or extension.
+- **Backlog vs planning artifacts:** GitHub issues are the backlog. `docs/specs/` and `docs/exec-plans/` are reserved for genuinely complex, multi-session, or architecture-shaping work.
 
 ## Invariants
 
-1. **AGENTS.md is a map, not an encyclopedia.** Keep the entry point short;
-   details belong in `docs/` and extension READMEs. (See: [[harness-engineering-openai]])
-2. **No cross-extension runtime dependencies.** Extract shared utilities only
-   when the need is clearly repeated.
+1. **AGENTS.md is a map, not an encyclopedia.**
+2. **No cross-extension runtime dependencies.** Extract shared utilities only when the need is clearly repeated.
 3. **Bun only.** Use `bun`, `bun run`, and `bunx` throughout code and docs.
 4. **No build step for extensions.** Pi loads TypeScript directly.
-5. **Every extension has a README.** Behavior should be discoverable without
-   reading source first.
-6. **Expertise is working memory, not source of truth.** `.pi/expertise/` can be
-   stale; code cannot.
-7. **Docs stay honest.** Gaps belong in `QUALITY.md`; planned work belongs in
-   `exec-plans/` or `specs/`.
+5. **Every extension has a README.**
+6. **Important decisions must live in repo files.** Domain language belongs in `CONTEXT.md`; durable trade-offs belong in ADRs.
 
----
+## Where to look next
 
-## Cross-cutting concerns
-
-### Agent legibility
-
-Important decisions must exist in repo files, not only in chat or tribal
-knowledge.
-
-### Progressive disclosure
-
-Navigation should drill down cleanly:
-`AGENTS.md` → `docs/ARCHITECTURE.md` → focused docs/READMEs → source.
-
-### Mechanical validation
-
-Conventions are enforced by tooling:
-- `bun run check:biome`
-- `bun run check:docs`
-- `bun run check:boundaries`
-- `bun run check`
-
-### Testing
-
-This repo has automated tests. For the testing model and boundaries, see
-`docs/TESTING.md`.
-
-### Naming conventions
-
-- files and directories: `kebab-case`
-- functions and variables: `snake_case`
-- types and classes: `CamelCase`
-
-### Extension patterns
-
-All extensions have an `index.ts` entry point and a README. Most use the
-`register_conditional_feature` helper from `lib/extension-runtime/` for
-environment detection and conditional skill/prompt injection (see
-`docs/references/conditional-feature-registration.md`). Commands and tools
-are registered directly on `ExtensionAPI`. Prefer Zod at runtime data
-boundaries and TypeBox at Pi tool-registration boundaries.
-
----
-
-## Packaging
-
-`package.json` exposes this repo to Pi through the `pi` manifest:
-- `skills` → `./skills`
-- `extensions` → `./extensions`
-- `themes` → `./pi-themes`
-
-Top-level `skills/` are package-wide always-available skills. Conditional or
-extension-owned skills belong under the relevant extension and are surfaced at
-runtime through the shared conditional feature pattern.
+- Need vocabulary? Read `CONTEXT.md`.
+- Need stable rationale? Read `docs/adr/` and `docs/DESIGN-PRINCIPLES.md`.
+- Need conventions? Read `docs/coding-conventions.md` and `docs/TESTING.md`.
+- Need implementation-facing shared references? Read `docs/references/`.
+- Need a module-specific pattern? Look next to the owning module, skill, or extension.

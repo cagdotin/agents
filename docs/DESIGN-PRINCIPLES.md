@@ -1,7 +1,7 @@
 # DESIGN PRINCIPLES
 
 Status: active
-Last updated: 2026-03-23
+Last updated: 2026-04-30
 
 These principles guide how we design extensions, skills, and tools in this
 repository. They are distilled from external research and validated through
@@ -72,7 +72,7 @@ replaces monolithic documentation.
 
 **In practice:**
 - AGENTS.md stays short (~100 lines) — a map, not an encyclopedia
-- Navigation: `AGENTS.md` → `docs/ARCHITECTURE.md` → focused docs/READMEs → source
+- Entry surfaces stay narrow: `README.md` → `AGENTS.md` → `docs/ARCHITECTURE.md` → focused docs/READMEs → source
 - Every extension has a README discoverable without reading source first
 - Name things clearly; the code is the real documentation for implementation
 
@@ -90,9 +90,10 @@ guidelines are suggestions; structural constraints are guarantees.
 
 **In practice:**
 - `bun run check:biome` — formatting and lint
-- `bun run check:docs` — documentation structure
+- `bun run check:docs` — documentation structure and forbidden legacy surfaces
 - `bun run check:boundaries` — cross-extension import rules
 - Agent-legible error messages: say what's wrong, why, and how to fix
+- Prefer structural enforcement over narrative scorecards or freshness theater
 - Prefer Zod at runtime boundaries, TypeBox at Pi tool boundaries
 
 **Source:** OpenAI, "Harness Engineering" — enforce boundaries centrally,
@@ -182,7 +183,7 @@ auto-generated comments lie most of all.
 
 **In practice:**
 - Expertise files (`.pi/expertise/`) are working memory, not source of truth
-- Docs stay honest: gaps go in `QUALITY.md`, planned work in `exec-plans/`
+- Backlog and follow-up work live in GitHub issues; complex design/execution context may live in specs or exec plans
 - When docs and code disagree, the code wins
 - Keep docs thin enough to maintain, accurate enough to trust
 

@@ -8,5 +8,5 @@ This repository organizes documentation by memory type instead of treating all d
 
 - `docs/QUALITY.md`, `docs/CONTRIBUTING-DOCS.md`, and `docs/reports/` should be removed once all routing and tooling dependencies are updated.
 - `docs/coding-conventions.md` should become the stable home for naming and style rules.
-- `scripts/validate-docs.ts` should enforce the structural parts of this model, and `scripts/audit-docs.ts` should be folded into it or removed.
+- `scripts/validate-docs.ts` should enforce the structural parts of this model, and the separate docs audit script should not exist.
 - `docs/specs/` and `docs/exec-plans/` remain available only for genuinely complex, multi-session, or architecture-shaping work, with GitHub as the canonical backlog.

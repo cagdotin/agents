@@ -1,26 +1,39 @@
 # Documentation Map
 
-This directory is the system-of-record knowledge base for this repository.
+This directory holds the repository's durable support docs. The docs are organized by memory type so readers can route quickly instead of treating everything as one bucket.
 
 Tooling policy: examples and commands in docs should use **Bun** (`bun`, `bun run`, `bunx`).
 
-## Files
+## Categories
 
-- `ARCHITECTURE.md` — codemap, boundaries, invariants, and cross-cutting concerns
-- `DESIGN-PRINCIPLES.md` — design principles distilled from research and practice
-- `QUALITY.md` — quality scorecard and prioritized improvement backlog
-- `CONTRIBUTING-DOCS.md` — rules for adding, changing, or removing documentation
-- `exec-plans/` — active/completed plans and debt tracker
-- `specs/` — implementation specs for planned/complex work
-- `references/` — internal quick references (implementation-facing)
-
-## Reading Order
-
-| Doc | When to read | What it answers |
+| Location | Kind | Use it for |
 |---|---|---|
-| `ARCHITECTURE.md` | First time in this repo, or when lost | What's here, where things live, what the boundaries are |
-| `DESIGN-PRINCIPLES.md` | Before writing or planning any code changes | How we write code, the principles we live by |
-| `CONTRIBUTING-DOCS.md` | Before modifying any documentation | Rules for doc structure, naming, and placement |
-| `QUALITY.md` | When looking for what to improve next | Current quality state, prioritized gaps |
-| `exec-plans/README.md` | When starting medium+ work | Active plans, debt tracker, planning workflow |
-| `references/pi-api-reference.md` | When building Pi extensions or tools | Pi SDK surface, hook points, registration patterns |
+| `../CONTEXT.md` | Domain memory | Canonical repo vocabulary and concept boundaries |
+| `ARCHITECTURE.md` | Architecture overview | Stable bird's-eye view of the package and where to look next |
+| `DESIGN-PRINCIPLES.md` | Enduring constraints | Why this repo is shaped the way it is |
+| `coding-conventions.md` | Stable conventions | Naming and style rules that code and docs should follow |
+| `TESTING.md` | Testing conventions | Repo-specific testing rules, tiers, and safety boundaries |
+| `adr/` | Decision memory | Durable architecture and scope decisions |
+| `specs/` | Planning artifacts | Design contracts for genuinely complex work |
+| `exec-plans/` | Planning artifacts | Execution state for genuinely complex work |
+| `agents/` | Agent configuration | Repo-local settings that shared skills need |
+| `references/` | Shared references | Repo-wide references with no narrow owner |
+
+## Reading guide
+
+| If you need... | Read... |
+|---|---|
+| the bird's-eye view | `ARCHITECTURE.md` |
+| the repo's vocabulary | `../CONTEXT.md` |
+| the reasoning behind stable constraints | `DESIGN-PRINCIPLES.md` |
+| naming/style rules | `coding-conventions.md` |
+| testing expectations | `TESTING.md` |
+| a durable trade-off or architecture decision | `adr/` |
+| design or execution context for complex work | `specs/` or `exec-plans/` |
+| repo-local skill settings | `agents/` |
+| a shared implementation reference | `references/` |
+
+## Notes
+
+- GitHub issues are the canonical backlog and follow-up tracker.
+- References with a clear owner should live next to that owner, not in top-level `references/`.

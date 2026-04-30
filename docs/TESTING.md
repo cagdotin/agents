@@ -1,10 +1,9 @@
 # TESTING
 
 Status: active
-Last updated: 2026-04-05
+Last updated: 2026-04-30
 
-This file gives the testing model for this repository. Keep it focused on repo-specific
-conventions, not generic Vitest advice.
+This file gives the testing model for this repository. Keep it focused on repo-specific conventions, not generic Vitest advice.
 
 ---
 
@@ -17,8 +16,7 @@ bun run test:coverage # Coverage report for inspection
 bun run check         # Full quality gate
 ```
 
-Tests are part of the Lefthook pre-commit gate alongside lint, docs validation,
-and boundary checks.
+Tests are part of the Lefthook pre-commit gate alongside lint, docs validation, and boundary checks.
 
 ---
 
@@ -47,14 +45,11 @@ Static fixtures belong in `__tests__/fixtures/`.
 
 ### Filesystem isolation
 
-For file I/O tests, use `os.tmpdir()` and isolate each test or suite so tests do not
-share state.
+For file I/O tests, use `os.tmpdir()` and isolate each test or suite so tests do not share state.
 
 ### Shared mocks
 
-Shared mocks for `@mariozechner/*` packages live in `extensions/__mocks__/` and are
-wired in through Vitest aliases. Tests should use those mocks instead of trying to
-reach the real Pi runtime.
+Shared mocks for `@mariozechner/*` packages live in `extensions/__mocks__/` and are wired in through Vitest aliases. Tests should use those mocks instead of trying to reach the real Pi runtime.
 
 Keep mocks minimal. Add only the exports that tests actually need.
 
@@ -70,15 +65,11 @@ Use this repo-specific rule of thumb:
 | 2 | Logic that imports Pi packages but is still mostly transformation/matching code | Test with shared mocks | Expected |
 | 3 | Deep Pi runtime coupling: extension lifecycle, commands, TUI rendering, subprocess-heavy code | Defer for now | Not currently covered |
 
-Examples of Tier 1 and Tier 2 code: parsers, validators, matchers, storage helpers,
-formatters, policy evaluation, and other logic that can run outside the real Pi
-session runtime.
+Examples of Tier 1 and Tier 2 code: parsers, validators, matchers, storage helpers, formatters, policy evaluation, and other logic that can run outside the real Pi session runtime.
 
-Examples of Tier 3 code: `index.ts`, slash commands, TUI components, lifecycle hooks,
-and code that spawns real Pi or LLM subprocesses.
+Examples of Tier 3 code: `index.ts`, slash commands, TUI components, lifecycle hooks, and code that spawns real Pi or LLM subprocesses.
 
-If a module is hard to test, prefer extracting the logic into a Tier 1 or Tier 2
-module rather than forcing runtime-heavy tests.
+If a module is hard to test, prefer extracting the logic into a Tier 1 or Tier 2 module rather than forcing runtime-heavy tests.
 
 ---
 
@@ -108,8 +99,7 @@ Tests must never:
 - make real LLM API calls
 - depend on secrets, API keys, or machine-specific paths
 
-The default mocks should fail loudly if a test accidentally tries to cross one of
-those boundaries.
+The default mocks should fail loudly if a test accidentally tries to cross one of those boundaries.
 
 ---
 
@@ -128,7 +118,6 @@ If you are unsure about style, follow a nearby test file in the same extension.
 
 ## Coverage
 
-Coverage is available through `bun run test:coverage`, but it is a diagnostic tool,
-not a hard gate.
+Coverage is available through `bun run test:coverage`, but it is a diagnostic tool, not a hard gate.
 
-For repo-level testing priorities and known gaps, see `docs/QUALITY.md`.
+If testing follow-up work is needed, track it in GitHub or attach it to a spec/exec plan when the work is genuinely complex.
