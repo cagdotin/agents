@@ -30,7 +30,7 @@ const non_empty_string_list_schema = z
 const required_frontmatter_value_schema = z.union([non_empty_scalar_schema, non_empty_string_list_schema]);
 const frontmatter_fields_schema = z.record(z.string(), z.unknown());
 
-// Boundary contract for skills/*/SKILL.md frontmatter.
+// Boundary contract for skills/**/SKILL.md frontmatter.
 const skill_frontmatter_schema = z
 	.object({
 		name: z.string().trim().min(1),
@@ -86,15 +86,11 @@ async function validate_design_principles_exist(repo_root: string, errors: Valid
 
 async function validate_skill_frontmatter(repo_root: string, errors: ValidationError[]) {
 	const skills_dir = path.join(repo_root, "skills");
-	const entries = await readdir(skills_dir, { withFileTypes: true });
+	const skill_dirs = await collect_skill_dirs(skills_dir);
 
-	for (const entry of entries) {
-		if (!entry.isDirectory()) {
-			continue;
-		}
-
-		const expected_name = entry.name;
-		const file_path = path.join(skills_dir, expected_name, "SKILL.md");
+	for (const skill_dir of skill_dirs) {
+		const expected_name = path.basename(skill_dir);
+		const file_path = path.join(skill_dir, "SKILL.md");
 
 		let file_content: string;
 		try {
@@ -154,7 +150,7 @@ async function validate_skill_frontmatter(repo_root: string, errors: ValidationE
 
 		const required_support_files = SKILL_REQUIRED_SUPPORT_FILES[expected_name] ?? [];
 		for (const support_filename of required_support_files) {
-			const support_file_path = path.join(skills_dir, expected_name, support_filename);
+			const support_file_path = path.join(skill_dir, support_filename);
 			try {
 				await readFile(support_file_path, "utf8");
 			} catch {
@@ -163,11 +159,34 @@ async function validate_skill_frontmatter(repo_root: string, errors: ValidationE
 					errors,
 					support_file_path,
 					`missing required support file for skill '${expected_name}': ${support_filename}`,
-					`This skill depends on '${support_filename}' for portable, self-contained guidance. Add the file in skills/${expected_name}/ so the skill works consistently across repositories.`,
+					`This skill depends on '${support_filename}' for portable, self-contained guidance. Add the file next to ${path.relative(repo_root, file_path)} so the skill works consistently across repositories.`,
 				);
 			}
 		}
 	}
+}
+
+async function collect_skill_dirs(dir: string): Promise<string[]> {
+	const entries = await readdir(dir, { withFileTypes: true });
+	const has_skill_file = entries.some((entry) => entry.isFile() && entry.name === "SKILL.md");
+	if (has_skill_file) {
+		return [dir];
+	}
+
+	const results: string[] = [];
+	for (const entry of entries) {
+		if (!entry.isDirectory()) {
+			continue;
+		}
+		if (entry.name === "node_modules" || entry.name.startsWith(".")) {
+			continue;
+		}
+
+		const nested = await collect_skill_dirs(path.join(dir, entry.name));
+		results.push(...nested);
+	}
+
+	return results;
 }
 
 async function validate_extension_readmes(repo_root: string, errors: ValidationError[]) {

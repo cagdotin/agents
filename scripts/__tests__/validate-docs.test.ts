@@ -115,4 +115,24 @@ description: Test skill
 		expect(result.status).toBe(1);
 		expect(result.stderr).toContain("does not match directory name");
 	});
+
+	it("passes for nested categorized skills", async () => {
+		await write_valid_repo_fixture(test_dir);
+		await mkdir(path.join(test_dir, "skills", "productivity", "caveman"), { recursive: true });
+		await writeFile(path.join(test_dir, "skills", "productivity", "README.md"), "# Productivity\n");
+		await writeFile(
+			path.join(test_dir, "skills", "productivity", "caveman", "SKILL.md"),
+			`---
+name: caveman
+description: Terse response mode
+---
+
+# Caveman
+`,
+		);
+
+		const result = run_validator(test_dir);
+		expect(result.status).toBe(0);
+		expect(result.stdout).toContain("Documentation validation passed");
+	});
 });
