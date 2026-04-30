@@ -5,7 +5,7 @@ Owner: agent
 Created: 2026-03-10
 Spec: [[docs/specs/2026-03-10-docs-audit-script.md]]
 
-This ExecPlan is a living document and must be maintained in accordance with `skills/plan/PLAN.md`.
+This ExecPlan is a living document and must be maintained in accordance with `skills/engineering/plan/PLAN.md`.
 
 ## Purpose / Big picture
 

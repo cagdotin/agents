@@ -19,8 +19,8 @@ The project needs a **standalone review skill** that defines a reusable, lens-ba
 
 ### 2.1 Goals
 
-- Create `skills/review/SKILL.md` as a router that determines review scope and selects relevant lenses.
-- Extract the review checklist from `pr-review` into independent **lens files** under `skills/review/references/lenses/`.
+- Create `skills/engineering/review/SKILL.md` as a router that determines review scope and selects relevant lenses.
+- Extract the review checklist from `pr-review` into independent **lens files** under `skills/engineering/review/references/lenses/`.
 - Each lens is a self-contained reference the agent loads only when needed (progressive disclosure).
 - The SKILL.md includes a lens index table so the agent can scan all available lenses and pick the ones relevant to the changes.
 - Define a structured **core report format** (`references/report-format.md`) so review findings are consistent regardless of trigger.
@@ -39,7 +39,7 @@ The project needs a **standalone review skill** that defines a reusable, lens-ba
 
 ### Affected modules
 
-- `skills/review/` — new skill directory (does not exist yet)
+- `skills/engineering/review/` — new skill directory (does not exist yet)
 - `skills/pr-review/` — will eventually be retired, but **not in this plan**
 
 ### Conventions
@@ -187,16 +187,16 @@ Skills are markdown. There's nothing to unit test.
 
 ## 9. Implementation checklist
 
-- [ ] Create `skills/review/` directory
-- [ ] Create `skills/review/SKILL.md` with frontmatter and router logic
-- [ ] Create `skills/review/references/report-format.md`
-- [ ] Create `skills/review/references/lenses/architecture.md`
-- [ ] Create `skills/review/references/lenses/correctness.md`
-- [ ] Create `skills/review/references/lenses/security.md`
-- [ ] Create `skills/review/references/lenses/quality.md`
-- [ ] Create `skills/review/references/lenses/testing.md`
-- [ ] Create `skills/review/references/lenses/dependencies.md`
-- [ ] Create `skills/review/README.md`
+- [ ] Create `skills/engineering/review/` directory
+- [ ] Create `skills/engineering/review/SKILL.md` with frontmatter and router logic
+- [ ] Create `skills/engineering/review/references/report-format.md`
+- [ ] Create `skills/engineering/review/references/lenses/architecture.md`
+- [ ] Create `skills/engineering/review/references/lenses/correctness.md`
+- [ ] Create `skills/engineering/review/references/lenses/security.md`
+- [ ] Create `skills/engineering/review/references/lenses/quality.md`
+- [ ] Create `skills/engineering/review/references/lenses/testing.md`
+- [ ] Create `skills/engineering/review/references/lenses/dependencies.md`
+- [ ] Create `skills/engineering/review/README.md`
 - [ ] Run this repository's local validation for skill/docs changes, if available
 - [ ] Smoke test: invoke `/skill:review` on a real diff
 

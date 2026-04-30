@@ -13,7 +13,7 @@ Execution plans are the **operational layer** for non-trivial work:
 - `tech-debt-tracker.md` — debt register with priority and remediation links
 - `TEMPLATE.md` — baseline plan structure
 
-Execution-plan authoring standard: `skills/plan/PLAN.md` (portable skill-local standard)
+Execution-plan authoring standard: `skills/engineering/plan/PLAN.md` (portable skill-local standard)
 
 ## Spec vs execution plan (why both exist)
 
@@ -32,11 +32,11 @@ A nested `docs/exec-plans/specs/` folder is not required. Separation by purpose 
 
 1. Create a spec in `docs/specs/`.
 2. Create an execution plan in `docs/exec-plans/active/` and link the spec.
-3. Ensure the plan follows `skills/plan/PLAN.md` (living sections, progress, discoveries, decisions, outcomes).
+3. Ensure the plan follows `skills/engineering/plan/PLAN.md` (living sections, progress, discoveries, decisions, outcomes).
 4. During implementation, keep plan sections current at each stopping point.
 5. On completion, set `Status: Completed`, add outcome links, and move file to `completed/`.
 
-Use `skills/plan` for both artifact types.
+Use `skills/engineering/plan` for both artifact types.
 
 ## Current active plans
 
@@ -44,6 +44,10 @@ Use `skills/plan` for both artifact types.
 
 ## Recently completed
 
+- [[docs/exec-plans/completed/2026-04-30-phase-1-context-adr-foundation-skills]] — add `grill-with-docs`, `setup-repo-methodology`, and `zoom-out`, plus shared Context/ADR references for engineering skills
+- [[docs/exec-plans/completed/2026-04-30-skill-taxonomy-refinement-and-reference-normalization]] — refine the category taxonomy to `engineering` / `productivity` / `tools` and normalize repository references to current skill paths
+- [[docs/exec-plans/completed/2026-04-30-legacy-skill-categorization]] — move legacy flat skills into category directories as a precursor to the later `tools/` taxonomy refinement
+- [[docs/exec-plans/completed/2026-04-30-skill-imports-and-classified-catalog]] — import requested Matt Pocock skills and add initial `engineering/` + `productivity/` grouping under `skills/`
 - [[docs/exec-plans/completed/2026-04-14-pi-lifecycle-alignment-and-doc-pruning]] — align live extensions with modern Pi lifecycle hooks and trim redundant package-level guidance
 - [[docs/exec-plans/completed/2026-03-11-tracks-extension-minimal-v1]] — minimal task-scoped track workspaces with local AGENTS.md, snapshots, and closeout flow
 - [[docs/exec-plans/completed/2026-03-10-docs-audit-script]] — automated docs freshness audit (`bun run audit`)

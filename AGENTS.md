@@ -2,6 +2,20 @@
 
 This repository defines global commands, skills, extensions, and themes for coding agents.
 
+## Agent skills
+
+### Issue tracker
+
+Issues are tracked in GitHub and should be accessed with the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Canonical triage roles currently map directly to same-named labels in this repo. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Treat this repo as single-context: prefer a root `CONTEXT.md` and `docs/adr/` when they exist. See `docs/agents/domain.md`.
+
 ## Where to Look First
 
 - Repository architecture map: `docs/ARCHITECTURE.md`
@@ -9,7 +23,7 @@ This repository defines global commands, skills, extensions, and themes for codi
 - Current quality status and prioritized gaps: `docs/QUALITY.md`
 - Documentation contribution rules: `docs/CONTRIBUTING-DOCS.md`
 - Active execution plans and debt tracker: `docs/exec-plans/README.md`
-- Planning skill standard: `skills/plan/PLAN.md`
+- Planning skill standard: `skills/engineering/plan/PLAN.md`
 - Implementation specs for planned/complex work: `docs/specs/`
 - Pi extension API quick reference (repo-focused): `docs/references/pi-api-reference.md`
 - Conditional feature registration pattern: `docs/references/conditional-feature-registration.md`

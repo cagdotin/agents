@@ -5,7 +5,7 @@ Owner: <team/person/agent>
 Created: <YYYY-MM-DD>
 Spec: <optional [[docs/specs/...]]>
 
-This ExecPlan is a living document. Maintain it according to `skills/plan/PLAN.md`.
+This ExecPlan is a living document. Maintain it according to `skills/engineering/plan/PLAN.md`.
 
 ## Purpose / Big picture
 

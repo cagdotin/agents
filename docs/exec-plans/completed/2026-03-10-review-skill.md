@@ -5,7 +5,7 @@ Owner: agent
 Created: 2026-03-10
 Spec: [[docs/specs/2026-03-10-review-skill.md]]
 
-This ExecPlan is a living document and must be maintained in accordance with `skills/plan/PLAN.md`.
+This ExecPlan is a living document and must be maintained in accordance with `skills/engineering/plan/PLAN.md`.
 
 ## Purpose / Big picture
 
@@ -18,16 +18,16 @@ Create a standalone `review` skill that provides a universal, lens-based code re
 
 ## Progress
 
-- [x] (2026-03-10 17:08 CET) Milestone 1: Created `skills/review/SKILL.md` as a repo-agnostic router with scope selection, lens index, and review-boundary guidance.
-- [x] (2026-03-10 17:09 CET) Milestone 2: Created `skills/review/references/report-format.md` for the reusable core review report shape.
-- [x] (2026-03-10 17:11 CET) Milestone 3: Added six lens files under `skills/review/references/lenses/` covering architecture, correctness, security, quality, testing, and dependencies.
-- [x] (2026-03-10 17:12 CET) Milestone 4: Added `skills/review/README.md` describing purpose, scope, and relationship to PR-review wrappers.
+- [x] (2026-03-10 17:08 CET) Milestone 1: Created `skills/engineering/review/SKILL.md` as a repo-agnostic router with scope selection, lens index, and review-boundary guidance.
+- [x] (2026-03-10 17:09 CET) Milestone 2: Created `skills/engineering/review/references/report-format.md` for the reusable core review report shape.
+- [x] (2026-03-10 17:11 CET) Milestone 3: Added six lens files under `skills/engineering/review/references/lenses/` covering architecture, correctness, security, quality, testing, and dependencies.
+- [x] (2026-03-10 17:12 CET) Milestone 4: Added `skills/engineering/review/README.md` describing purpose, scope, and relationship to PR-review wrappers.
 - [x] (2026-03-10 17:14 CET) Milestone 5: Validated the implementation in this repository with local docs checks and the full `bun run check` suite.
 
 ## Surprises & discoveries
 
 - Observation: No extra skill-specific support files were required by this repository's docs validator; `SKILL.md` frontmatter plus the new reference files were sufficient.
-  Evidence: `bun run check:docs` passed immediately after adding `skills/review/`.
+  Evidence: `bun run check:docs` passed immediately after adding `skills/engineering/review/`.
 
 ## Decision log
 
@@ -69,7 +69,7 @@ Create a standalone `review` skill that provides a universal, lens-based code re
 
 ## Outcomes & retrospective
 
-Implemented the new `skills/review/` skill as planned: a short router, a shared report format, six focused review lenses, and a README. The resulting skill is repository-agnostic and explicitly scoped to judgment-based review rather than mechanical validation.
+Implemented the new `skills/engineering/review/` skill as planned: a short router, a shared report format, six focused review lenses, and a README. The resulting skill is repository-agnostic and explicitly scoped to judgment-based review rather than mechanical validation.
 
 What worked well:
 - Extracting the old PR-review checklist into lens files made the review concerns easier to scan and reuse.
@@ -97,7 +97,7 @@ skills/
 
 - `skills/pr-review/SKILL.md` — contains the review checklist to extract and refactor into lenses
 - `docs/specs/2026-03-10-review-skill.md` — source of truth for scope, report format, and lens behavior
-- `skills/plan/PLAN.md` — exec plan maintenance rules
+- `skills/engineering/plan/PLAN.md` — exec plan maintenance rules
 
 ### Pi skill conventions
 
@@ -148,7 +148,7 @@ Six initial lenses:
 
 ### Milestone 4: README
 
-Create `skills/review/README.md` with: purpose, usage, available lenses, how it relates to PR review wrappers.
+Create `skills/engineering/review/README.md` with: purpose, usage, available lenses, how it relates to PR review wrappers.
 
 ### Milestone 5: Validate
 
@@ -166,20 +166,20 @@ Optionally run broader repository checks if the baseline is already clean.
 ### Step 1: Create directory structure
 
 ```bash
-mkdir -p skills/review/references/lenses
+mkdir -p skills/engineering/review/references/lenses
 ```
 
 ### Step 2: Create SKILL.md
 
-Write `skills/review/SKILL.md` — see spec § 5.1 for content requirements.
+Write `skills/engineering/review/SKILL.md` — see spec § 5.1 for content requirements.
 
 ### Step 3: Create report-format.md
 
-Write `skills/review/references/report-format.md` — see spec § 5.3.
+Write `skills/engineering/review/references/report-format.md` — see spec § 5.3.
 
 ### Step 4: Create lens files
 
-Write each of the six lens files under `skills/review/references/lenses/` — see spec § 5.2 for internal structure and § 4 for lens catalog.
+Write each of the six lens files under `skills/engineering/review/references/lenses/` — see spec § 5.2 for internal structure and § 4 for lens catalog.
 
 Source material: extract and refactor the review checklist table from `skills/pr-review/SKILL.md` (the table under "Review Checklist" with areas: Correctness, Error handling, Security, Performance, Side effects, Breaking changes, Race conditions, Type safety, Tests, Docs, Dependencies, Code quality, Observability, Accessibility).
 
@@ -194,7 +194,7 @@ Mapping from pr-review checklist → lenses:
 
 ### Step 5: Create README
 
-Write `skills/review/README.md` with: purpose, usage, available lenses, how it relates to PR review wrappers and future github-skill integration.
+Write `skills/engineering/review/README.md` with: purpose, usage, available lenses, how it relates to PR review wrappers and future github-skill integration.
 
 ### Step 6: Validate
 
@@ -207,15 +207,15 @@ Expected: local docs validation passes for the new skill. These commands are imp
 1. This repository's local docs/skill validation passes with no new errors.
 2. Optional: broader repository checks also pass if the existing baseline is clean.
 3. All files exist at expected paths:
-   - `skills/review/SKILL.md`
-   - `skills/review/README.md`
-   - `skills/review/references/report-format.md`
-   - `skills/review/references/lenses/architecture.md`
-   - `skills/review/references/lenses/correctness.md`
-   - `skills/review/references/lenses/security.md`
-   - `skills/review/references/lenses/quality.md`
-   - `skills/review/references/lenses/testing.md`
-   - `skills/review/references/lenses/dependencies.md`
+   - `skills/engineering/review/SKILL.md`
+   - `skills/engineering/review/README.md`
+   - `skills/engineering/review/references/report-format.md`
+   - `skills/engineering/review/references/lenses/architecture.md`
+   - `skills/engineering/review/references/lenses/correctness.md`
+   - `skills/engineering/review/references/lenses/security.md`
+   - `skills/engineering/review/references/lenses/quality.md`
+   - `skills/engineering/review/references/lenses/testing.md`
+   - `skills/engineering/review/references/lenses/dependencies.md`
 4. SKILL.md frontmatter has valid `name: review` and `description`.
 5. All relative paths referenced in SKILL.md resolve to actual files.
 6. Smoke test: in a Pi session, `/skill:review` loads correctly and the agent follows the methodology.
@@ -223,7 +223,7 @@ Expected: local docs validation passes for the new skill. These commands are imp
 
 ## Idempotence and recovery
 
-This plan only creates new files — no existing files are modified or deleted. Safe to re-run any step. If the skill needs to be recreated, delete `skills/review/` and start from step 1.
+This plan only creates new files — no existing files are modified or deleted. Safe to re-run any step. If the skill needs to be recreated, delete `skills/engineering/review/` and start from step 1.
 
 ## Artifacts and notes
 
@@ -237,15 +237,15 @@ Validation evidence gathered during implementation:
   - `vitest run` passed with `15 passed` test files and `420 passed` tests
 
 Created artifacts:
-- `skills/review/SKILL.md`
-- `skills/review/README.md`
-- `skills/review/references/report-format.md`
-- `skills/review/references/lenses/architecture.md`
-- `skills/review/references/lenses/correctness.md`
-- `skills/review/references/lenses/security.md`
-- `skills/review/references/lenses/quality.md`
-- `skills/review/references/lenses/testing.md`
-- `skills/review/references/lenses/dependencies.md`
+- `skills/engineering/review/SKILL.md`
+- `skills/engineering/review/README.md`
+- `skills/engineering/review/references/report-format.md`
+- `skills/engineering/review/references/lenses/architecture.md`
+- `skills/engineering/review/references/lenses/correctness.md`
+- `skills/engineering/review/references/lenses/security.md`
+- `skills/engineering/review/references/lenses/quality.md`
+- `skills/engineering/review/references/lenses/testing.md`
+- `skills/engineering/review/references/lenses/dependencies.md`
 
 ## Interfaces and dependencies
 

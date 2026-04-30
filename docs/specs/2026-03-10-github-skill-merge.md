@@ -19,7 +19,7 @@ The project needs a single `github` skill with progressive disclosure: a short r
 
 ### 2.1 Goals
 
-- Merge `commit`, `pr-review`, and `github` into a single `skills/github/` skill.
+- Merge `commit`, `pr-review`, and `github` into a single `skills/tools/github/` skill.
 - SKILL.md becomes a router (~30-40 lines) with a decision tree pointing to reference files.
 - Reference files:
   - `references/commit.md` — conventional commits workflow (from current `commit/SKILL.md`)
@@ -41,7 +41,7 @@ The project needs a single `github` skill with progressive disclosure: a short r
 
 ### Affected modules
 
-- `skills/github/` — existing skill, will be restructured with references/ directory
+- `skills/tools/github/` — existing skill, will be restructured with references/ directory
 - `skills/commit/` — will be deleted (content moves to `github/references/commit.md`)
 - `skills/pr-review/` — will be deleted (GitHub ceremony moves to `github/references/pr-review.md`, review methodology lives in the `review` skill)
 - Runtime skill registry / harness prompt templates — may need follow-up outside this repository if the merged skill list is maintained elsewhere
@@ -75,7 +75,7 @@ Direct migration from current `skills/commit/SKILL.md` body (everything below fr
 
 ### 4.3 references/gh-cli.md
 
-Direct migration from current `skills/github/SKILL.md` body. No content changes needed.
+Direct migration from current `skills/tools/github/SKILL.md` body. No content changes needed.
 
 ### 4.4 references/pr-review.md
 
@@ -123,12 +123,12 @@ Skills are markdown.
 
 ## 6. Implementation checklist
 
-- [ ] Create `skills/github/references/` directory
-- [ ] Create `skills/github/references/commit.md` (migrate from `commit/SKILL.md`)
-- [ ] Create `skills/github/references/gh-cli.md` (migrate from current `github/SKILL.md` body)
-- [ ] Create `skills/github/references/pr-review.md` (restructured, delegates to review skill)
-- [ ] Rewrite `skills/github/SKILL.md` as router with updated frontmatter
-- [ ] Update or create `skills/github/README.md`
+- [ ] Create `skills/tools/github/references/` directory
+- [ ] Create `skills/tools/github/references/commit.md` (migrate from `commit/SKILL.md`)
+- [ ] Create `skills/tools/github/references/gh-cli.md` (migrate from current `github/SKILL.md` body)
+- [ ] Create `skills/tools/github/references/pr-review.md` (restructured, delegates to review skill)
+- [ ] Rewrite `skills/tools/github/SKILL.md` as router with updated frontmatter
+- [ ] Update or create `skills/tools/github/README.md`
 - [ ] Delete `skills/commit/`
 - [ ] Delete `skills/pr-review/`
 - [ ] Update any out-of-repo runtime skill registry, if applicable

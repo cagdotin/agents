@@ -5,7 +5,7 @@ Owner: pi
 Created: 2026-04-14
 Spec: [[docs/specs/2026-04-14-pi-lifecycle-alignment-and-doc-pruning]]
 
-This ExecPlan is a living document and was maintained in accordance with `skills/plan/PLAN.md`.
+This ExecPlan is a living document and was maintained in accordance with `skills/engineering/plan/PLAN.md`.
 
 ## Purpose / Big picture
 

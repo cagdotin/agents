@@ -1,7 +1,7 @@
 # ARCHITECTURE
 
 Status: active
-Last updated: 2026-04-05
+Last updated: 2026-04-30
 
 ---
 
@@ -24,7 +24,7 @@ through `resources_discover` instead of the package manifest.
 
 ### `skills/`
 
-On-demand instruction bundles. Skills are markdown playbooks, not runtime code.
+On-demand instruction bundles. Skills are markdown playbooks, not runtime code. They may live directly under `skills/` or inside category subdirectories such as `skills/engineering/`, `skills/productivity/`, and `skills/tools/`; Pi discovers skill directories recursively.
 
 ### `pi-themes/`
 

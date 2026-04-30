@@ -7,7 +7,7 @@ Spec: [[docs/specs/2026-03-11-tracks-extension-minimal-v1.md]]
 
 This ExecPlan is a living document. Keep `Progress`, `Surprises & Discoveries`, `Decision Log`, and `Outcomes & Retrospective` current as work proceeds.
 
-This plan conforms to `skills/plan/PLAN.md`.
+This plan conforms to `skills/engineering/plan/PLAN.md`.
 
 ## Purpose / Big picture
 
@@ -300,7 +300,7 @@ Implementation is acceptable when all of the following are true:
 
 ## Artifacts and notes
 
-- 2026-03-11: Planning references reviewed — `skills/plan/SKILL.md`, `skills/plan/PLAN.md`,
+- 2026-03-11: Planning references reviewed — `skills/engineering/plan/SKILL.md`, `skills/engineering/plan/PLAN.md`,
   `docs/resources/unix-philosophy-raymond.md`, `docs/exec-plans/README.md`.
 - 2026-03-11: Scope tightened so the extension remains repo-agnostic and only manages `.pi/tracks/` plus session trace entries.
 - 2026-03-11: Spec created at `docs/specs/2026-03-11-tracks-extension-minimal-v1.md`.

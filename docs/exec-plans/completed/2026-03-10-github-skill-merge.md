@@ -5,7 +5,7 @@ Owner: agent
 Created: 2026-03-10
 Spec: [[docs/specs/2026-03-10-github-skill-merge.md]]
 
-This ExecPlan is a living document and must be maintained in accordance with `skills/plan/PLAN.md`.
+This ExecPlan is a living document and must be maintained in accordance with `skills/engineering/plan/PLAN.md`.
 
 ## Purpose / Big picture
 
@@ -20,9 +20,9 @@ Merge the `commit`, `pr-review`, and `github` skills into a single `github` skil
 
 ## Progress
 
-- [x] (2026-03-10 17:34 CET) Milestone 1: Created `skills/github/references/commit.md`, `gh-cli.md`, and `pr-review.md`, with PR review now delegating code analysis to `/skill:review`.
-- [x] (2026-03-10 17:35 CET) Milestone 2: Rewrote `skills/github/SKILL.md` as a short router with broader frontmatter and shared GitHub guidance.
-- [x] (2026-03-10 17:36 CET) Milestone 3: Added `skills/github/README.md`; cleanup is now complete because `skills/commit/` and `skills/pr-review/` were removed. Also confirmed the repo `AGENTS.md` file does not contain the expected `<available_skills>` XML block.
+- [x] (2026-03-10 17:34 CET) Milestone 1: Created `skills/tools/github/references/commit.md`, `gh-cli.md`, and `pr-review.md`, with PR review now delegating code analysis to `/skill:review`.
+- [x] (2026-03-10 17:35 CET) Milestone 2: Rewrote `skills/tools/github/SKILL.md` as a short router with broader frontmatter and shared GitHub guidance.
+- [x] (2026-03-10 17:36 CET) Milestone 3: Added `skills/tools/github/README.md`; cleanup is now complete because `skills/commit/` and `skills/pr-review/` were removed. Also confirmed the repo `AGENTS.md` file does not contain the expected `<available_skills>` XML block.
 - [x] (2026-03-10 17:44 CET) Milestone 4: Validation and smoke testing — `bun run check` passes (425 tests, all green), old skill files are gone, routing review for commit/PR-review/gh-cli flows correct.
 
 ## Surprises & discoveries
@@ -34,7 +34,7 @@ Merge the `commit`, `pr-review`, and `github` skills into a single `github` skil
   Evidence: Attempting `rm -rf skills/commit skills/pr-review` returned `🛑 BLOCKED by Damage-Control: rm with recursive/force flags`.
 
 - Observation: The old `skills/commit/` and `skills/pr-review/` files are now removed from the working tree, so the structural merge target is satisfied despite the earlier deletion block.
-  Evidence: `find skills -maxdepth 2 -type f | sort` now lists only `skills/github/`, `skills/review/`, `skills/plan/`, `skills/linear/`, and `skills/youtube-transcript/` artifacts.
+  Evidence: the surviving package-skill catalog now points at current categorized paths such as `skills/tools/github/`, `skills/engineering/review/`, `skills/engineering/plan/`, and `skills/tools/youtube-transcript/`.
 
 - Observation: Full repository validation is currently noisy for reasons unrelated to this change.
   Evidence: The pre-commit hook for a docs-only review-skill polish failed earlier on unrelated `extensions/session-stats/` formatting/import-order issues in another agent's working tree.
@@ -59,7 +59,7 @@ Merge the `commit`, `pr-review`, and `github` skills into a single `github` skil
 
 ## Outcomes & retrospective
 
-Partially implemented. The merged `skills/github/` structure now exists and the router/reference split is in place. PR review now clearly delegates reusable code analysis to `/skill:review`.
+Partially implemented. The merged `skills/tools/github/` structure now exists and the router/reference split is in place. PR review now clearly delegates reusable code analysis to `/skill:review`.
 
 Still pending:
 - delete `skills/commit/` and `skills/pr-review/` once a safe deletion path is available
@@ -103,11 +103,11 @@ The draft spec assumed `AGENTS.md` contained an `<available_skills>` XML block t
 
 ### Milestone 1: Create reference files
 
-Migrate content from the three existing skills into reference files under `skills/github/references/`.
+Migrate content from the three existing skills into reference files under `skills/tools/github/references/`.
 
 **commit.md**: Copy the body of `skills/commit/SKILL.md` (everything below the frontmatter) verbatim.
 
-**gh-cli.md**: Copy the body of `skills/github/SKILL.md` (everything below the frontmatter) verbatim. Remove any content that duplicates what will be in the router (e.g., general `--repo` advice moves to router).
+**gh-cli.md**: Copy the body of `skills/tools/github/SKILL.md` (everything below the frontmatter) verbatim. Remove any content that duplicates what will be in the router (e.g., general `--repo` advice moves to router).
 
 **pr-review.md**: Restructure from `skills/pr-review/SKILL.md`:
 - Keep: Parse PR URL, fetch metadata, fetch diff, Claims vs Reality, Verdict
@@ -116,14 +116,14 @@ Migrate content from the three existing skills into reference files under `skill
 
 ### Milestone 2: Rewrite SKILL.md as router
 
-Replace the current `skills/github/SKILL.md` with a short router:
+Replace the current `skills/tools/github/SKILL.md` with a short router:
 - Updated frontmatter (broader description)
 - Decision tree: commit → commit.md, PR review → pr-review.md, gh CLI → gh-cli.md
 - Shared context (e.g., `--repo owner/repo` when not in a git directory)
 
 ### Milestone 3: README + cleanup
 
-- Create or update `skills/github/README.md`
+- Create or update `skills/tools/github/README.md`
 - Delete `skills/commit/` directory
 - Delete `skills/pr-review/` directory
 - Record the `AGENTS.md` discovery: no repo-local `<available_skills>` block exists to update
@@ -139,29 +139,29 @@ bun run check
 ### Step 1: Create references directory
 
 ```bash
-mkdir -p skills/github/references
+mkdir -p skills/tools/github/references
 ```
 
 ### Step 2: Create commit.md
 
-Extract body from `skills/commit/SKILL.md` → `skills/github/references/commit.md`
+Extract body from `skills/commit/SKILL.md` → `skills/tools/github/references/commit.md`
 
 ### Step 3: Create gh-cli.md
 
-Extract body from `skills/github/SKILL.md` → `skills/github/references/gh-cli.md`
+Extract body from `skills/tools/github/SKILL.md` → `skills/tools/github/references/gh-cli.md`
 
 ### Step 4: Create pr-review.md
 
-Restructure from `skills/pr-review/SKILL.md` → `skills/github/references/pr-review.md`
+Restructure from `skills/pr-review/SKILL.md` → `skills/tools/github/references/pr-review.md`
 Key change: replace the 14-row review checklist with delegation to `/skill:review`.
 
 ### Step 5: Rewrite SKILL.md
 
-Replace `skills/github/SKILL.md` with router + updated frontmatter.
+Replace `skills/tools/github/SKILL.md` with router + updated frontmatter.
 
 ### Step 6: Create README
 
-Write `skills/github/README.md`.
+Write `skills/tools/github/README.md`.
 
 ### Step 7: Delete old skills
 
@@ -178,9 +178,9 @@ Run `bun run check:docs` to validate the merged skill files. Run `bun run check`
 ## Validation and acceptance
 
 1. `bun run check:docs` passes with no new errors.
-2. `skills/github/SKILL.md` has valid frontmatter with updated description.
+2. `skills/tools/github/SKILL.md` has valid frontmatter with updated description.
 3. All relative paths in SKILL.md resolve to actual files.
-4. `skills/github/README.md` and the three reference files exist with the expected content split.
+4. `skills/tools/github/README.md` and the three reference files exist with the expected content split.
 5. Follow-up cleanup removes `skills/commit/` and `skills/pr-review/` once deletion is possible.
 6. Smoke test: `/skill:github` loads and agent follows router correctly for commit, review, and general gh tasks.
 
@@ -191,11 +191,11 @@ The deletion of `skills/commit/` and `skills/pr-review/` is destructive but reco
 ## Artifacts and notes
 
 Created during this pass:
-- `skills/github/references/commit.md`
-- `skills/github/references/gh-cli.md`
-- `skills/github/references/pr-review.md`
-- `skills/github/README.md`
-- rewritten `skills/github/SKILL.md`
+- `skills/tools/github/references/commit.md`
+- `skills/tools/github/references/gh-cli.md`
+- `skills/tools/github/references/pr-review.md`
+- `skills/tools/github/README.md`
+- rewritten `skills/tools/github/SKILL.md`
 
 Validation evidence:
 - `bun run check:docs` → `✅ Documentation validation passed.`
@@ -205,6 +205,6 @@ Blocked cleanup evidence:
 
 ## Interfaces and dependencies
 
-- **Depends on**: `skills/review/` (created by the review skill plan). The `pr-review.md` reference file delegates analysis to `/skill:review`.
+- **Depends on**: `skills/engineering/review/` (created by the review skill plan). The `pr-review.md` reference file delegates analysis to `/skill:review`.
 - **Consumed by**: agents using this package — the merged skill replaces three separate skills in the system prompt.
 - **Updates**: `AGENTS.md` available_skills block.

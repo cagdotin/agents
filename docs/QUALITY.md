@@ -1,7 +1,7 @@
 # QUALITY
 
 Status: active
-Last updated: 2026-04-14
+Last updated: 2026-04-30
 
 This scorecard tracks maintainability and readiness of this package for day-to-day agent use.
 
@@ -23,7 +23,7 @@ This scorecard tracks maintainability and readiness of this package for day-to-d
 | `extensions/cmux` | 3 | Good | Auto-detects cmux environment and injects skill for topology/browser/markdown control |
 | Repo-local search integration | 3 | Good | Conditional repo tooling with panel UX and onboarding flow |
 | `extensions/tracks` | 3 | Good | Repo-agnostic workstream contexts with deterministic sync, local AGENTS.md, and subcommand-aware slash-command UX |
-| Skills (`skills/*`) | 3 | Good | Consistent SKILL format and clear purpose |
+| Skills (`skills/**/SKILL.md`) | 3 | Good | Consistent SKILL format, clear purpose, a category-grouped package-skill catalog, and initial Context/ADR methodology foundation skills |
 | Mechanical validation | 4 | Excellent | `bun run check` gates Biome + docs + boundary invariants + Vitest; Lefthook pre-commit runs all four in parallel |
 | Automated testing | 3 | Good | Tier 1 and Tier 2 are in use with shared mocks; Tier 3 runtime-heavy testing is still deferred |
 

@@ -7,7 +7,7 @@ Spec: [[docs/specs/2026-03-12-tracks-extension-workstream-lifecycle-v2.md]]
 
 This ExecPlan is a living document. Keep `Progress`, `Surprises & Discoveries`, `Decision Log`, and `Outcomes & Retrospective` current as work proceeds.
 
-This plan conforms to `skills/plan/PLAN.md`.
+This plan conforms to `skills/engineering/plan/PLAN.md`.
 
 ## Purpose / Big picture
 
