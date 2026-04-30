@@ -27,7 +27,6 @@ beforeEach(async () => {
 
 async function write_valid_repo_fixture(repo_dir: string): Promise<void> {
 	await mkdir(path.join(repo_dir, "docs", "exec-plans", "active"), { recursive: true });
-	await mkdir(path.join(repo_dir, "docs", "exec-plans", "completed"), { recursive: true });
 	await mkdir(path.join(repo_dir, "docs", "references"), { recursive: true });
 	await mkdir(path.join(repo_dir, "docs", "specs"), { recursive: true });
 	await mkdir(path.join(repo_dir, "skills", "plan"), { recursive: true });
@@ -51,15 +50,11 @@ async function write_valid_repo_fixture(repo_dir: string): Promise<void> {
 	await writeFile(path.join(repo_dir, "docs", "specs", "README.md"), "# Specs\n");
 	await writeFile(
 		path.join(repo_dir, "docs", "exec-plans", "README.md"),
-		"# Execution Plans\n\n## Current active plans\n\n- [[docs/exec-plans/active/2026-04-30-sample-plan]]\n\n## Recently completed\n\n- [[docs/exec-plans/completed/2026-04-30-sample-done]]\n",
+		"# Execution Plans\n\n## Current active plans\n\n- [[docs/exec-plans/active/2026-04-30-sample-plan]]\n",
 	);
 	await writeFile(
 		path.join(repo_dir, "docs", "exec-plans", "active", "2026-04-30-sample-plan.md"),
 		"# Sample plan\n\nStatus: Active\n",
-	);
-	await writeFile(
-		path.join(repo_dir, "docs", "exec-plans", "completed", "2026-04-30-sample-done.md"),
-		"# Sample done\n\nStatus: Completed\n",
 	);
 
 	await writeFile(
@@ -115,13 +110,22 @@ describe("scripts/validate-docs.ts", () => {
 		expect(result.stderr).toContain("missing required documentation surface: docs/coding-conventions.md");
 	});
 
-	it("reports forbidden legacy surfaces", async () => {
+	it("reports forbidden documentation surfaces", async () => {
 		await write_valid_repo_fixture(test_dir);
 		await writeFile(path.join(test_dir, "docs", "QUALITY.md"), "# QUALITY\n");
 
 		const result = run_validator(test_dir);
 		expect(result.status).toBe(1);
-		expect(result.stderr).toContain("forbidden legacy documentation surface still exists: docs/QUALITY.md");
+		expect(result.stderr).toContain("forbidden documentation surface still exists: docs/QUALITY.md");
+	});
+
+	it("reports forbidden completed exec-plan directory", async () => {
+		await write_valid_repo_fixture(test_dir);
+		await mkdir(path.join(test_dir, "docs", "exec-plans", "completed"), { recursive: true });
+
+		const result = run_validator(test_dir);
+		expect(result.status).toBe(1);
+		expect(result.stderr).toContain("forbidden documentation surface still exists: docs/exec-plans/completed");
 	});
 
 	it("reports unexpected shared references", async () => {

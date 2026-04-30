@@ -33,6 +33,7 @@ const REQUIRED_SURFACES = [
 const FORBIDDEN_SURFACES = [
 	"docs/QUALITY.md",
 	"docs/CONTRIBUTING-DOCS.md",
+	"docs/exec-plans/completed",
 	"docs/exec-plans/tech-debt-tracker.md",
 	"docs/reports",
 	"docs/references/conditional-feature-registration.md",
@@ -123,8 +124,8 @@ async function validate_forbidden_surfaces(repo_root: string, errors: Validation
 				repo_root,
 				errors,
 				target_path,
-				`forbidden legacy documentation surface still exists: ${relative_path}`,
-				`Remove '${relative_path}' after routing and tooling dependencies have been updated. The active documentation model no longer allows this legacy surface.`,
+				`forbidden documentation surface still exists: ${relative_path}`,
+				`Remove '${relative_path}'. Active docs should describe only the current operating model; inactive history belongs in '.graveyard/' when it still needs to be kept.`,
 			);
 		} catch {
 			// Surface already absent.
@@ -162,8 +163,8 @@ async function validate_package_scripts(repo_root: string, errors: ValidationErr
 			repo_root,
 			errors,
 			package_json_path,
-			"forbidden legacy npm script still exists: audit",
-			"Remove the 'audit' script. Structural documentation checks belong in 'check:docs'; the separate audit surface has been retired.",
+			"forbidden npm script still exists: audit",
+			"Remove the 'audit' script. Structural documentation checks belong in 'check:docs'.",
 		);
 	}
 }
@@ -216,7 +217,7 @@ async function validate_exec_plan_status(repo_root: string, errors: ValidationEr
 				errors,
 				file_path,
 				"completed exec plan still lives in active/",
-				"Move this file to docs/exec-plans/completed/ once the work is finished and the status is marked complete.",
+				"Archive this file under '.graveyard/docs/exec-plans/' once the work is finished and the status is marked complete.",
 			);
 		}
 	}
@@ -229,14 +230,13 @@ async function validate_exec_plan_index(repo_root: string, errors: ValidationErr
 		return;
 	}
 
-	const wikilink_pattern = /\[\[docs\/exec-plans\/(active|completed)\/([^\]]+)\]\]/gu;
+	const wikilink_pattern = /\[\[docs\/exec-plans\/active\/([^\]]+)\]\]/gu;
 	const referenced_paths = new Set<string>();
 
 	for (const match of index_content.matchAll(wikilink_pattern)) {
-		const sub_dir = match[1];
-		const slug = match[2];
+		const slug = match[1];
 		const file_name = slug.endsWith(".md") ? slug : `${slug}.md`;
-		referenced_paths.add(`${sub_dir}/${file_name}`);
+		referenced_paths.add(`active/${file_name}`);
 	}
 
 	for (const ref_path of referenced_paths) {
@@ -254,9 +254,7 @@ async function validate_exec_plan_index(repo_root: string, errors: ValidationErr
 	}
 
 	const active_dir = path.join(repo_root, "docs", "exec-plans", "active");
-	const completed_dir = path.join(repo_root, "docs", "exec-plans", "completed");
 	const active_files = await list_plan_files(active_dir);
-	const completed_files = await list_plan_files(completed_dir);
 
 	for (const file_name of active_files) {
 		const ref_key = `active/${file_name}`;
@@ -267,19 +265,6 @@ async function validate_exec_plan_index(repo_root: string, errors: ValidationErr
 				path.join(active_dir, file_name),
 				"active exec plan missing from docs/exec-plans/README.md",
 				"Add this file to the active plans section so the category guide stays restartable.",
-			);
-		}
-	}
-
-	for (const file_name of completed_files) {
-		const ref_key = `completed/${file_name}`;
-		if (!referenced_paths.has(ref_key)) {
-			push_error(
-				repo_root,
-				errors,
-				path.join(completed_dir, file_name),
-				"completed exec plan missing from docs/exec-plans/README.md",
-				"Add this file to the completed plans section so historical execution context remains discoverable.",
 			);
 		}
 	}
