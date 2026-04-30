@@ -275,8 +275,8 @@ This ExecPlan is a living document and must be maintained in accordance with `PL
 When work is done:
 1. set `Status: Completed`
 2. add final outcome notes/links (PR/commit/spec/tests)
-3. move file from `active/` to `completed/`
-4. update `docs/exec-plans/README.md` active/completed indexes if needed
+3. move the plan to `.graveyard/docs/exec-plans/`
+4. archive any no-longer-active spec in `.graveyard/docs/specs/`
 
 ---
 

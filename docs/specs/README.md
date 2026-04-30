@@ -1,6 +1,6 @@
 # Specs
 
-Implementation specs live here only when work is genuinely complex, multi-session, or architecture-shaping.
+Keep specs here only while they are active working context for genuinely complex, multi-session, or architecture-shaping work.
 
 ## Use a spec when
 
@@ -20,3 +20,4 @@ Implementation specs live here only when work is genuinely complex, multi-sessio
 - Use `kebab-case` file names, with a date prefix when useful (for example `2026-03-07-feature-name.md`).
 - Prefer generating specs via the `plan` skill.
 - Cross-link specs from related execution plans when both artifacts exist.
+- When a spec stops being active working context, archive it under `.graveyard/docs/specs/`.
