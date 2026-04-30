@@ -99,6 +99,9 @@ Current examples:
 - `extensions/cmux/`
 - `extensions/frontend-dev/`
 
+Owner-adjacent helper reference:
+- `lib/extension-runtime/conditional-feature.md`
+
 ---
 
 ## 3) UI APIs (`ctx.ui`) Used in This Repo
@@ -187,5 +190,5 @@ For Pi core libs imported by extensions/skills, keep them in `peerDependencies` 
 
 1. Read upstream docs first (`extensions.md` + `tui.md`).
 2. Start from an existing local extension pattern.
-3. Keep AGENTS guidance short; document behavior in extension README + this docs area.
-4. Add/refresh quality notes in `docs/QUALITY.md` when introducing new capabilities.
+3. Keep AGENTS guidance short; document behavior in extension README plus shared or owner-adjacent references when needed.
+4. Update the relevant architecture, ADR, README, or owner-adjacent reference when introducing a capability that changes repo understanding.

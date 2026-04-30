@@ -1,24 +1,20 @@
-# Conditional feature registration
+# Conditional feature helper
 
-Project-local reference for `lib/extension-runtime/conditional-feature.ts`.
+Owner: `lib/extension-runtime/conditional-feature.ts`
 
 Use this helper when an extension wants to initialize a small local feature state once from `ExtensionContext`, then drive activation, conditional resource exposure, and optional instruction injection from that state.
 
 This helper is a good fit when:
 - a feature can decide enablement from one initialized state object
 - runtime setup should happen at most once per extension runtime
-- skills/prompts/instructions can be derived directly from that state
+- skills, prompts, or instructions can be derived directly from that state
 
 Use custom extension logic instead when a feature needs state refresh beyond extension-runtime replacement boundaries.
-
-Source implementation: `lib/extension-runtime/conditional-feature.ts`
-
----
 
 ## Helper API
 
 ```ts
-import { register_conditional_feature } from "../../lib/extension-runtime/conditional-feature.js";
+import { register_conditional_feature } from "./conditional-feature.js";
 
 register_conditional_feature(pi, {
   init: (ctx) => detect_dependencies(ctx.cwd),
@@ -59,8 +55,6 @@ The helper also tracks one-time activation on the state object during runtime. T
 - `get_prompts(state)` — return prompt-template paths for `resources_discover`
 - `get_instructions(state)` — return extra system-prompt text for `before_agent_start`; the helper trims whitespace and skips blank results
 
----
-
 ## Lifecycle model
 
 ### Within one extension runtime
@@ -80,8 +74,6 @@ That means one-time helper state is safe across those boundaries: a new extensio
 
 Events such as `session_tree` and `session_compact` do not replace the extension runtime. If a feature needs recomputation during those events, do not rely on this helper alone.
 
----
-
 ## Error behavior
 
 The helper is fail-loud.
@@ -91,8 +83,6 @@ The helper is fail-loud.
 - It does not provide retries, snapshots, or recovery.
 - `init()` may return a `Promise<TConfig>` or `TConfig` — both are supported. Async errors propagate as rejected promises.
 
----
-
 ## Current repo conventions
 
 - Put shared runtime helpers in `lib/`, not `extensions/`
@@ -100,8 +90,6 @@ The helper is fail-loud.
 - Use `resources_discover` for conditional skill exposure
 - Prefer this helper when one-time initialized state is enough
 - Use custom runtime logic for richer refresh behavior
-
----
 
 ## Related files
 
@@ -112,4 +100,3 @@ The helper is fail-loud.
 - `extensions/dayjob/index.ts`
 - `extensions/qmd/features/indexed.ts`
 - `docs/references/pi-api-reference.md`
-- `docs/ARCHITECTURE.md`

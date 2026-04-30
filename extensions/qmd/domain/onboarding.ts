@@ -87,10 +87,13 @@ export async function scan_repo(root: string): Promise<RepoScan> {
 	const key_file_candidates = new Set([
 		"README.md",
 		"AGENTS.md",
+		"CONTEXT.md",
 		"package.json",
+		"docs/README.md",
 		"docs/ARCHITECTURE.md",
-		"docs/QUALITY.md",
-		"docs/CONTRIBUTING-DOCS.md",
+		"docs/DESIGN-PRINCIPLES.md",
+		"docs/coding-conventions.md",
+		"docs/TESTING.md",
 	]);
 
 	async function walk(directory: string): Promise<void> {
