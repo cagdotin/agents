@@ -26,11 +26,41 @@ beforeEach(async () => {
 });
 
 async function write_valid_repo_fixture(repo_dir: string): Promise<void> {
-	await mkdir(path.join(repo_dir, "docs"), { recursive: true });
+	await mkdir(path.join(repo_dir, "docs", "exec-plans", "active"), { recursive: true });
+	await mkdir(path.join(repo_dir, "docs", "exec-plans", "completed"), { recursive: true });
+	await mkdir(path.join(repo_dir, "docs", "references"), { recursive: true });
+	await mkdir(path.join(repo_dir, "docs", "specs"), { recursive: true });
 	await mkdir(path.join(repo_dir, "skills", "plan"), { recursive: true });
 	await mkdir(path.join(repo_dir, "extensions", "demo"), { recursive: true });
 
+	await writeFile(path.join(repo_dir, "README.md"), "# Repo\n");
+	await writeFile(path.join(repo_dir, "AGENTS.md"), "# Agent Notes\n");
+	await writeFile(path.join(repo_dir, "CONTEXT.md"), "# Context\n");
+	await writeFile(
+		path.join(repo_dir, "package.json"),
+		JSON.stringify({ name: "fixture", scripts: { check: "bun run check:docs" } }),
+	);
+
+	await writeFile(path.join(repo_dir, "docs", "README.md"), "# Docs\n");
+	await writeFile(path.join(repo_dir, "docs", "ARCHITECTURE.md"), "# ARCHITECTURE\n");
 	await writeFile(path.join(repo_dir, "docs", "DESIGN-PRINCIPLES.md"), "# Design Principles\n");
+	await writeFile(path.join(repo_dir, "docs", "coding-conventions.md"), "# Coding conventions\n");
+	await writeFile(path.join(repo_dir, "docs", "TESTING.md"), "# TESTING\n");
+	await writeFile(path.join(repo_dir, "docs", "references", "README.md"), "# References\n");
+	await writeFile(path.join(repo_dir, "docs", "references", "pi-api-reference.md"), "# Pi API Reference\n");
+	await writeFile(path.join(repo_dir, "docs", "specs", "README.md"), "# Specs\n");
+	await writeFile(
+		path.join(repo_dir, "docs", "exec-plans", "README.md"),
+		"# Execution Plans\n\n## Current active plans\n\n- [[docs/exec-plans/active/2026-04-30-sample-plan]]\n\n## Recently completed\n\n- [[docs/exec-plans/completed/2026-04-30-sample-done]]\n",
+	);
+	await writeFile(
+		path.join(repo_dir, "docs", "exec-plans", "active", "2026-04-30-sample-plan.md"),
+		"# Sample plan\n\nStatus: Active\n",
+	);
+	await writeFile(
+		path.join(repo_dir, "docs", "exec-plans", "completed", "2026-04-30-sample-done.md"),
+		"# Sample done\n\nStatus: Completed\n",
+	);
 
 	await writeFile(
 		path.join(repo_dir, "skills", "plan", "SKILL.md"),
@@ -76,13 +106,55 @@ describe("scripts/validate-docs.ts", () => {
 		expect(result.stdout).toContain("Documentation validation passed");
 	});
 
-	it("reports missing DESIGN-PRINCIPLES.md", async () => {
+	it("reports missing required documentation surfaces", async () => {
 		await write_valid_repo_fixture(test_dir);
-		await rm(path.join(test_dir, "docs", "DESIGN-PRINCIPLES.md"));
+		await rm(path.join(test_dir, "docs", "coding-conventions.md"));
 
 		const result = run_validator(test_dir);
 		expect(result.status).toBe(1);
-		expect(result.stderr).toContain("missing docs/DESIGN-PRINCIPLES.md");
+		expect(result.stderr).toContain("missing required documentation surface: docs/coding-conventions.md");
+	});
+
+	it("reports forbidden legacy surfaces", async () => {
+		await write_valid_repo_fixture(test_dir);
+		await writeFile(path.join(test_dir, "docs", "QUALITY.md"), "# QUALITY\n");
+
+		const result = run_validator(test_dir);
+		expect(result.status).toBe(1);
+		expect(result.stderr).toContain("forbidden legacy documentation surface still exists: docs/QUALITY.md");
+	});
+
+	it("reports unexpected shared references", async () => {
+		await write_valid_repo_fixture(test_dir);
+		await writeFile(path.join(test_dir, "docs", "references", "conditional-feature-registration.md"), "# Legacy\n");
+
+		const result = run_validator(test_dir);
+		expect(result.status).toBe(1);
+		expect(result.stderr).toContain("unexpected shared reference file: conditional-feature-registration.md");
+	});
+
+	it("reports active plans missing from the index", async () => {
+		await write_valid_repo_fixture(test_dir);
+		await writeFile(
+			path.join(test_dir, "docs", "exec-plans", "active", "2026-04-30-extra-plan.md"),
+			"# Extra plan\n\nStatus: Active\n",
+		);
+
+		const result = run_validator(test_dir);
+		expect(result.status).toBe(1);
+		expect(result.stderr).toContain("active exec plan missing from docs/exec-plans/README.md");
+	});
+
+	it("reports completed status files left in active/", async () => {
+		await write_valid_repo_fixture(test_dir);
+		await writeFile(
+			path.join(test_dir, "docs", "exec-plans", "active", "2026-04-30-sample-plan.md"),
+			"# Sample plan\n\nStatus: Completed\n",
+		);
+
+		const result = run_validator(test_dir);
+		expect(result.status).toBe(1);
+		expect(result.stderr).toContain("completed exec plan still lives in active/");
 	});
 
 	it("reports missing skill required fields", async () => {

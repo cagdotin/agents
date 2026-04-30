@@ -16,8 +16,33 @@ const SKILL_REQUIRED_SUPPORT_FILES: Record<string, string[]> = {
 	plan: ["PLAN.md"],
 };
 
+const REQUIRED_SURFACES = [
+	"README.md",
+	"AGENTS.md",
+	"CONTEXT.md",
+	"docs/README.md",
+	"docs/ARCHITECTURE.md",
+	"docs/DESIGN-PRINCIPLES.md",
+	"docs/coding-conventions.md",
+	"docs/TESTING.md",
+	"docs/specs/README.md",
+	"docs/exec-plans/README.md",
+	"docs/references/README.md",
+] as const;
+
+const FORBIDDEN_SURFACES = [
+	"docs/QUALITY.md",
+	"docs/CONTRIBUTING-DOCS.md",
+	"docs/exec-plans/tech-debt-tracker.md",
+	"docs/reports",
+	"docs/references/conditional-feature-registration.md",
+	"scripts/audit-docs.ts",
+] as const;
+
+const ALLOWED_SHARED_REFERENCE_FILES = new Set(["README.md", "pi-api-reference.md"]);
 const MIN_EXTENSION_README_WORDS = 80;
 const MIN_EXTENSION_README_HEADINGS = 3;
+const SKIP_PLAN_FILES = new Set(["README.md", "TEMPLATE.md"]);
 
 const trimmed_string_schema = z.string().transform((value) => value.trim());
 const non_empty_scalar_schema = trimmed_string_schema.refine(
@@ -29,8 +54,6 @@ const non_empty_string_list_schema = z
 	.refine((values) => values.length > 0);
 const required_frontmatter_value_schema = z.union([non_empty_scalar_schema, non_empty_string_list_schema]);
 const frontmatter_fields_schema = z.record(z.string(), z.unknown());
-
-// Boundary contract for skills/**/SKILL.md frontmatter.
 const skill_frontmatter_schema = z
 	.object({
 		name: z.string().trim().min(1),
@@ -48,7 +71,12 @@ async function main() {
 	const repo_root = process.cwd();
 	const errors: ValidationError[] = [];
 
-	await validate_design_principles_exist(repo_root, errors);
+	await validate_required_surfaces(repo_root, errors);
+	await validate_forbidden_surfaces(repo_root, errors);
+	await validate_package_scripts(repo_root, errors);
+	await validate_shared_references(repo_root, errors);
+	await validate_exec_plan_status(repo_root, errors);
+	await validate_exec_plan_index(repo_root, errors);
 	await validate_skill_frontmatter(repo_root, errors);
 	await validate_extension_readmes(repo_root, errors);
 
@@ -66,27 +94,205 @@ async function main() {
 	process.exitCode = 1;
 }
 
-async function validate_design_principles_exist(repo_root: string, errors: ValidationError[]) {
-	const file_path = path.join(repo_root, "docs", "DESIGN-PRINCIPLES.md");
-	try {
-		const info = await stat(file_path);
-		if (!info.isFile()) {
-			throw new Error("not a file");
+async function validate_required_surfaces(repo_root: string, errors: ValidationError[]) {
+	for (const relative_path of REQUIRED_SURFACES) {
+		const file_path = path.join(repo_root, relative_path);
+		try {
+			const info = await stat(file_path);
+			if (!info.isFile()) {
+				throw new Error("not a file");
+			}
+		} catch {
+			push_error(
+				repo_root,
+				errors,
+				file_path,
+				`missing required documentation surface: ${relative_path}`,
+				`Create '${relative_path}'. The documentation model depends on this entry surface or category guide existing in every clone of the repo.`,
+			);
 		}
+	}
+}
+
+async function validate_forbidden_surfaces(repo_root: string, errors: ValidationError[]) {
+	for (const relative_path of FORBIDDEN_SURFACES) {
+		const target_path = path.join(repo_root, relative_path);
+		try {
+			await stat(target_path);
+			push_error(
+				repo_root,
+				errors,
+				target_path,
+				`forbidden legacy documentation surface still exists: ${relative_path}`,
+				`Remove '${relative_path}' after routing and tooling dependencies have been updated. The active documentation model no longer allows this legacy surface.`,
+			);
+		} catch {
+			// Surface already absent.
+		}
+	}
+}
+
+async function validate_package_scripts(repo_root: string, errors: ValidationError[]) {
+	const package_json_path = path.join(repo_root, "package.json");
+	let content: string;
+	try {
+		content = await readFile(package_json_path, "utf8");
 	} catch {
+		return;
+	}
+
+	let json: unknown;
+	try {
+		json = JSON.parse(content);
+	} catch {
+		return;
+	}
+
+	const parsed = z
+		.object({
+			scripts: z.record(z.string(), z.string()).optional(),
+		})
+		.safeParse(json);
+	if (!parsed.success) {
+		return;
+	}
+
+	if (parsed.data.scripts?.audit) {
 		push_error(
 			repo_root,
 			errors,
-			file_path,
-			"missing docs/DESIGN-PRINCIPLES.md",
-			"This file captures the design principles that guide extension and skill development. Create it in docs/DESIGN-PRINCIPLES.md.",
+			package_json_path,
+			"forbidden legacy npm script still exists: audit",
+			"Remove the 'audit' script. Structural documentation checks belong in 'check:docs'; the separate audit surface has been retired.",
 		);
+	}
+}
+
+async function validate_shared_references(repo_root: string, errors: ValidationError[]) {
+	const references_dir = path.join(repo_root, "docs", "references");
+	const entries = await readdir(references_dir, { withFileTypes: true }).catch(() => null);
+	if (entries === null) {
+		return;
+	}
+
+	for (const entry of entries) {
+		if (!entry.isFile()) {
+			push_error(
+				repo_root,
+				errors,
+				path.join(references_dir, entry.name),
+				"unexpected non-file entry in docs/references/",
+				"Keep top-level docs/references/ limited to shared reference markdown files. Move owned references next to their owner.",
+			);
+			continue;
+		}
+
+		if (!ALLOWED_SHARED_REFERENCE_FILES.has(entry.name)) {
+			push_error(
+				repo_root,
+				errors,
+				path.join(references_dir, entry.name),
+				`unexpected shared reference file: ${entry.name}`,
+				`Only approved shared references may live in docs/references/. Move '${entry.name}' next to its owner or update the allowlist intentionally.`,
+			);
+		}
+	}
+}
+
+async function validate_exec_plan_status(repo_root: string, errors: ValidationError[]) {
+	const active_dir = path.join(repo_root, "docs", "exec-plans", "active");
+	const plan_files = await list_plan_files(active_dir);
+
+	for (const file_name of plan_files) {
+		const file_path = path.join(active_dir, file_name);
+		const content = await safe_read_file(file_path);
+		if (content === null) {
+			continue;
+		}
+
+		if (/^Status:\s*Completed?\s*$/imu.test(content)) {
+			push_error(
+				repo_root,
+				errors,
+				file_path,
+				"completed exec plan still lives in active/",
+				"Move this file to docs/exec-plans/completed/ once the work is finished and the status is marked complete.",
+			);
+		}
+	}
+}
+
+async function validate_exec_plan_index(repo_root: string, errors: ValidationError[]) {
+	const index_path = path.join(repo_root, "docs", "exec-plans", "README.md");
+	const index_content = await safe_read_file(index_path);
+	if (index_content === null) {
+		return;
+	}
+
+	const wikilink_pattern = /\[\[docs\/exec-plans\/(active|completed)\/([^\]]+)\]\]/gu;
+	const referenced_paths = new Set<string>();
+
+	for (const match of index_content.matchAll(wikilink_pattern)) {
+		const sub_dir = match[1];
+		const slug = match[2];
+		const file_name = slug.endsWith(".md") ? slug : `${slug}.md`;
+		referenced_paths.add(`${sub_dir}/${file_name}`);
+	}
+
+	for (const ref_path of referenced_paths) {
+		const full_path = path.join(repo_root, "docs", "exec-plans", ref_path);
+		const content = await safe_read_file(full_path);
+		if (content === null) {
+			push_error(
+				repo_root,
+				errors,
+				index_path,
+				`phantom exec-plan index entry: ${ref_path}`,
+				"Remove or update the stale reference in docs/exec-plans/README.md.",
+			);
+		}
+	}
+
+	const active_dir = path.join(repo_root, "docs", "exec-plans", "active");
+	const completed_dir = path.join(repo_root, "docs", "exec-plans", "completed");
+	const active_files = await list_plan_files(active_dir);
+	const completed_files = await list_plan_files(completed_dir);
+
+	for (const file_name of active_files) {
+		const ref_key = `active/${file_name}`;
+		if (!referenced_paths.has(ref_key)) {
+			push_error(
+				repo_root,
+				errors,
+				path.join(active_dir, file_name),
+				"active exec plan missing from docs/exec-plans/README.md",
+				"Add this file to the active plans section so the category guide stays restartable.",
+			);
+		}
+	}
+
+	for (const file_name of completed_files) {
+		const ref_key = `completed/${file_name}`;
+		if (!referenced_paths.has(ref_key)) {
+			push_error(
+				repo_root,
+				errors,
+				path.join(completed_dir, file_name),
+				"completed exec plan missing from docs/exec-plans/README.md",
+				"Add this file to the completed plans section so historical execution context remains discoverable.",
+			);
+		}
 	}
 }
 
 async function validate_skill_frontmatter(repo_root: string, errors: ValidationError[]) {
 	const skills_dir = path.join(repo_root, "skills");
-	const skill_dirs = await collect_skill_dirs(skills_dir);
+	let skill_dirs: string[] = [];
+	try {
+		skill_dirs = await collect_skill_dirs(skills_dir);
+	} catch {
+		return;
+	}
 
 	for (const skill_dir of skill_dirs) {
 		const expected_name = path.basename(skill_dir);
@@ -166,32 +372,12 @@ async function validate_skill_frontmatter(repo_root: string, errors: ValidationE
 	}
 }
 
-async function collect_skill_dirs(dir: string): Promise<string[]> {
-	const entries = await readdir(dir, { withFileTypes: true });
-	const has_skill_file = entries.some((entry) => entry.isFile() && entry.name === "SKILL.md");
-	if (has_skill_file) {
-		return [dir];
-	}
-
-	const results: string[] = [];
-	for (const entry of entries) {
-		if (!entry.isDirectory()) {
-			continue;
-		}
-		if (entry.name === "node_modules" || entry.name.startsWith(".")) {
-			continue;
-		}
-
-		const nested = await collect_skill_dirs(path.join(dir, entry.name));
-		results.push(...nested);
-	}
-
-	return results;
-}
-
 async function validate_extension_readmes(repo_root: string, errors: ValidationError[]) {
 	const extensions_dir = path.join(repo_root, "extensions");
-	const entries = await readdir(extensions_dir, { withFileTypes: true });
+	const entries = await readdir(extensions_dir, { withFileTypes: true }).catch(() => null);
+	if (entries === null) {
+		return;
+	}
 
 	for (const entry of entries) {
 		if (!entry.isDirectory()) {
@@ -233,9 +419,51 @@ async function validate_extension_readmes(repo_root: string, errors: ValidationE
 				errors,
 				readme_path,
 				`README has insufficient structure (${headings.length} headings; minimum ${MIN_EXTENSION_README_HEADINGS})`,
-				"Use markdown headings to make the README scannable (e.g. ## Behavior, ## Usage, ## Requirements). Flat prose is harder for agents to navigate.",
+				"Use markdown headings to make the README scannable (for example ## Behavior, ## Usage, ## Requirements). Flat prose is harder for agents to navigate.",
 			);
 		}
+	}
+}
+
+async function collect_skill_dirs(dir: string): Promise<string[]> {
+	const entries = await readdir(dir, { withFileTypes: true });
+	const has_skill_file = entries.some((entry) => entry.isFile() && entry.name === "SKILL.md");
+	if (has_skill_file) {
+		return [dir];
+	}
+
+	const results: string[] = [];
+	for (const entry of entries) {
+		if (!entry.isDirectory()) {
+			continue;
+		}
+		if (entry.name === "node_modules" || entry.name.startsWith(".")) {
+			continue;
+		}
+
+		const nested = await collect_skill_dirs(path.join(dir, entry.name));
+		results.push(...nested);
+	}
+
+	return results;
+}
+
+async function list_plan_files(dir_path: string): Promise<string[]> {
+	try {
+		const entries = await readdir(dir_path, { withFileTypes: true });
+		return entries
+			.filter((entry) => entry.isFile() && entry.name.endsWith(".md") && !SKIP_PLAN_FILES.has(entry.name))
+			.map((entry) => entry.name);
+	} catch {
+		return [];
+	}
+}
+
+async function safe_read_file(file_path: string): Promise<string | null> {
+	try {
+		return await readFile(file_path, "utf8");
+	} catch {
+		return null;
 	}
 }
 
@@ -268,7 +496,6 @@ function has_required_frontmatter_value(value: unknown): boolean {
 	return required_frontmatter_value_schema.safeParse(value).success;
 }
 
-// Map Zod issues to stable, agent-legible error messages for skill frontmatter.
 function push_skill_frontmatter_errors(
 	repo_root: string,
 	errors: ValidationError[],
