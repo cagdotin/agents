@@ -90,7 +90,7 @@ guidelines are suggestions; structural constraints are guarantees.
 
 **In practice:**
 - `bun run check:biome` — formatting and lint
-- `bun run check:docs` — documentation structure and forbidden legacy surfaces
+- `bun run check:docs` — documentation structure and allowed surfaces
 - `bun run check:boundaries` — cross-extension import rules
 - Agent-legible error messages: say what's wrong, why, and how to fix
 - Prefer structural enforcement over narrative scorecards or freshness theater
