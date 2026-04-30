@@ -15,7 +15,7 @@ function detect_work_context(cwd: string, config: WorkspaceConfig): Config {
 	const resolved = path.resolve(cwd);
 
 	return {
-		enabled: resolved === config.work_root || resolved.startsWith(`${config.work_root}/`),
+		enabled: config.work_roots.some((root) => resolved === root || resolved.startsWith(`${root}/`)),
 		skills: [],
 	};
 }

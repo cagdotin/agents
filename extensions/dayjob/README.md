@@ -4,7 +4,7 @@ Path-gated work context extension. Activates when the session starts under a con
 
 ## What it does
 
-- Detects whether the current working directory is inside the configured work root
+- Detects whether the current working directory is inside any of the configured work roots
 - Renders skill templates with config values (e.g. `{{team}}` → your actual team key)
 - Exposes rendered skills only in work sessions
 - Shows a `meister` footer status when active
@@ -20,7 +20,7 @@ Copy `config.example.json` to `config.json` and fill in your values:
 
 ```json
 {
-  "work_root": "~/git/dev/your-company",
+  "work_roots": ["~/git/dev/your-company"],
   "linear": {
     "team": "ACME"
   }
@@ -62,7 +62,7 @@ extensions/dayjob/
 
 ## Detection
 
-Reads `work_root` from `config.json` at load time, resolves `~` to `$HOME`, then checks if `ctx.cwd` starts with that path. Uses the `register_conditional_feature` pattern — one-time detection, no re-evaluation.
+Reads `work_roots` from `config.json` at load time, resolves `~` to `$HOME` for each entry, then checks if `ctx.cwd` starts with any of those paths. Uses the `register_conditional_feature` pattern — one-time detection, no re-evaluation.
 
 ## Skills
 

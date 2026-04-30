@@ -9,7 +9,7 @@ const linear_config_schema = z.object({
 });
 
 export const workspace_config_schema = z.object({
-	work_root: z.string().regex(/^~\//, "work_root must start with ~/"),
+	work_roots: z.array(z.string().regex(/^~\//, "each work_root must start with ~/")).min(1),
 	linear: linear_config_schema,
 });
 

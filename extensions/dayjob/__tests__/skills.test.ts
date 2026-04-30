@@ -6,7 +6,7 @@ import { build_template_vars, generate_skills } from "../skills.js";
 describe("build_template_vars", () => {
 	test("derives team and team_lower from config", () => {
 		const config: WorkspaceConfig = {
-			work_root: "/resolved/path",
+			work_roots: ["/resolved/path"],
 			linear: { team: "MIND" },
 		};
 		const vars = build_template_vars(config);
@@ -15,7 +15,7 @@ describe("build_template_vars", () => {
 
 	test("lowercases mixed-case team names", () => {
 		const config: WorkspaceConfig = {
-			work_root: "/resolved/path",
+			work_roots: ["/resolved/path"],
 			linear: { team: "MyTeam" },
 		};
 		const vars = build_template_vars(config);
@@ -25,7 +25,7 @@ describe("build_template_vars", () => {
 
 	test("throws on empty team string", () => {
 		const config: WorkspaceConfig = {
-			work_root: "/resolved/path",
+			work_roots: ["/resolved/path"],
 			linear: { team: "" },
 		};
 		expect(() => build_template_vars(config)).toThrow();

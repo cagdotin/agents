@@ -1,5 +1,5 @@
 {
-	"work_root": "~/git/dev/your-company",
+	"work_roots": ["~/git/dev/your-company"],
 	"linear": {
 		"team": "TEAM"
 	}

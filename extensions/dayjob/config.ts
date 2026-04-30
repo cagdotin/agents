@@ -6,11 +6,11 @@ export function load_workspace_config(): WorkspaceConfig | null {
 	try {
 		const file = readFileSync(path.resolve(base_path, "config.json"), "utf8");
 		const config = workspace_config_schema.parse(JSON.parse(file));
-		const work_root = config.work_root.replace(/^~/, process.env.HOME ?? "");
+		const home = process.env.HOME ?? "";
 
 		return {
 			...config,
-			work_root: path.resolve(work_root),
+			work_roots: config.work_roots.map((r) => path.resolve(r.replace(/^~/, home))),
 		};
 	} catch {
 		return null;
