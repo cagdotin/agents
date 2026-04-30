@@ -1,0 +1,54 @@
+# GitHub CLI Workflows
+
+Use the `gh` CLI to interact with GitHub.
+
+## Pull Requests
+
+Check CI status on a PR:
+```bash
+gh pr checks 55 --repo owner/repo
+```
+
+List recent workflow runs:
+```bash
+gh run list --repo owner/repo --limit 10
+```
+
+View a run and see which steps failed:
+```bash
+gh run view <run-id> --repo owner/repo
+```
+
+View logs for failed steps only:
+```bash
+gh run view <run-id> --repo owner/repo --log-failed
+```
+
+## Creating Pull Requests
+
+Always create PRs as **draft**. Before creating, scan the repo for a PR template (e.g. `.github/pull_request_template.md` or `.github/PULL_REQUEST_TEMPLATE/`) and use it to structure the PR description.
+
+```bash
+# Check for a PR template
+find .github -iname '*pull_request_template*' 2>/dev/null
+
+# Create a draft PR using the template
+gh pr create --draft --title "..." --body "..."
+```
+
+## API for Advanced Queries
+
+The `gh api` command is useful for accessing data not available through other subcommands.
+
+Get PR with specific fields:
+```bash
+gh api repos/owner/repo/pulls/55 --jq '.title, .state, .user.login'
+```
+
+## JSON Output
+
+Most commands support `--json` for structured output. You can use `--jq` to filter:
+
+```bash
+gh issue list --repo owner/repo --json number,title --jq '.[] | "\(.number): \(.title)"'
+```
