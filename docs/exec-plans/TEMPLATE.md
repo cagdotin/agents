@@ -4,6 +4,7 @@ Status: Active
 Owner: <team/person/agent>
 Created: <YYYY-MM-DD>
 Spec: <optional [[docs/specs/...]]>
+Issue: <optional issue reference>
 
 This ExecPlan is a living document. Maintain it according to `skills/engineering/plan/PLAN.md`.
 
@@ -37,9 +38,9 @@ Summarize outcomes, remaining gaps, and lessons learned at milestone boundaries 
 Why this plan exists and what it coordinates. Name key files/modules explicitly.
 
 References:
-- [[docs/QUALITY]]
 - [[docs/ARCHITECTURE]]
 - [[docs/specs/<related-spec>]]
+- relevant ADRs, testing docs, or owner-adjacent references as needed
 
 ## Plan of work
 

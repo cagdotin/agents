@@ -11,7 +11,7 @@ This skill supports **two outputs**:
 1. **Implementation spec** (`docs/specs/`) — decisions, constraints, and intent (WHAT/WHY)
 2. **Execution plan** (`docs/exec-plans/active/`) — implementation sequence, concrete steps, verification (HOW/WHEN)
 
-For medium/large work, create **both** and cross-link them unless the user explicitly waives one artifact.
+For genuinely complex, multi-session, or architecture-shaping work, create **both** and cross-link them unless the user explicitly waives one artifact.
 
 ## Philosophy
 
@@ -67,14 +67,15 @@ Choose output type from task intent:
 |---|---|
 | "Design this feature", "define behavior/contracts" | Spec |
 | "Track implementation", "sequence work", "log progress" | Execution plan |
-| Non-trivial feature/initiative with both design and rollout risk | Spec + execution plan |
+| Genuinely complex or architecture-shaping initiative with both design and rollout risk | Spec + execution plan |
 
 ### Default rule
 
-For medium/large tasks, produce **both** by default:
+For genuinely complex, multi-session, or architecture-shaping tasks, produce **both** by default:
 1. spec first
 2. execution plan linked to spec
 
+For routine work, prefer GitHub issues and direct implementation over planning artifacts.
 Only skip one artifact if the user explicitly waives it.
 
 ### Execution-plan standard
@@ -105,9 +106,11 @@ find docs -maxdepth 3 -type f | sort
 
 # Read project guidance
 read AGENTS.md
+read CONTEXT.md          # if it exists
 read docs/ARCHITECTURE.md
-read docs/QUALITY.md
-read docs/CONTRIBUTING-DOCS.md
+read docs/DESIGN-PRINCIPLES.md
+read docs/coding-conventions.md
+read docs/TESTING.md
 read ./PLAN.md
 
 # Read existing artifacts for style/precedent
@@ -122,7 +125,7 @@ Build a working model of:
 - architecture boundaries in affected area
 - existing implementation/test conventions
 - integration points and constraints
-- known quality gaps or prior decisions
+- prior decisions and the minimum planning artifact needed for this work
 
 ### Phase 3: Gap analysis and collaborative exploration
 
@@ -303,7 +306,7 @@ Watch for these signs that a spec has overreached into code territory:
 
 ## Output rules
 
-- **Medium/large tasks**: create **both** spec + plan unless user explicitly waives one artifact
+- **Genuinely complex, multi-session, or architecture-shaping tasks**: create **both** spec + plan unless user explicitly waives one artifact
 - **Spec only**: write `docs/specs/<date>-<slug>.md`
 - **Plan only**: write `docs/exec-plans/active/<date>-<slug>.md` and align structure with `PLAN.md`
 - **Both**: create both and cross-link each other
