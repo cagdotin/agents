@@ -98,5 +98,4 @@ The helper is fail-loud.
 - `extensions/cmux/index.ts`
 - `extensions/frontend-dev/index.ts`
 - `extensions/dayjob/index.ts`
-- `extensions/qmd/features/indexed.ts`
 - `docs/references/pi-api-reference.md`

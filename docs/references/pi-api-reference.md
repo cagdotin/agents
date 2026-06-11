@@ -5,11 +5,11 @@
 
 ## Canonical Upstream Docs
 
-- Extensions API: `@mariozechner/pi-coding-agent/docs/extensions.md`
-- TUI components: `@mariozechner/pi-coding-agent/docs/tui.md`
-- Skills standard in Pi: `@mariozechner/pi-coding-agent/docs/skills.md`
-- Pi packages manifest/distribution: `@mariozechner/pi-coding-agent/docs/packages.md`
-- Example extensions: `@mariozechner/pi-coding-agent/examples/extensions/`
+- Extensions API: `@earendil-works/pi-coding-agent/docs/extensions.md`
+- TUI components: `@earendil-works/pi-coding-agent/docs/tui.md`
+- Skills standard in Pi: `@earendil-works/pi-coding-agent/docs/skills.md`
+- Pi packages manifest/distribution: `@earendil-works/pi-coding-agent/docs/packages.md`
+- Example extensions: `@earendil-works/pi-coding-agent/examples/extensions/`
 
 ---
 
@@ -18,7 +18,7 @@
 In this repo, extensions should export a default function:
 
 ```ts
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 export default function my_extension(pi: ExtensionAPI) {
   // register tools/commands/hooks/shortcuts here
@@ -56,7 +56,7 @@ pi.registerTool({
 **Important signature order** in `execute`:  
 `(toolCallId, params, signal, onUpdate, ctx)` — `ctx` is last.
 
-**Enum parameters:** use `StringEnum` from `@mariozechner/pi-ai` for compatibility (especially Google APIs).
+**Enum parameters:** use `StringEnum` from `@earendil-works/pi-ai` for compatibility (especially Google APIs).
 
 ## 2.2 Registering commands and shortcuts
 
@@ -144,7 +144,7 @@ For extension state that should survive reload/session traversal:
 - rebuild state on `session_start` from session entries
 
 Examples in this repo:
-- `extensions/tracks` reconstructs active track state from track files and session context
+- stateful extensions can reconstruct runtime state from persisted files plus session context when needed
 
 ---
 
@@ -180,7 +180,6 @@ For Pi core libs imported by extensions/skills, keep them in `peerDependencies` 
 
 ## 8) Quick “Where do I copy from?”
 
-- Tool + command + TUI flow: `extensions/tracks/`
 - Environment detection + conditional feature activation: `extensions/cmux/`
 - Shared conditional activation helper: `lib/extension-runtime/conditional-feature.ts`
 

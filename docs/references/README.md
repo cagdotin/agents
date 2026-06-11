@@ -25,8 +25,8 @@ If a reference has a natural owner, move it next to that owner.
 
 These docs are summaries. For canonical behavior, use official Pi docs and examples:
 
-- `@mariozechner/pi-coding-agent/docs/extensions.md`
-- `@mariozechner/pi-coding-agent/docs/tui.md`
-- `@mariozechner/pi-coding-agent/docs/skills.md`
-- `@mariozechner/pi-coding-agent/docs/packages.md`
-- `@mariozechner/pi-coding-agent/examples/extensions/`
+- `@earendil-works/pi-coding-agent/docs/extensions.md`
+- `@earendil-works/pi-coding-agent/docs/tui.md`
+- `@earendil-works/pi-coding-agent/docs/skills.md`
+- `@earendil-works/pi-coding-agent/docs/packages.md`
+- `@earendil-works/pi-coding-agent/examples/extensions/`
