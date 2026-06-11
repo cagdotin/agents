@@ -27,21 +27,43 @@ pi install git:github.com/cagdotin/agents
 
 Then run `/reload` in Pi.
 
-## Development
+## Install in Claude Code
 
-This repository standardizes on **Bun**.
+Claude Code docs expect personal skills at `~/.claude/skills/<skill-name>/SKILL.md`.
+Because this repo groups skills under category directories, use the linker script to expose only the leaf skills under `skills/`:
 
 ```bash
-bun install
-bun run hooks:install
-bun run check
-bun run fix
-bun run format
+pnpm run sync:claude-skills
 ```
 
-- `bun install` also runs the `prepare` script to install Lefthook automatically.
-- Run `bun run hooks:install` manually if hooks were not installed, or after cloning with scripts disabled.
-- `pre-commit` runs `bun run check` via Lefthook.
+What it does:
+- links each repo skill directory to your Claude Code personal skills directory
+- excludes extension-injected skills because it only scans top-level repo `skills/`
+- links shared support directories needed by some engineering skills
+- respects `CLAUDE_CONFIG_DIR` when set; otherwise uses `~/.claude`
+
+If `~/.claude/skills/` did not exist when Claude Code started, restart Claude Code once so it begins watching that directory. After that, edits inside linked skills are picked up live.
+
+## Development
+
+This repository standardizes on **pnpm + Vite+**.
+
+```bash
+pnpm install
+pnpm run hooks:install
+pnpm run check
+vp run check
+vp test
+pnpm run fix
+pnpm run format
+```
+
+- Run `pnpm run hooks:install` after cloning to install Lefthook hooks for this repo.
+- `pnpm run check` is the canonical full repo gate: Biome, docs validation, boundary validation, and tests.
+- `vp run check` runs that same repo-defined gate through the Vite+ task runner.
+- `vp test` is the built-in Vite+ Vitest loop for the test configuration in `vite.config.ts`.
+- `vp run build` and `vp run pack` are intentional no-ops because Pi loads this package's TypeScript and markdown resources directly.
+- `pre-commit` runs the configured Lefthook checks.
 
 ## Where to look next
 
