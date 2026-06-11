@@ -11,13 +11,13 @@ Fetch transcripts from YouTube videos.
 
 ```bash
 cd {baseDir}
-bun install
+pnpm install
 ```
 
 ## Usage
 
 ```bash
-bunx tsx {baseDir}/transcript.ts <video-id-or-url>
+pnpm exec tsx {baseDir}/transcript.ts <video-id-or-url>
 ```
 
 Accepts video ID or full URL:

@@ -2,7 +2,7 @@
 
 This directory holds the repository's durable support docs. The docs are organized by memory type so readers can route quickly instead of treating everything as one bucket.
 
-Tooling policy: examples and commands in docs should use **Bun** (`bun`, `bun run`, `bunx`).
+Tooling policy: examples and commands in docs should use **pnpm** for package-manager actions and **Vite+** (`vp`) for the standard toolchain flow.
 
 ## Categories
 

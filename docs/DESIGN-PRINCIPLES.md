@@ -84,14 +84,16 @@ things don't link them, call out invariants and boundaries. OpenAI,
 
 ## 4. Mechanical enforcement over convention memory
 
-If a rule matters, encode it in `bun run check`. Agents replicate existing
+If a rule matters, encode it in `pnpm run check` and make it reachable through the Vite+ workflow. Agents replicate existing
 patterns including bad ones — the codebase is the real prompt. Behavioral
 guidelines are suggestions; structural constraints are guarantees.
 
 **In practice:**
-- `bun run check:biome` — formatting and lint
-- `bun run check:docs` — documentation structure and allowed surfaces
-- `bun run check:boundaries` — cross-extension import rules
+- `pnpm run check` — canonical full repo gate
+- `vp run check` — same gate through the Vite+ command surface
+- `pnpm run check:biome` — repo-specific Biome enforcement
+- `pnpm run check:docs` — documentation structure and allowed surfaces
+- `pnpm run check:boundaries` — cross-extension import rules
 - Agent-legible error messages: say what's wrong, why, and how to fix
 - Prefer structural enforcement over narrative scorecards or freshness theater
 - Prefer Zod at runtime boundaries, TypeBox at Pi tool boundaries
@@ -200,7 +202,7 @@ actual code has the fewest.
 | Fewer tools | Bash + skills > dedicated tools | Skill design review |
 | Deep modules | Simple interfaces, graybox internals, taste at the seams | `check:boundaries` |
 | Structure enables discovery | Progressive disclosure through file tree | `check:docs` |
-| Mechanical enforcement | Encode rules in tooling | `bun run check` |
+| Mechanical enforcement | Encode rules in tooling | `pnpm run check` + `vp run check` |
 | Unix rules | 17 rules — modularity, composition, silence, repair, representation | Extension patterns |
 | Prototype first | Build → evaluate → cut | `.graveyard/` |
 | Code is truth | Docs orient, code defines | Invariant 6 in ARCHITECTURE |

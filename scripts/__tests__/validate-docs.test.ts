@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vite-plus/test";
 
 let tmp_dir: string;
 let test_dir: string;
@@ -37,7 +37,7 @@ async function write_valid_repo_fixture(repo_dir: string): Promise<void> {
 	await writeFile(path.join(repo_dir, "CONTEXT.md"), "# Context\n");
 	await writeFile(
 		path.join(repo_dir, "package.json"),
-		JSON.stringify({ name: "fixture", scripts: { check: "bun run check:docs" } }),
+		JSON.stringify({ name: "fixture", scripts: { check: "pnpm run check:docs" } }),
 	);
 
 	await writeFile(path.join(repo_dir, "docs", "README.md"), "# Docs\n");

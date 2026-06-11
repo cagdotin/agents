@@ -46,7 +46,7 @@ Read nearby implementation and tests before introducing new patterns.
 3. **Shared utilities over hand-rolled helpers** — extract common logic; don't duplicate across extensions.
 4. **Every extension gets a README** — behavior, triggers, setup. No undocumented extensions.
 5. **Repo is the system of record** — if it's not committed, it doesn't exist for agents. No chat-only decisions.
-6. **Mechanical enforcement over convention memory** — if a rule matters, encode it in `bun run check`.
+6. **Mechanical enforcement over convention memory** — if a rule matters, encode it in `pnpm run check` and make it reachable through the Vite+ workflow.
 7. **Agent-legible error messages** — validation failures must say what's wrong, why it matters, and how to fix it.
 8. **Complex work requires planning artifacts** — for genuinely complex, multi-session, or architecture-shaping work, create both a spec (`docs/specs/`) and an execution plan (`docs/exec-plans/active/`) unless the user explicitly waives them.
 
@@ -56,9 +56,11 @@ See `docs/coding-conventions.md`.
 
 ## Package manager
 
-- **Always use Bun in this repository.**
-- Use `bun install`, `bun run <script>`, and `bunx <tool>`.
-- Do not use `npm`, `npx`, `yarn`, or `pnpm`.
+- **Use pnpm in this repository.**
+- Use `pnpm install` for dependency installation and `pnpm run <script>` for repo-defined scripts.
+- Prefer `vp run <script>` when you want to invoke repo-defined tasks through the Vite+ command surface.
+- Use `vp test` for the built-in Vite+ Vitest loop.
+- Use `pnpm exec <tool>` when you need a package-local binary that is not exposed through Vite+.
 
 ## Git rules
 

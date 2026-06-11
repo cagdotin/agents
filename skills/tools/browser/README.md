@@ -23,7 +23,7 @@ Fetch, read, and interact with web pages using two complementary tools:
 ## Setup
 
 ```bash
-cd skills/tools/browser && bun install
+cd skills/tools/browser && pnpm install
 ```
 
 This installs:

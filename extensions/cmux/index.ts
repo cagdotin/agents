@@ -14,7 +14,7 @@
  */
 
 import path from "node:path";
-import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { register_conditional_feature } from "../../lib/extension-runtime/conditional-feature.js";
 import { has_cmux_cli, is_cmux } from "./detect.js";
 import { register_notify } from "./notify.js";

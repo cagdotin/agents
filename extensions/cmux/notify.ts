@@ -14,7 +14,7 @@
 
 import { exec } from "node:child_process";
 import { existsSync } from "node:fs";
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { cmux, cmux_json, escape_shell } from "./shared.js";
 
 /**

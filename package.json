@@ -1,15 +1,18 @@
 {
 	"name": "@cagdotin/agents",
 	"scripts": {
-		"check": "bun run check:biome && bun run check:docs && bun run check:boundaries && bun run test",
+		"check": "pnpm run check:biome && pnpm run check:docs && pnpm run check:boundaries && pnpm run test",
 		"check:biome": "biome check .",
-		"check:docs": "bun run scripts/validate-docs.ts",
-		"check:boundaries": "bun run scripts/validate-boundaries.ts",
-		"test": "vitest run",
-		"test:watch": "vitest",
-		"test:coverage": "vitest run --coverage",
+		"check:docs": "tsx scripts/validate-docs.ts",
+		"check:boundaries": "tsx scripts/validate-boundaries.ts",
+		"test": "vp test run",
+		"build": "node -e \"console.log('No build step: Pi loads TypeScript directly from source.')\"",
+		"pack": "node -e \"console.log('No pack step: this Pi package ships source TypeScript, skills, and docs directly.')\"",
+		"test:watch": "vp test",
+		"test:coverage": "vp test run --coverage",
 		"hooks:install": "lefthook install",
-		"prepare": "lefthook install",
+		"sync:claude-skills": "bash scripts/link-claude-skills.sh",
+		"lint": "biome check .",
 		"fix": "biome check --write .",
 		"format": "biome format --write ."
 	},
@@ -39,18 +42,25 @@
 		]
 	},
 	"peerDependencies": {
-		"@mariozechner/pi-coding-agent": "^0.67.1",
-		"@mariozechner/pi-ai": "^0.67.1",
-		"@mariozechner/pi-tui": "^0.67.1"
+		"@earendil-works/pi-ai": "*",
+		"@earendil-works/pi-coding-agent": "*",
+		"@earendil-works/pi-tui": "*",
+		"typebox": "*"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.4.6",
-		"@types/node": "^25.2.3",
+		"@types/node": "^25.8.0",
 		"@vitest/coverage-v8": "4.0.18",
-		"lefthook": "^2.1.2",
-		"vitest": "^4.0.18"
+		"lefthook": "^2.1.6",
+		"tsx": "^4.22.0",
+		"typebox": "^1.1.38",
+		"vite-plus": "catalog:",
+		"vitest": "catalog:",
+		"yaml": "^2.9.0"
 	},
 	"dependencies": {
-		"zod": "^4.3.6"
-	}
+		"youtube-transcript-plus": "^2.0.0",
+		"zod": "^4.4.3"
+	},
+	"packageManager": "pnpm@11.1.2"
 }

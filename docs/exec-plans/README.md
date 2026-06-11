@@ -33,8 +33,8 @@ Do not use one for:
 
 ## Current active plans
 
-- [[docs/exec-plans/active/2026-03-12-tracks-extension-workstream-lifecycle-v2]] — milestone 2: workstream lifecycle semantics, richer deterministic summaries, and runtime-state formatter hygiene
 - [[docs/exec-plans/active/2026-04-30-context-adr-methodology-adoption]] — roadmap for adopting Context/ADR-oriented support skills across repos
+- [[docs/exec-plans/active/2026-05-17-vite-plus-and-pnpm-migration]] — migrate the repo from Bun-first workflow to pnpm + Vite+ and upgrade global pnpm
 
 ## Archiving
 

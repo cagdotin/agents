@@ -1,10 +1,10 @@
 # Shared Test Mocks
 
-This directory contains mock implementations of Pi peer dependencies (`@mariozechner/pi-coding-agent`, `@mariozechner/pi-tui`, `@mariozechner/pi-ai`) used by Vitest for unit testing.
+This directory contains mock implementations of Pi peer dependencies (`@earendil-works/pi-coding-agent`, `@earendil-works/pi-tui`, `@earendil-works/pi-ai`) used by Vitest for unit testing.
 
 ## How It Works
 
-The `vitest.config.ts` at the repository root aliases all `@mariozechner/*` imports to these mock files at the module resolution level. This means test files import from the real package paths, but Vitest resolves them to these lightweight stubs.
+The `vitest.config.ts` at the repository root aliases all `@earendil-works/*` imports to these mock files at the module resolution level. This means test files import from the real package paths, but Vitest resolves them to these lightweight stubs.
 
 ## Files
 

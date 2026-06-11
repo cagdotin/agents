@@ -10,10 +10,12 @@ This file gives the testing model for this repository. Keep it focused on repo-s
 ## Quick reference
 
 ```bash
-bun run test          # Run all tests once
-bun run test:watch    # Re-run on file changes
-bun run test:coverage # Coverage report for inspection
-bun run check         # Full quality gate
+pnpm run test          # Run all tests once
+pnpm run test:watch    # Re-run on file changes
+pnpm run test:coverage # Coverage report for inspection
+pnpm run check         # Full repo quality gate
+vp run check           # Run the repo-defined full gate through Vite+
+vp test                # Vite+ watch-mode test loop
 ```
 
 Tests are part of the Lefthook pre-commit gate alongside lint, docs validation, and boundary checks.
@@ -22,11 +24,11 @@ Tests are part of the Lefthook pre-commit gate alongside lint, docs validation, 
 
 ## Test runner
 
-Tests use **Vitest** via Bun. Configuration lives in `vitest.config.ts`.
+Tests use **Vitest through Vite+**. Canonical test configuration lives in `vite.config.ts`.
 
 The important repo-specific behavior is:
 - global test APIs are enabled
-- `@mariozechner/*` peer dependencies are redirected to shared mocks
+- `@earendil-works/*` peer dependencies are redirected to shared mocks
 - test file discovery is configured centrally
 
 ---
@@ -49,7 +51,7 @@ For file I/O tests, use `os.tmpdir()` and isolate each test or suite so tests do
 
 ### Shared mocks
 
-Shared mocks for `@mariozechner/*` packages live in `extensions/__mocks__/` and are wired in through Vitest aliases. Tests should use those mocks instead of trying to reach the real Pi runtime.
+Shared mocks for `@earendil-works/*` packages live in `extensions/__mocks__/` and are wired in through Vitest aliases. Tests should use those mocks instead of trying to reach the real Pi runtime.
 
 Keep mocks minimal. Add only the exports that tests actually need.
 
@@ -110,7 +112,7 @@ When adding tests:
 2. Put the test next to the code it covers.
 3. Reuse the shared mocks for Pi imports.
 4. If a mock is missing an export, add the smallest possible version to `extensions/__mocks__/`.
-5. Run `bun run test`.
+5. Run `pnpm run test`.
 
 If you are unsure about style, follow a nearby test file in the same extension.
 
@@ -118,6 +120,6 @@ If you are unsure about style, follow a nearby test file in the same extension.
 
 ## Coverage
 
-Coverage is available through `bun run test:coverage`, but it is a diagnostic tool, not a hard gate.
+Coverage is available through `pnpm run test:coverage`, but it is a diagnostic tool, not a hard gate.
 
 If testing follow-up work is needed, track it in GitHub or attach it to a spec/exec plan when the work is genuinely complex.

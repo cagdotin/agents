@@ -117,7 +117,7 @@ function resolve_cross_extension_import(
 	all_extensions: string[],
 ): string | null {
 	// Only relative imports can cross extension boundaries
-	// (package imports like "@mariozechner/pi-coding-agent" are fine)
+	// (package imports like "@earendil-works/pi-coding-agent" are fine)
 	if (!import_specifier.startsWith(".")) {
 		return null;
 	}

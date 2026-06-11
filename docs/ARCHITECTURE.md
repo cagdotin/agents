@@ -41,7 +41,7 @@ Support docs organized by memory type:
 
 ### `scripts/`
 
-Validation and automation run through `bun run`.
+Validation and automation run through `pnpm run` and the Vite+ command surface.
 
 ### `.graveyard/`
 
@@ -49,12 +49,11 @@ Retired extensions and modules kept only as rebuild specs and reference summarie
 
 ### `.pi/`
 
-Runtime state managed by extensions, not source code. Notably:
-- `.pi/tracks/`
+Runtime state managed by extensions, not source code.
 
 ## Boundaries
 
-- **Source vs runtime:** `extensions/`, `skills/`, `lib/`, and `docs/` are source. `.pi/` is generated runtime state.
+- **Source vs runtime:** `extensions/`, `skills/`, `lib/`, and `docs/` are source. `.pi/` is generated runtime state and should not be treated as package source.
 - **Extensions vs skills:** extensions execute at runtime; skills are static guidance loaded on demand.
 - **Shared vs owned references:** top-level `docs/references/` is only for repo-wide references. References with a natural owner belong next to that module, skill, or extension.
 - **Backlog vs planning artifacts:** GitHub issues are the backlog. `docs/specs/` and `docs/exec-plans/` are reserved for genuinely complex, multi-session, or architecture-shaping work.
@@ -63,7 +62,7 @@ Runtime state managed by extensions, not source code. Notably:
 
 1. **AGENTS.md is a map, not an encyclopedia.**
 2. **No cross-extension runtime dependencies.** Extract shared utilities only when the need is clearly repeated.
-3. **Bun only.** Use `bun`, `bun run`, and `bunx` throughout code and docs.
+3. **pnpm + Vite+ workflow.** Use `pnpm` for package management and `vp` for the standard toolchain commands throughout code and docs.
 4. **No build step for extensions.** Pi loads TypeScript directly.
 5. **Every extension has a README.**
 6. **Important decisions must live in repo files.** Domain language belongs in `CONTEXT.md`; durable trade-offs belong in ADRs.

@@ -24,8 +24,9 @@ Allowed convention-driven exceptions include:
 
 ## Tooling language
 
-- Use **Bun** commands in examples and instructions: `bun`, `bun run`, `bunx`
-- Do not document `npm`, `npx`, `yarn`, `pnpm`, or other package-manager alternatives in this repo
+- Use **pnpm** commands for package-manager actions in examples and instructions: `pnpm install`, `pnpm run`, `pnpm exec`
+- Use **Vite+** commands when invoking repo tasks or the built-in test runner: `vp run <script>`, `vp test`
+- Do not document Bun as the primary package-manager workflow in this repo
 
 ## Notes
 
